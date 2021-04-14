@@ -1,0 +1,300 @@
+[
+  {
+    "model": "app.airbnblisting",
+    "pk": 1,
+    "fields": {
+      "listing_id": 30729869,
+      "geom_3857": "SRID=3857;POINT (-357383.4328274493 7548482.419379142)",
+      "timestamp": "2020-02-06T14:01:50.850+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 2,
+    "fields": {
+      "listing_id": 30728379,
+      "geom_3857": "SRID=3857;POINT (-357364.5085140145 7548434.703944063)",
+      "timestamp": "2020-02-06T14:01:50.876+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 3,
+    "fields": {
+      "listing_id": 40281269,
+      "geom_3857": "SRID=3857;POINT (-357340.0182260399 7548440.668357272)",
+      "timestamp": "2020-02-06T14:01:50.898+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 4,
+    "fields": {
+      "listing_id": 40197612,
+      "geom_3857": "SRID=3857;POINT (-357150.7750916914 7548392.953180977)",
+      "timestamp": "2020-02-06T14:01:50.917+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 5,
+    "fields": {
+      "listing_id": 1559053,
+      "geom_3857": "SRID=3857;POINT (-357225.3591505229 7548546.040419328)",
+      "timestamp": "2020-02-06T14:01:50.939+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 6,
+    "fields": {
+      "listing_id": 19756778,
+      "geom_3857": "SRID=3857;POINT (-357341.2427404387 7548343.448998175)",
+      "timestamp": "2020-02-06T14:01:50.960+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 7,
+    "fields": {
+      "listing_id": 24770827,
+      "geom_3857": "SRID=3857;POINT (-357269.8869468402 7548605.685622054)",
+      "timestamp": "2020-02-06T14:01:50.989+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 8,
+    "fields": {
+      "listing_id": 10944167,
+      "geom_3857": "SRID=3857;POINT (-357256.528607945 7548504.289052405)",
+      "timestamp": "2020-02-06T14:01:51.008+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 9,
+    "fields": {
+      "listing_id": 22940013,
+      "geom_3857": "SRID=3857;POINT (-357417.9418695953 7548583.815660728)",
+      "timestamp": "2020-02-06T14:01:51.031+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 10,
+    "fields": {
+      "listing_id": 20316052,
+      "geom_3857": "SRID=3857;POINT (-357328.9975964514 7548416.413105696)",
+      "timestamp": "2020-02-06T14:01:51.050+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 11,
+    "fields": {
+      "listing_id": 30730053,
+      "geom_3857": "SRID=3857;POINT (-357394.5647765287 7548599.721080987)",
+      "timestamp": "2020-02-06T14:01:51.072+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 12,
+    "fields": {
+      "listing_id": 21905763,
+      "geom_3857": "SRID=3857;POINT (-357381.2064376335 7548315.416650292)",
+      "timestamp": "2020-02-06T14:01:51.092+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 13,
+    "fields": {
+      "listing_id": 21810839,
+      "geom_3857": "SRID=3857;POINT (-357257.6418028529 7548424.763265643)",
+      "timestamp": "2020-02-06T14:01:51.114+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 14,
+    "fields": {
+      "listing_id": 18868639,
+      "geom_3857": "SRID=3857;POINT (-357325.6580117276 7548555.185987088)",
+      "timestamp": "2020-02-06T14:01:51.134+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 15,
+    "fields": {
+      "listing_id": 12266122,
+      "geom_3857": "SRID=3857;POINT (-357163.0202356786 7548454.585339402)",
+      "timestamp": "2020-02-06T14:01:51.156+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 16,
+    "fields": {
+      "listing_id": 15072167,
+      "geom_3857": "SRID=3857;POINT (-357259.8681926688 7548381.024433119)",
+      "timestamp": "2020-02-06T14:01:51.184+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 17,
+    "fields": {
+      "listing_id": 13728554,
+      "geom_3857": "SRID=3857;POINT (-357121.8320240852 7548456.573481757)",
+      "timestamp": "2020-02-06T14:01:51.232+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 18,
+    "fields": {
+      "listing_id": 12267397,
+      "geom_3857": "SRID=3857;POINT (-357264.3209723006 7548601.709260828)",
+      "timestamp": "2020-02-06T14:01:51.259+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 19,
+    "fields": {
+      "listing_id": 12280025,
+      "geom_3857": "SRID=3857;POINT (-357219.7931759832 7548484.407528693)",
+      "timestamp": "2020-02-06T14:01:51.281+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.airbnblisting",
+    "pk": 20,
+    "fields": {
+      "listing_id": 35274748,
+      "geom_3857": "SRID=3857;POINT (-357417.9418695953 7548504.289052405)",
+      "timestamp": "2020-02-06T14:01:51.300+00:00",
+      "listing_updated_at": null,
+      "reviews_updated_at": null,
+      "calendar_updated_at": null,
+      "booking_quote_updated_at": null,
+      "notes": {}
+    }
+  },
+  {
+    "model": "app.ubdcgrid",
+    "pk": 14,
+    "fields": {
+      "geom_3857": "SRID=3857;POLYGON ((-357419.5442614842 7548309.417217727, -357419.5442614842 7548615.165330865, -357113.7961483435 7548615.165330865, -357113.7961483435 7548309.417217727, -357419.5442614842 7548309.417217727))",
+      "quadkey": "03113323321103333",
+      "tile_x": 64367,
+      "tile_y": 40847,
+      "tile_z": 17,
+      "x_distance_m": 305.748113140697,
+      "y_distance_m": 305.748113138601,
+      "bbox_ll_ur": "-357419.5442614842,7548309.417217727,-357113.7961483435,7548615.165330865",
+      "area": 93481.9086884556,
+      "timestamp": "2020-02-06T14:01:49.463+00:00",
+      "datetime_last_estimated_listings_scan": "2020-02-06T14:01:49.463+00:00",
+      "estimated_listings": 20
+    }
+  }
+]

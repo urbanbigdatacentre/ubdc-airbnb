@@ -1,0 +1,5 @@
+venv
+**/*.whl
+docker
+*.ps1
+**/*.zip

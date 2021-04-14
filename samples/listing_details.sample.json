@@ -1,0 +1,710 @@
+{
+  "metadata": {},
+  "pdp_listing_detail": {
+    "id": 4487641,
+    "lat": 52.28909,
+    "lng": -6.95914,
+    "city": "New Ross",
+    "state": "Co Wexford",
+    "id_str": "4487641",
+    "photos": [
+      {
+        "id": 33865340,
+        "large": "https://a0.muscache.com/im/pictures/56355477/4f40ce5e_original.jpg?aki_policy=large",
+        "caption": "Unique Country House in a tranquil garden setting",
+        "scrim_color": "#1C271F",
+        "aspect_ratio": 1.3333333333333333,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAECAIAAADJUWIXAAAASUlEQVQIHWMMWf1eVJSHjYORhenv57cfGGMKmwTZWTSVxdgZ/7IzMzD6BJkpi8mKi0hLyUpwsbMxqprKcXJyf/38h42R6fun7wAU9REfV6e1DAAAAABJRU5ErkJggg=="
+      },
+      {
+        "id": 33865341,
+        "large": "https://a0.muscache.com/im/pictures/56355858/f0d72656_original.jpg?aki_policy=large",
+        "caption": "Private rural home at the end of a long driveway",
+        "scrim_color": "#282E2C",
+        "aspect_ratio": 1.3333333333333333,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAECAIAAADJUWIXAAAASUlEQVQIHWMMSSoWVdMyd7D9xMTxiE2asaIog5ubT5CHQ1tD8cGX/4zhoSZM7FKq4qI83NwXbt1h1DeWZWGVkhIXfP7uw/v3bwAc5ROXwKGJHgAAAABJRU5ErkJggg=="
+      },
+      {
+        "id": 973593710,
+        "large": "https://a0.muscache.com/im/pictures/f50eaf2b-ea3f-41a2-b009-4fa2b680eaaa.jpg?aki_policy=large",
+        "caption": "",
+        "scrim_color": "#1D1C21",
+        "aspect_ratio": 1.3333333333333333,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAECAIAAADJUWIXAAAAS0lEQVQIHQFAAL//Ac/LvszHweHUzA8KA+vo6QFzd3wD//sJ+uoFA/4VC/sBPjc9LxoPAw0P8P397gAFAWllYxvt6hsjIxILEdwYIP2dG0eoP8ulAAAAAElFTkSuQmCC"
+      },
+      {
+        "id": 973593661,
+        "large": "https://a0.muscache.com/im/pictures/d6b68ee1-f429-4875-a977-8ae8f421caec.jpg?aki_policy=large",
+        "caption": "",
+        "scrim_color": "#27201A",
+        "aspect_ratio": 1.3333333333333333,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAECAIAAADJUWIXAAAAS0lEQVQIHQFAAL//Acqtgunk4wkRDQoOCQ0J9QGsnYbo3NYYFwkZExENFfgBMDAtEgb+JSMfLzk59uTSAWhWRxkTFw0OEgECAr+9tuFxFPxxLXBJAAAAAElFTkSuQmCC"
+      },
+      {
+        "id": 450969192,
+        "large": "https://a0.muscache.com/im/pictures/34923500-949f-45a7-ac34-13de7268a5f9.jpg?aki_policy=large",
+        "caption": "View from rear",
+        "scrim_color": "#1B2019",
+        "aspect_ratio": 1.7777777777777777,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAADCAIAAADUVFKvAAAAO0lEQVQIHQEwAM//AX2esxMgKgUOFPjz9uvf2AFiZ1EGCwz9/gzr5uzj5NoBdnpS9ff17/Px/P0EFhIcPzEZrGnic7YAAAAASUVORK5CYII="
+      },
+      {
+        "id": 33865343,
+        "large": "https://a0.muscache.com/im/pictures/56356133/263dc52c_original.jpg?aki_policy=large",
+        "caption": "Dining room",
+        "scrim_color": "#3E1F25",
+        "aspect_ratio": 1.3333333333333333,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAECAIAAADJUWIXAAAAS0lEQVQIHQFAAL//AVExOzRVWgoIBe/t7Ovr6gFZKjI8VFpKTEGVfnQF7/EBXC0zGzQ0QUI8ppSKF/0IAUYyOxwtMQYGDM/DtR4EA/FFFbUPdmE+AAAAAElFTkSuQmCC"
+      },
+      {
+        "id": 33865342,
+        "large": "https://a0.muscache.com/im/pictures/56355982/8c911bab_original.jpg?aki_policy=large",
+        "caption": "Irish country kitchen with large utility room",
+        "scrim_color": "#63493B",
+        "aspect_ratio": 1.3333333333333333,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAECAIAAADJUWIXAAAAS0lEQVQIHQFAAL//AXNsbw4JBAQB+wEFCgYOGgG/xtHOtqTk29QqOEY3SVIBnrHF5MKk9eniKzdC9xknAXN3hR8D5OHTyBYtQxotPhbbGiwLfdHsAAAAAElFTkSuQmCC"
+      },
+      {
+        "id": 450969157,
+        "large": "https://a0.muscache.com/im/pictures/831bc7ce-a56a-4fc0-97ca-092206b643a0.jpg?aki_policy=large",
+        "caption": "House in Summer",
+        "scrim_color": "#142012",
+        "aspect_ratio": 1.7777777777777777,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAADCAIAAADUVFKvAAAAOUlEQVQIHWOsX7iFV0iCSVBEWECAjZWLMSzOnpmL/ffff3JywsL80oyhsZaHT9y2sdM30VW//uA4ABK2DgeljKYDAAAAAElFTkSuQmCC"
+      },
+      {
+        "id": 733187244,
+        "large": "https://a0.muscache.com/im/pictures/2868a658-0b1c-4d9f-88c2-b72039917e7d.jpg?aki_policy=large",
+        "caption": "",
+        "scrim_color": "#17181A",
+        "aspect_ratio": 1.3333333333333333,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAECAIAAADJUWIXAAAAS0lEQVQIHQFAAL//AZ6akQoMDfj5+N/g4dTW2AGxrqj4+PXPys7m6+zp8PMBlIR5EAL66gofsLSw7ezuAWllYdrMxvL0+uH0+zpASDX+KXDc70WlAAAAAElFTkSuQmCC"
+      },
+      {
+        "id": 33865346,
+        "large": "https://a0.muscache.com/im/pictures/56356482/42846084_original.jpg?aki_policy=large",
+        "caption": "5 bedrooms with garden views",
+        "scrim_color": "#432523",
+        "aspect_ratio": 1.3333333333333333,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAECAIAAADJUWIXAAAAS0lEQVQIHQFAAL//AauVbwkNDPP0+P4ACO/w+wF/aElJTVHb2tjv8foABxMBUCkmDSQk/uflRUZYDywxAUgrLw4IBuLz8mJxfObf2q1GHK2vtgJQAAAAAElFTkSuQmCC"
+      },
+      {
+        "id": 450969227,
+        "large": "https://a0.muscache.com/im/pictures/e0774d39-9adc-4c34-8dde-64075747008a.jpg?aki_policy=large",
+        "caption": "Rear",
+        "scrim_color": "#4C4C4A",
+        "aspect_ratio": 1.7777777777777777,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAADCAIAAADUVFKvAAAAO0lEQVQIHQEwAM//Ac/Ox+fq9/n58tzf3Pr4+gGAgHPk6+37/P8kHiHk4+QBXFxUCQsOGRYg8fDr7PDqN78e2YG2BngAAAAASUVORK5CYII="
+      },
+      {
+        "id": 733187463,
+        "large": "https://a0.muscache.com/im/pictures/014983dd-67f6-4f74-adec-4b125d97e614.jpg?aki_policy=large",
+        "caption": "",
+        "scrim_color": "#1E1C1F",
+        "aspect_ratio": 1.3333333333333333,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAECAIAAADJUWIXAAAAS0lEQVQIHQFAAL//AcC7sN3e3tTV1hQWFvHu7gF0ZV8PDA34CQYxMTOdi4IBmpiY4ePfx8rIKSgx59/aAauXkJenru30+1NYXezu7zxSI05jbjvqAAAAAElFTkSuQmCC"
+      },
+      {
+        "id": 973593484,
+        "large": "https://a0.muscache.com/im/pictures/70212113-36ad-4a2d-ac92-05a8deaf4a16.jpg?aki_policy=large",
+        "caption": "",
+        "scrim_color": "#192019",
+        "aspect_ratio": 1.3333333333333333,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAECAIAAADJUWIXAAAAS0lEQVQIHQFAAL//AcTT3KuSdBEIAvH1+BkhIgHc6fOIf3AY/+4JI0AZEwcBpKSocdyyAezuJOX7OB4nAY+IiJLUuh0IDxcDDTAUGs3UGxQCWhjcAAAAAElFTkSuQmCC"
+      },
+      {
+        "id": 973593570,
+        "large": "https://a0.muscache.com/im/pictures/fa7333a6-4834-42a6-a13d-1884395a562a.jpg?aki_policy=large",
+        "caption": "",
+        "scrim_color": "#37201A",
+        "aspect_ratio": 0.75,
+        "is_professional": false,
+        "picture_orientation": "PORTRAIT",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAFCAIAAADtz9qMAAAATElEQVQIHQFBAL7/AZKaoe3n4xceIxMSEgGlrbbU0cwcHyL/+/gBs7vBq6imHR0dJiIhAZ+VlZ+TjQUSEkJDQgGViYirmpL8CQlRV1XG2RvJxeLvfgAAAABJRU5ErkJggg=="
+      },
+      {
+        "id": 33865345,
+        "large": "https://a0.muscache.com/im/pictures/56356344/96fb2144_original.jpg?aki_policy=large",
+        "caption": "3 double bedrooms plus 2 twin rooms",
+        "scrim_color": "#39312F",
+        "aspect_ratio": 1.3333333333333333,
+        "is_professional": false,
+        "picture_orientation": "LANDSCAPE",
+        "preview_encoded_png": "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAECAIAAADJUWIXAAAAS0lEQVQIHQFAAL//AYyQjBYUFAwJBvn49N7e3wGHj4oUEhMPCwb49vXa1NQBTVhaK0ha+vv6/OHRy73AAWttbk5sggP2+Pno3Mm/sMx0If08gGgHAAAAAElFTkSuQmCC"
+      }
+    ],
+    "country": "Ireland",
+    "tier_id": 0,
+    "is_hotel": false,
+    "metadata": {},
+    "sections": [],
+    "bed_label": "7 beds",
+    "highlights": [
+      {
+        "icon": "accomodation_home",
+        "type": "LISTING_ENTIRE_HOME_PROPERTY_TYPE",
+        "message": "You’ll have the house to yourself.",
+        "headline": "Entire home",
+        "position": "0"
+      },
+      {
+        "type": "LISTING_ENHANCED_CLEANING",
+        "message": "This host committed to Airbnb's 5-step enhanced cleaning process.",
+        "headline": "Enhanced Clean",
+        "position": "1"
+      },
+      {
+        "type": "LISTING_HOUSE_RULE_HIGHLIGHT",
+        "message": "The host doesn’t allow parties or smoking.",
+        "headline": "House rules",
+        "position": "2"
+      }
+    ],
+    "host_quote": "",
+    "max_nights": 1125,
+    "min_nights": 4,
+    "guest_label": "8 guests",
+    "hero_module": {
+      "categorized_photos": []
+    },
+    "star_rating": 5.0,
+    "country_code": "IE",
+    "preview_tags": [],
+    "primary_host": {
+      "id": 23282524,
+      "name": "John",
+      "about": "Originally from Co Wexford but based in Essex, my wife, Eileen and I spend our family holidays in Hill House. We have 4 children, and generally use the house during school holiday time. We like to know that others can enjoy the house and it is not lying empty when we are not there. We have an excellent care-taking team in Susan, Mary, John and Kathleen. They have acted as hosts to extended families and groups of friends from the US, Canada, and many European countries.",
+      "badges": [
+        {
+          "id": "reviews",
+          "link": "/users/show/23282524#reviews",
+          "count": 11,
+          "label": "11 Reviews"
+        }
+      ],
+      "languages": [
+        "English",
+        "Français",
+        "Español"
+      ],
+      "first_name": "John",
+      "picture_url": "https://a0.muscache.com/im/users/23282524/profile_pic/1415033531/original.jpg?aki_policy=profile_x_medium",
+      "is_superhost": false,
+      "host_intro_tags": [
+        "11 reviews"
+      ],
+      "picture_large_url": "https://a0.muscache.com/im/users/23282524/profile_pic/1415033531/original.jpg?aki_policy=profile_large",
+      "has_inclusion_badge": false,
+      "member_since_full_str": "Joined in November 2014",
+      "response_rate_without_na": "100%",
+      "response_time_without_na": "within a day"
+    },
+    "bedroom_label": "5 bedrooms",
+    "listing_rooms": [],
+    "price_details": [
+      {
+        "label": "Extra people",
+        "value": "£17 per night after 5 guests",
+        "attribute_type": "EXTRA_PEOPLE"
+      }
+    ],
+    "reviews_order": "language_country",
+    "bathroom_label": "2.5 baths",
+    "guest_controls": {
+      "allows_pets": true,
+      "allows_events": false,
+      "allows_infants": true,
+      "allows_smoking": false,
+      "allows_children": true,
+      "person_capacity": 8,
+      "allows_non_china_users": true,
+      "structured_house_rules": [
+        "No smoking",
+        "No parties or events",
+        "Pets are allowed"
+      ],
+      "structured_house_rules_with_tips": [
+        {
+          "key": "is_smoking_allowed_as_host",
+          "text": "No smoking",
+          "airmoji_key": "house_rules_no_smoking"
+        },
+        {
+          "key": "are_events_allowed_as_host",
+          "text": "No parties or events",
+          "airmoji_key": "house_rules_no_party"
+        },
+        {
+          "key": "pets_allowed_as_host",
+          "text": "Pets are allowed",
+          "airmoji_key": "house_rules_yes_pets"
+        }
+      ]
+    },
+    "hometour_rooms": [],
+    "host_guidebook": {
+      "id": 491619,
+      "title": "Guidebook for New Ross",
+      "guidebook_url": "/s/guidebooks?refinement_paths[]=/guidebooks/491619",
+      "localized_name_for_homes_pdp": "Show guidebook"
+    },
+    "is_new_listing": false,
+    "localized_city": "New Ross",
+    "location_title": "New Ross, Co Wexford, Ireland",
+    "page_view_type": "DEFAULT",
+    "render_tier_id": 0,
+    "reviews_module": {
+      "appreciation_tags": [],
+      "localized_overall_rating": "4.73"
+    },
+    "sorted_reviews": [],
+    "has_house_rules": true,
+    "show_review_tag": false,
+    "additional_hosts": [],
+    "p3_impression_id": "6b512ac9-1e01-9a31-12f5-f1feffc2f707",
+    "p3_summary_title": "Irish country house",
+    "education_modules": {},
+    "has_special_offer": false,
+    "hometour_sections": [],
+    "listing_amenities": [
+      {
+        "id": 9,
+        "name": "Free parking on premises",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 4,
+        "name": "Wifi",
+        "is_present": true,
+        "description": "Available throughout the listing"
+      },
+      {
+        "id": 8,
+        "name": "Kitchen",
+        "is_present": true,
+        "description": "Space where guests can cook their own meals"
+      },
+      {
+        "id": 5,
+        "name": "Air conditioning",
+        "is_present": false,
+        "description": ""
+      },
+      {
+        "id": 2,
+        "name": "Cable TV",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 27,
+        "name": "Indoor fireplace",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 45,
+        "name": "Hair dryer",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 1,
+        "name": "TV",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 30,
+        "name": "Heating",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 77,
+        "name": "Hot water",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 41,
+        "name": "Shampoo",
+        "is_present": false,
+        "description": ""
+      },
+      {
+        "id": 40,
+        "name": "Essentials",
+        "is_present": true,
+        "description": "Towels, bed sheets, soap, and toilet paper"
+      },
+      {
+        "id": 34,
+        "name": "Dryer",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 44,
+        "name": "Hangers",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 46,
+        "name": "Iron",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 33,
+        "name": "Washer",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 36,
+        "name": "Carbon monoxide alarm",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 39,
+        "name": "Fire extinguisher",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 35,
+        "name": "Smoke alarm",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 47,
+        "name": "Dedicated workspace",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 90,
+        "name": "Coffee maker",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 94,
+        "name": "Cooking basics",
+        "is_present": true,
+        "description": "Pots and pans, oil, salt and pepper"
+      },
+      {
+        "id": 93,
+        "name": "Dishes and silverware",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 92,
+        "name": "Dishwasher",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 89,
+        "name": "Microwave",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 95,
+        "name": "Oven",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 91,
+        "name": "Refrigerator",
+        "is_present": true,
+        "description": ""
+      },
+      {
+        "id": 57,
+        "name": "Private entrance",
+        "is_present": false,
+        "description": ""
+      },
+      {
+        "id": 101,
+        "name": "Backyard",
+        "is_present": true,
+        "description": "An open space on the property usually covered in grass"
+      }
+    ],
+    "description_locale": "en",
+    "has_host_guidebook": false,
+    "house_rules_module": {
+      "additional_rules": "We expect our guests to treat the house as \nif it belonged to a very dear and respected friend.",
+      "structured_rules": [
+        {
+          "key": "is_smoking_allowed_as_host",
+          "text": "No smoking",
+          "airmoji_key": "house_rules_no_smoking"
+        },
+        {
+          "key": "are_events_allowed_as_host",
+          "text": "No parties or events",
+          "airmoji_key": "house_rules_no_party"
+        },
+        {
+          "key": "pets_allowed_as_host",
+          "text": "Pets are allowed",
+          "airmoji_key": "house_rules_yes_pets"
+        }
+      ],
+      "listing_expectations": [],
+      "localized_listing_expectations": []
+    },
+    "p3_summary_address": "New Ross, Co Wexford, Ireland",
+    "point_of_interests": [],
+    "room_type_category": "entire_home",
+    "availability_module": {},
+    "host_signature_font": {
+      "url": "https://a0.muscache.com/airbnb/static/temp-fonts/HandsomePro-Normal.otf"
+    },
+    "has_we_work_location": false,
+    "listing_expectations": [],
+    "has_local_attractions": false,
+    "property_type_in_city": "",
+    "root_amenity_sections": [
+      {
+        "id": "available_amenities",
+        "title": "Amenities",
+        "subtitle": "",
+        "amenity_ids": [
+          9,
+          4,
+          8,
+          2
+        ]
+      }
+    ],
+    "sectioned_description": {
+      "name": "Irish country house",
+      "notes": "The house is strictly not available for stag/hen or wild weekend parties!",
+      "space": "SPACE makes this space unique. The house is big, the grounds are generous, and all around are fields and trees. It is peaceful, private and comfortable - just what you need for a relaxing holiday.\nThere are 5 large bedrooms, two with twin beds, and 3 doubles (one with a king size bed). Kitchen, utility room and dining room; 2 sitting rooms; one bathroom with wc, tub, and shower cubicle; one shower room with wc; and one separate wc. Central heating, open fire in living room, wood-burner in kitchen. Magnificent gas/electric cooker and every facility needed for cooking for a large family. \nThe large garden is set well back from the road, and is surrounded by picturesque countryside.",
+      "access": "Guests have the whole house and garden to themselves. Caretakers are available at all times.",
+      "locale": "en",
+      "summary": "Hill House, built around 1830, is a spacious gentleman's residence with every facility for family groups to use as a comfortable base for touring Ireland's South East region. Rural setting, open fires plus central heating.",
+      "transit": "A car will be required to get here and to get around as the area is not well served by public transport.",
+      "author_type": "human",
+      "description": "Hill House, built around 1830, is a spacious gentleman's residence with every facility for family groups to use as a comfortable base for touring Ireland's South East region. Rural setting, open fires plus central heating.\n\nSPACE makes this space unique. The house is big, the grounds are generous, and all around are fields and trees. It is peaceful, private and comfortable - just what you need for a relaxing holiday.\nThere are 5 large bedrooms, two with twin beds, and 3 doubles (one with a king size bed). Kitchen, utility room and dining room; 2 sitting rooms; one bathroom with wc, tub, and shower cubicle; one shower room with wc; and one separate wc. Central heating, open fire in living room, wood-burner in kitchen. Magnificent gas/electric cooker and every facility needed for cooking for a large family. \nThe large garden is set well back from the road, and is surrounded by picturesque countryside.\n\nGuests have the whole house and garden to themselves. Caretakers are available at all times.\n\nGuests will be welcomed on arrival, and shown around the house.\n\nCampile village is close by with useful general shops which stay open until 9pm. There are some great restaurants within a ten mile radius, likewise beaches, larger supermarkets and pubs. Co Wexford is a friendly place, and you will find a warm welcome everywhere. Duncannon is the nearest strand - about 12 minutes by car; Campile village is a 3 minute drive and has a good small supermarket which opens 8am until 9pm; New Ross town has 4  large supermarkets, a theatre, banks etc. Also the Dunbrody Heritage Ship and the Ros Tapestry. JF Kennedy Arboretum and Dunbrody Abbey are practically next door. Aldridge lodge near Duncannon boasts Wexford's best chef - pre-booking essential, but several prize-winning local pubs serve excellent food.\n\nA car will be required to get here and to get around as the area is not well served by public transport.\n\nThe house is strictly not available for stag/hen or wild weekend parties!",
+      "house_rules": "We expect our guests to treat the house as \nif it belonged to a very dear and respected friend.",
+      "interaction": "Guests will be welcomed on arrival, and shown around the house.",
+      "neighborhood_overview": "Campile village is close by with useful general shops which stay open until 9pm. There are some great restaurants within a ten mile radius, likewise beaches, larger supermarkets and pubs. Co Wexford is a friendly place, and you will find a warm welcome everywhere. Duncannon is the nearest strand - about 12 minutes by car; Campile village is a 3 minute drive and has a good small supermarket which opens 8am until 9pm; New Ross town has 4  large supermarkets, a theatre, banks etc. Also the Dunbrody Heritage Ship and the Ros Tapestry. JF Kennedy Arboretum and Dunbrody Abbey are practically next door. Aldridge lodge near Duncannon boasts Wexford's best chef - pre-booking essential, but several prize-winning local pubs serve excellent food.",
+      "localized_language_name": "English"
+    },
+    "additional_house_rules": "We expect our guests to treat the house as \nif it belonged to a very dear and respected friend.",
+    "is_hosted_by_superhost": false,
+    "room_and_property_type": "Entire house",
+    "enable_highlights_voting": false,
+    "has_commercial_host_info": false,
+    "highlights_impression_id": "6b512ac9-1e01-9a31-12f5-f1feffc2f707",
+    "is_business_travel_ready": false,
+    "localized_check_out_time": "12:00 PM",
+    "review_details_interface": {
+      "review_count": 11,
+      "review_summary": [
+        {
+          "label": "Accuracy",
+          "value": 9,
+          "percentage": 0.86,
+          "localized_rating": "4.3"
+        },
+        {
+          "label": "Communication",
+          "value": 9,
+          "percentage": 0.9400000000000001,
+          "localized_rating": "4.7"
+        },
+        {
+          "label": "Cleanliness",
+          "value": 9,
+          "percentage": 0.8800000000000001,
+          "localized_rating": "4.4"
+        },
+        {
+          "label": "Location",
+          "value": 10,
+          "percentage": 0.96,
+          "localized_rating": "4.8"
+        },
+        {
+          "label": "Check-in",
+          "value": 9,
+          "percentage": 0.9400000000000001,
+          "localized_rating": "4.7"
+        },
+        {
+          "label": "Value",
+          "value": 10,
+          "percentage": 0.9800000000000001,
+          "localized_rating": "4.9"
+        }
+      ]
+    },
+    "see_all_amenity_sections": [
+      {
+        "id": "pdp_m2_5_bathroom",
+        "title": "Bathroom",
+        "subtitle": "",
+        "amenity_ids": [
+          45,
+          77
+        ]
+      },
+      {
+        "id": "pdp_m2_5_bedroom_laundry",
+        "title": "Bedroom and laundry",
+        "subtitle": "",
+        "amenity_ids": [
+          40,
+          34,
+          44,
+          46,
+          33
+        ]
+      },
+      {
+        "id": "pdp_m2_5_entertainment",
+        "title": "Entertainment",
+        "subtitle": "",
+        "amenity_ids": [
+          2,
+          1
+        ]
+      },
+      {
+        "id": "pdp_m2_5_heating_cooling",
+        "title": "Heating and cooling",
+        "subtitle": "",
+        "amenity_ids": [
+          27,
+          30
+        ]
+      },
+      {
+        "id": "pdp_m2_5_home_safety",
+        "title": "Home safety",
+        "subtitle": "",
+        "amenity_ids": [
+          36,
+          39,
+          35
+        ]
+      },
+      {
+        "id": "pdp_m2_5_internet_office",
+        "title": "Internet and office",
+        "subtitle": "",
+        "amenity_ids": [
+          4,
+          47
+        ]
+      },
+      {
+        "id": "pdp_m2_5_kitchen_dining",
+        "title": "Kitchen and dining",
+        "subtitle": "",
+        "amenity_ids": [
+          8,
+          90,
+          94,
+          93,
+          92,
+          89,
+          95,
+          91
+        ]
+      },
+      {
+        "id": "pdp_m2_5_outdoor",
+        "title": "Outdoor",
+        "subtitle": "",
+        "amenity_ids": [
+          101
+        ]
+      },
+      {
+        "id": "pdp_m2_5_parking_facilities",
+        "title": "Parking and facilities",
+        "subtitle": "",
+        "amenity_ids": [
+          9
+        ]
+      },
+      {
+        "id": "pdp_unavailable",
+        "title": "Not included",
+        "subtitle": "",
+        "amenity_ids": [
+          5,
+          41,
+          57
+        ]
+      }
+    ],
+    "document_display_pictures": [],
+    "see_all_hometour_sections": [],
+    "is_representative_inventory": false,
+    "neighborhood_community_tags": [],
+    "categorized_preview_amenities": [
+      {
+        "category": "Standard",
+        "amenities": "Wifi, Kitchen, Cable TV, Hair dryer, TV, and 17 more"
+      },
+      {
+        "category": "Other highlights",
+        "amenities": "Free parking on premises, Indoor fireplace, Dishwasher, Backyard"
+      }
+    ],
+    "localized_check_in_time_window": "After 3:00 PM",
+    "localized_listing_expectations": [],
+    "china_points_of_interest_matcha": {},
+    "initial_description_author_type": "human",
+    "paid_growth_remarketing_listing_ids": [
+      4487641
+    ],
+    "nearby_airport_distance_descriptions": [],
+    "paid_growth_remarketing_listing_ids_str": [
+      "4487641"
+    ]
+  }
+}

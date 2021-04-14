@@ -1,0 +1,43 @@
+{
+  "user": {
+    "id": 34727734,
+    "work": "",
+    "about": "My wife and I like to travel and explore new places when we can.  We like interesting neighborhoods with lots of places within walking distance.  We live in Atlanta and have 2 children in college.",
+    "trips": 23,
+    "school": "Interlake High School, University of Washington, The Ohio State University",
+    "bookings": 0,
+    "location": "Atlanta, GA",
+    "created_at": "2015-06-01T12:53:48Z",
+    "first_name": "Adam",
+    "picture_url": "https://a0.muscache.com/im/pictures/user/39e1a3bd-ae9d-458f-900a-aca116f05bf3.jpg?aki_policy=profile_x_medium",
+    "friends_count": 0,
+    "response_rate": "N/A",
+    "response_time": "N/A",
+    "thumbnail_url": "https://a0.muscache.com/im/pictures/user/39e1a3bd-ae9d-458f-900a-aca116f05bf3.jpg?aki_policy=profile_small",
+    "verifications": [
+      "email",
+      "phone",
+      "reviews",
+      "jumio",
+      "government_id"
+    ],
+    "listings_count": 1,
+    "reviewee_count": 24,
+    "acceptance_rate": "N/A",
+    "has_profile_pic": true,
+    "identity_verified": true,
+    "picture_url_large": "https://a0.muscache.com/im/pictures/user/39e1a3bd-ae9d-458f-900a-aca116f05bf3.jpg?aki_policy=profile_large",
+    "verification_labels": [
+      "Email address",
+      "Phone number",
+      "Reviewed",
+      "Government ID",
+      "Government ID"
+    ],
+    "recommendation_count": 0,
+    "thumbnail_medium_url": "https://a0.muscache.com/im/pictures/user/39e1a3bd-ae9d-458f-900a-aca116f05bf3.jpg?aki_policy=profile_medium",
+    "total_listings_count": 1,
+    "has_available_payout_info": false
+  },
+  "metadata": {}
+}
