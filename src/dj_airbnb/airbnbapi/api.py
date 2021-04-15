@@ -288,10 +288,6 @@ class Api(object):
                   checkin=None, checkout=None, items_offset=0, items_per_grid=8, metadata_only=False) -> Dict:
         """
         TODO: Update Docstring
-        Search listings with
-            * Query (e.g. query="Lisbon, Portugal") or
-            * Location (e.g. gps_lat=55.6123352&gps_lng=37.7117917)
-            * Check in/check out filters (e.g. checkin=2019-05-15&checkout=2019-05-20)
         """
 
         is_geographic_search = False

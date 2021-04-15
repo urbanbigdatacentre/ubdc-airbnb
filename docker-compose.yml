@@ -29,12 +29,8 @@ services:
       dockerfile: ./docker/airbnb/Dockerfile
     image: ubdc/ubdc_beat
     volumes:
-      - type: bind
-        source: ./src
-        target: /code
-      - type: bind
-        source: ./docker-entrypoint.sh
-        target: /code/docker-entrypoint.sh
+      - "./src/dj_airbnb/:/code/dj_airbnb/"
+      - "./docker-entrypoint.sh:/code/docker-entrypoint.sh"
       - "./requirements.txt:/code/requirements.txt"
     environment:
       DJANGO_DEBUG: "False"
@@ -50,12 +46,8 @@ services:
       dockerfile: ./docker/airbnb/Dockerfile
     image: ubdc/worker
     volumes:
-      - type: bind
-        source: ./src
-        target: /code
-      - type: bind
-        source: ./docker-entrypoint.sh
-        target: /code/docker-entrypoint.sh
+      - "./src/dj_airbnb/:/code/dj_airbnb/"
+      - "./docker-entrypoint.sh:/code/docker-entrypoint.sh"
       - "./requirements.txt:/code/requirements.txt"
     env_file:
       - .env

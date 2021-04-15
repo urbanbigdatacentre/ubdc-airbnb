@@ -4,9 +4,7 @@ CONCURRENCY=${WORKER_CONCURRENCY:-1}
 if
   [ "$MODE" = "worker" ]
 then
-  echo $ENV
   echo "Starting Worker"
-
   celery -A dj_airbnb.celery:app worker -l info --concurrency="$CONCURRENCY"
 elif
   [ "$MODE" = "beat" ]

@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  beat:
+    volumes:
+      - "./src/dj_airbnb:/code/dj_airbnb"
+      - "./docker-entrypoint.sh:/code/docker-entrypoint.sh"
+      - "./requirements.txt:/code/requirements.txt"
+
+  worker:
+    volumes:
+      - "./src/dj_airbnb:/code/dj_airbnb"
+      - "./docker-entrypoint.sh:/code/docker-entrypoint.sh"
+      - "./requirements.txt:/code/requirements.txt"

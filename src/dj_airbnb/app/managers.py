@@ -5,10 +5,8 @@ from typing import List, Union, Optional
 import mercantile
 import requests
 from celery.utils.log import get_task_logger
-from django.contrib.gis.gdal.geometries import Polygon
 from django.contrib.gis.geos.polygon import Polygon as GEOSPolygon
 from django.db import models
-from django.db.models import Value, OuterRef, CharField, Subquery, Count
 from django.utils.timesince import timesince
 from more_itertools import collapse
 from requests import HTTPError
@@ -69,8 +67,10 @@ class AirBnBResponseManager(models.Manager):
             # there are cases where the response is coming back Empty?. I think
             # it's related to crawlera maybe.
             payload = response.json()
-        except JSONDecodeError:
-            logger.info(f'response came back empty: status_code:{response.status_code} response:{response.content}. ')
+        except (JSONDecodeError, AttributeError):
+            logger.info('Error when trying to decode the response payload: \n'
+                        f'\tResponse status_code:{response.status_code} \n'
+                        f'\tResponse Content: {response.content}. ')
             payload = {}
 
         ubdc_task = UBDCTask.objects.filter(task_id=task_id).first()  # returns None if not found
