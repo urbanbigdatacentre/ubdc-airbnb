@@ -18,8 +18,8 @@
 #### Initial Setup
 
 1. install Docker
-1. install minicoda
-1. clone airbnb project `git clone ...`
+1. install miniconda
+1. clone airbnb project `git clone https://github.com/urbanbigdatacentre/ubdc-airbnb`
 1. in the cloned folder edit the .env file. Fill the proxy if needed. The rest should work for now
 1. open miniconda console
 1. navigate in the cloned directory with the console
@@ -98,8 +98,8 @@ After all jobs that the task had generated finish, you can start querying airbnb
    ```
 
    This task will also fetch the user profiles of the users who wrote the review. Listings with many reviews, will
-   generally need almost the same amount of user info request as  the reviews it has. 
+   generally need almost the same amount of user info request as  the reviews it has.
 
-### Scalability 
+### Scalability
 
 If
