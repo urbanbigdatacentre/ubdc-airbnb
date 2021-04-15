@@ -28,10 +28,6 @@ services:
       context: .
       dockerfile: ./docker/airbnb/Dockerfile
     image: ubdc/ubdc_beat
-    volumes:
-      - "./src/dj_airbnb/:/code/dj_airbnb/"
-      - "./docker-entrypoint.sh:/code/docker-entrypoint.sh"
-      - "./requirements.txt:/code/requirements.txt"
     environment:
       DJANGO_DEBUG: "False"
       MODE: "beat"
@@ -45,10 +41,6 @@ services:
       context: .
       dockerfile: ./docker/airbnb/Dockerfile
     image: ubdc/worker
-    volumes:
-      - "./src/dj_airbnb/:/code/dj_airbnb/"
-      - "./docker-entrypoint.sh:/code/docker-entrypoint.sh"
-      - "./requirements.txt:/code/requirements.txt"
     env_file:
       - .env
     environment:
