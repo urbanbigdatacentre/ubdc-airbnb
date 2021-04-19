@@ -4,7 +4,7 @@ from celery import group, shared_task
 from celery.result import GroupResult
 from dateutil.relativedelta import relativedelta
 from django.contrib.postgres.fields.jsonb import KeyTextTransform
-from django.db.models import F, IntegerField, Q, QuerySet, Subquery
+from django.db.models import F, IntegerField, Q, QuerySet, Subquery, OuterRef
 from django.db.models.functions import Cast
 from django.utils.timezone import now
 from celery.utils.log import get_task_logger
@@ -81,7 +81,7 @@ def op_update_reviews_aoi(id_shape: Union[int, Sequence[int]], force_check=False
 # There are ~250k listings in UK. Could burn through bandwidth really fast, as it will fetch user details as well
 @shared_task
 def op_update_reviews_periodical(how_many: int = 50, age_hours: int = 3 * 7 * 24, priority: int = 4,
-                                 use_aoi_shapes: bool = True) -> Optional[str]:
+                                 use_aoi: bool = True) -> Optional[str]:
     """
     An 'initiator' task that will select at the most 'how_many' (default 50) listings had not had their reviews
     harvested for more than 'age_days' (default 21) days.
@@ -92,7 +92,7 @@ def op_update_reviews_periodical(how_many: int = 50, age_hours: int = 3 * 7 * 24
     Return is a task_group_id UUID string that  these tasks will operate under.
     In case there are no listings found None will be returned instead
 
-    :param use_aoi_shapes: If true, the listings will be selected only from the aoi_shapes that have been designated to this task, default  true
+    :param use_aoi: If true, the listings will be selected only from the aoi_shapes that have been designated to this task, default  true
     :param how_many:  Maximum number of listings to act, defaults to 5000
     :param age_hours: How many HOURS before from the last update, before the it will be considered stale. int > 0, defaults two weeks
     :param priority:  priority of the tasks generated. int from 1 to 10, 10 being maximum. defaults to 4
@@ -108,14 +108,13 @@ def op_update_reviews_periodical(how_many: int = 50, age_hours: int = 3 * 7 * 24
 
     expire_23hour_later = 23 * 60 * 60
 
-    qs_listings: QuerySet = AirBnBListing.objects.none()
-    if use_aoi_shapes:
-        enabled_aoi = AOIShape.objects.filter(collect_reviews=True)
+    if use_aoi:
+        qs_aoi = AOIShape.objects.filter(collect_reviews=True, geom_3857__intersects=OuterRef('geom_3857'))[:1]
         qs_listings = AirBnBListing.objects.filter(
-            geom_3857__intersects=Subquery(enabled_aoi.values('geom_3857')))
+            geom_3857__intersects=Subquery(qs_aoi.values('geom_3857')))
         logger.info(f"Found {qs_listings.count()} listings")
     else:
-        qs_listings = qs_listings.all()
+        qs_listings = AirBnBListing.objects.all()
 
     start_day_today = now().replace(hour=0, minute=0, second=0, microsecond=0)
     submitted_listing_ids = (UBDCTask.objects

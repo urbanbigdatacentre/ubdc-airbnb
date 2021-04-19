@@ -5,7 +5,7 @@ from celery.result import GroupResult
 from celery.utils.log import get_task_logger
 from dateutil.relativedelta import relativedelta
 from django.contrib.postgres.fields.jsonb import KeyTextTransform
-from django.db.models import F, IntegerField, Q, QuerySet, Subquery
+from django.db.models import F, IntegerField, Q, QuerySet, Subquery, OuterRef
 from django.db.models.functions import Cast
 from django.utils.timezone import now
 
@@ -73,16 +73,16 @@ def op_update_calendar_at_aoi(id_shape: Union[int, Sequence[int]]) -> Optional[s
 # with 75 active workers we have a capacity of ~17k request/hour. The task will run every 4 hours.
 @shared_task
 def op_update_calendar_periodical(how_many: int = 17_000 * 2.5, age_hours: int = 23, priority: int = 5,
-                                  use_aoi_shapes=True) -> Optional[str]:
+                                  use_aoi=True) -> Optional[str]:
     how_many = int(how_many)
-    qs_listings: QuerySet = AirBnBListing.objects.none()
-    if use_aoi_shapes:
-        enabled_aoi = AOIShape.objects.filter(collect_calendars=True)
+
+    if use_aoi:
+        qs_aoi = AOIShape.objects.filter(collect_calendars=True, geom_3857__intersects=OuterRef('geom_3857'))[:1]
         qs_listings = AirBnBListing.objects.filter(
-            geom_3857__intersects=Subquery(enabled_aoi.values('geom_3857')))
+            geom_3857__intersects=Subquery(qs_aoi.values('geom_3857')))
         logger.info(f"Found {qs_listings.count()} listings")
     else:
-        qs_listings = qs_listings.all()
+        qs_listings: QuerySet = AirBnBListing.objects.all()
 
     excluded_listings = (UBDCTask.objects
                          .filter(datetime_submitted__gte=now() - relativedelta(days=1))

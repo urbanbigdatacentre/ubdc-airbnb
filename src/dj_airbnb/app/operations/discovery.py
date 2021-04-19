@@ -6,7 +6,7 @@ from celery.result import GroupResult, AsyncResult
 from celery.utils.log import get_task_logger
 from dateutil.relativedelta import relativedelta
 from django.contrib.postgres.fields.jsonb import KeyTextTransform
-from django.db.models import TextField, Q, Subquery
+from django.db.models import TextField, Q, Subquery, OuterRef, Count
 from django.db.models.functions import Cast
 from django.utils.timezone import now
 
@@ -91,8 +91,8 @@ def op_discover_new_listings_periodical(how_many: int = 500,
     )
 
     if use_aoi:
-        _aois = AOIShape.objects.filter(scan_for_new_listings=True)
-        q_quadkeys = UBDCGrid.objects.filter(geom_3857__intersects=Subquery(_aois.values('geom_3857')))
+        _aois = AOIShape.objects.filter(scan_for_new_listings=True, geom_3857__intersects=OuterRef('geom_3857'))[:1]
+        q_quadkeys = UBDCGrid.objects.annotate(x=Count(Subquery(_aois.values('id')))).filter(x__gte=1)
     else:
         q_quadkeys = AOIShape.objects.all()
 

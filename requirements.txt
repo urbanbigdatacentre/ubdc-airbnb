@@ -32,7 +32,7 @@ click==7.1.2
     #   click-plugins
     #   click-repl
     #   mercantile
-decorator==5.0.5
+decorator==5.0.7
     # via jsonpath-ng
 django-celery-beat==2.2.0
     # via -r requirements.in

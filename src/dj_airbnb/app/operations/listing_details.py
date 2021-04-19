@@ -4,7 +4,7 @@ from celery import shared_task, group
 from celery.result import GroupResult
 from dateutil.relativedelta import relativedelta
 from django.contrib.postgres.fields.jsonb import KeyTextTransform
-from django.db.models import IntegerField, Subquery, Q, F
+from django.db.models import IntegerField, Subquery, Q, F, OuterRef
 from django.db.models.functions import Cast
 from django.utils.timezone import now
 
@@ -120,7 +120,7 @@ def op_add_listing_details_at_aoi(id_shape: Union[int, List[int]]) -> Optional[s
 
 @shared_task
 def op_update_listing_details_periodical(how_many: int = 5000, age_hours: int = 24 * 14, priority=4,
-                                         use_aoi_shapes=True) -> \
+                                         use_aoi=True) -> \
         Optional[str]:
     """
     An 'initiator' task that will select at the most 'how_many' (default 5000) listings that their listing details
@@ -131,16 +131,16 @@ def op_update_listing_details_periodical(how_many: int = 5000, age_hours: int = 
     Return is a task_group_id UUID string that  these tasks will operate under.
     In case there are no listings found None will be returned instead
 
-    :param use_aoi_shapes: If true, the listings will be selected only from the aoi_shapes that have been designated to this task, default  true
+    :param use_aoi: If true, the listings will be selected only from the aoi_shapes that have been designated to this task, default  true
     :param how_many:  Maximum number of listings to act, defaults to 5000
-    :param age_days: How many HOURS before from the last update, before the it will be considered stale. int > 0, defaults to 14 (two weeks)
+    :param age_hours: How many HOURS before from the last update, before the it will be considered stale. int > 0, defaults to 14 (two weeks)
     :param priority:  priority of the tasks generated. int from 1 to 10, 10 being maximum. defaults to 4
     :return: str(UUID)
     """
 
     if how_many < 0:
         raise UBDCError('The variable how_many must be larger than 0')
-    if age_days < 0:
+    if age_hours < 0:
         raise UBDCError('The variable age_days must be larger than 0')
     if not (0 < priority < 10 + 1):
         raise UBDCError('The variable priority must be between 1 than 10')
@@ -149,13 +149,13 @@ def op_update_listing_details_periodical(how_many: int = 5000, age_hours: int = 
 
     start_day_today = now().replace(hour=0, minute=0, second=0, microsecond=0)
 
-    listing_ids_qs = AirBnBListing.objects.none()
-    if use_aoi_shapes:
-        aoi_qs = AOIShape.objects.filter(collect_listing_details=True)
-        for aoi in aoi_qs:
-            listing_ids_qs |= aoi.listings
+    if use_aoi:
+        qs_aoi = AOIShape.objects.filter(collect_listing_details=True, geom_3857__intersects=OuterRef('geom_3857'))[:1]
+        qs_listings = AirBnBListing.objects.filter(
+            geom_3857__intersects=Subquery(qs_aoi.values('geom_3857')))
+        logger.info(f"Found {qs_listings.count()} listings")
     else:
-        listing_ids_qs |= AirBnBListing.objects.all()
+        qs_listings = AirBnBListing.objects.all()
 
     excluded_listings = (UBDCTask.objects
                          .filter(datetime_submitted__gte=start_day_today - relativedelta(days=1))
@@ -164,15 +164,15 @@ def op_update_listing_details_periodical(how_many: int = 5000, age_hours: int = 
                          .filter(task_kwargs__has_key='listing_id')
                          .annotate(listing_ids=Cast(KeyTextTransform('listing_id', 'task_kwargs'), IntegerField())))
 
-    listing_ids_qs = (listing_ids_qs
+    qs_listings = (qs_listings
                       .exclude(listing_id__in=Subquery(excluded_listings.values_list('listing_ids', flat=True)))
                       .filter(
         Q(listing_updated_at__lt=start_day_today - relativedelta(hours=age_hours)) |
         Q(listing_updated_at__isnull=True)
     ).order_by(F('listing_updated_at').asc(nulls_first=True)))
 
-    if listing_ids_qs.exists():
-        listing_ids = list(listing_ids_qs.values_list('listing_id', flat=True)[:how_many])
+    if qs_listings.exists():
+        listing_ids = list(qs_listings.values_list('listing_id', flat=True)[:how_many])
         job = group(task_add_listing_detail.s(listing_id=listing_id) for listing_id in listing_ids)
         group_result: GroupResult = job.apply_async(priority=priority, expires=expire_23hour_later)
 
