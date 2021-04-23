@@ -1,4 +1,4 @@
-name: ubdc-airbnb-2
+name: ubdc-airbnb
 channels:
   - defaults
 dependencies:

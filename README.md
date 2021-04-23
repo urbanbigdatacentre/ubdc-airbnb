@@ -2,7 +2,6 @@
 
 #### Intro
 
-#### Philosophy
 
 ### Contents
 

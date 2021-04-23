@@ -14,7 +14,7 @@ from app.models import AOIShape, AirBnBResponse, AirBnBResponseTypes, AirBnBList
 from app.operations import (op_discover_new_listings_periodical,
                             op_estimate_listings_or_divide_periodical,
                             op_update_listing_details_periodical, op_update_calendar_periodical,
-                            op_update_reviews_periodical)
+                            op_update_reviews_periodical, op_get_booking_detail_periodical)
 
 os.environ.setdefault(
     "PROJ_LIB", os.getenv('PROJ_LIB') or Path(
@@ -38,7 +38,7 @@ class Command(BaseCommand):
         subparsers = parser.add_subparsers(title='commands', description='valid commands',
                                            help='send a task manually', dest='command')
         find_listings: ArgumentParser = subparsers.add_parser('discover-listings')
-        update_grids: ArgumentParser = subparsers.add_parser('update-grid')
+        update_grids: ArgumentParser = subparsers.add_parser('update-grids')
         update_listings: ArgumentParser = subparsers.add_parser('get-listing-details')
         get_calendars: ArgumentParser = subparsers.add_parser('get-calendars')
         get_comments: ArgumentParser = subparsers.add_parser('get-reviews')
@@ -47,7 +47,7 @@ class Command(BaseCommand):
         if options.get('command') == 'discover-listings':
             result = celery_app.send_task(name=op_discover_new_listings_periodical.name, age_hours=0)
             self.stdout.write(f"Job submitted with id {result.id}")
-        if options.get('command') == 'update-grid':
+        if options.get('command') == 'update-grids':
             name = op_estimate_listings_or_divide_periodical.name
             result = celery_app.send_task(name=name, age_hours=0)
             self.stdout.write(f"Job {name} submitted with id {result.id}")
@@ -59,7 +59,11 @@ class Command(BaseCommand):
             name = op_update_calendar_periodical.name
             result = celery_app.send_task(name=name, age_hours=0)
             self.stdout.write(f"Job {name} submitted with id {result.id}")
-        if options.get('command') == 'get-comments':
+        if options.get('command') == 'get-reviews':
             name = op_update_reviews_periodical.name
+            result = celery_app.send_task(name=name, age_hours=0)
+            self.stdout.write(f"Job {name} submitted with id {result.id}")
+        if options.get('command') == 'get-booking-quotes':
+            name = op_get_booking_detail_periodical.name
             result = celery_app.send_task(name=name, age_hours=0)
             self.stdout.write(f"Job {name} submitted with id {result.id}")
