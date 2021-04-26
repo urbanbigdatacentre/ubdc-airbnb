@@ -58,7 +58,7 @@ app.conf.beat_schedule = {
         }
     },
     'op_estimate_listings_or_divide_periodical': {
-        'task': 'app.operations.grid.op_estimate_listings_or_divide_periodical',
+        'task': 'app.operations.grids.op_estimate_listings_or_divide_periodical',
         'schedule': crontab(minute=0, hour='*/4'),  # At minute 0 past every 4th hour.
         'kwargs': {
             "how_many": 500,
