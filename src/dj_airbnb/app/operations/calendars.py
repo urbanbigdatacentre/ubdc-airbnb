@@ -72,9 +72,12 @@ def op_update_calendar_at_aoi(id_shape: Union[int, Sequence[int]]) -> Optional[s
 
 # with 75 active workers we have a capacity of ~17k request/hour. The task will run every 4 hours.
 @shared_task
-def op_update_calendar_periodical(how_many: int = 17_000 * 2.5, age_hours: int = 23, priority: int = 5,
-                                  use_aoi=True) -> Optional[str]:
+def op_update_calendar_periodical(how_many: int = 17_000 * 2.5,
+                                  age_hours: int = 23, priority: int = 5,
+                                  use_aoi: bool = True) -> Optional[str]:
     how_many = int(how_many)
+    age_hours = int(age_hours)
+    priority = int(priority)
 
     if use_aoi:
         qs_aoi = AOIShape.objects.filter(collect_calendars=True, geom_3857__intersects=OuterRef('geom_3857'))[:1]

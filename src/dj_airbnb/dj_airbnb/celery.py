@@ -86,9 +86,9 @@ app.conf.beat_schedule = {
         }
     },
     'op_tidy_grids': {
-        'task': 'app.operations.grids.op_tidy_grids',
+        'task': 'app.task.task_tidy_grids',
         'schedule': crontab(minute=0, hour=0, day_of_month=15),  # At 00:00 on day-of-month 15.
-        'kwargs': {"how_many": 500, "age_days": 7},
+        'kwargs': {"less_than": 50},
         'options': {
             'priority': 3
         }

@@ -9,7 +9,11 @@ import mercantile
 from celery import group, shared_task
 from celery import Task
 from celery.utils.log import get_task_logger
-from django.contrib.gis.geos import Point
+from django.contrib.gis.db.models import Extent
+from django.contrib.gis.geos import Point, Polygon as GEOSPolygon
+from django.db import transaction
+from django.db.models import Max, Min, Sum, Count
+from django.db.models.functions import Length, Substr
 from django.utils import timezone
 from django.utils.timesince import timesince
 from more_itertools import collapse
@@ -544,3 +548,73 @@ __all__ = [
     "task_update_or_add_reviews_at_listing",
     "task_update_user_details"
 ]
+
+
+@shared_task
+def task_tidy_grids(less_than: int = 50):
+    less_than = int(less_than)
+    if less_than < 0:
+        raise ValueError('Error: less_than must be a positive integer')
+
+    qk_sizes: dict = UBDCGrid.objects.all().annotate(qk_len=Length('quadkey')).aggregate(max_qk=Max('qk_len'),
+                                                                                         min_qk=Min('qk_len'))
+
+    min_qk = qk_sizes['min_qk']
+    max_qk = qk_sizes['max_qk']
+    base_qs = UBDCGrid.objects.annotate(qk_len=Length('quadkey'))
+
+    c = Counter()
+    try:
+        with transaction.atomic():
+            # take care of overlaps
+            print('Removing Grids that overlap with their parent')
+            for zoom in range(min_qk, max_qk + 1):
+                parent_grids = base_qs.filter(qk_len=zoom)
+
+                if parent_grids.exists:
+                    print(f"Processing level {zoom}")
+                    for p_grid in parent_grids:
+                        candidates = UBDCGrid.objects.filter(quadkey__startswith=p_grid.quadkey).exclude(
+                            quadkey=p_grid.quadkey)
+                        candidates.delete()
+                    c.update(('ovelaped',))
+
+            print(f'Merging grids with less than {less_than} listings')
+            for zoom in range(max_qk, min_qk - 1, -1):
+                print(f"Processing level {zoom}")
+                parent_grids = (base_qs.filter(qk_len=zoom)
+                                .annotate(p_qk=Substr('quadkey', 1, zoom - 1))
+                                .values('p_qk')
+                                .annotate(
+                    p_qk_sum=Sum('estimated_listings'),
+                    qk_children=Count('id'),
+                    extent=Extent('geom_3857')
+                )
+                                .filter(p_qk_sum__lt=less_than)
+                                .filter(qk_children=4)
+                                .order_by('-p_qk_sum', 'p_qk'))
+
+                if parent_grids.exists():
+                    for p_grid in parent_grids:
+                        qk = p_grid['p_qk']
+                        bbox = GEOSPolygon.from_bbox(p_grid['extent'])
+                        listings_count = AirBnBListing.objects.filter(geom_3857__intersects=bbox).count()
+                        if listings_count > less_than:
+                            print(f"{qk} grid would contain {listings_count} known listings. Skipping ")
+                            c.update(('skipped',))
+                            continue
+
+                        estimated_listings = p_grid['p_qk_sum']
+                        UBDCGrid.objects.filter(quadkey__startswith=qk).delete()
+                        g = UBDCGrid.objects.create_from_quadkey(quadkey=qk)
+                        g.estimated_listings = estimated_listings
+                        g.save()
+                        c.update(('made',))
+            tidied = c.get("made", 0) + c.get("ovelaped", 0)
+            tidied_lbl = tidied if tidied else "No"
+
+        print(f'Command Finished. Tidied {tidied_lbl} tiles')
+
+    except Exception as excp:
+        print(f'An error has occured. Db was reverted back to its original state')
+        raise excp
