@@ -24,8 +24,8 @@ def delta_time(hours=24):
 class BaseTaskWithRetry(Task):
     autoretry_for = (UBDCRetriableError, ProxyError)
     retry_kwargs = {'max_retries': 2}
-    retry_backoff = 1 # * 60  # 1 min
-    retry_backoff_max = 30 # * 60  # 30 min
+    retry_backoff = 1  # * 60  # 1 min
+    retry_backoff_max = 30  # * 60  # 30 min
     retry_jitter = True
     # it's overridden by  CELERY_TASK_DEFAULT_RATE_LIMIT
     rate_limit = '10/m'

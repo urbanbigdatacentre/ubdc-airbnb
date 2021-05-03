@@ -9,10 +9,10 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'dj_airbnb.settings')
 django.setup()
 
 CELERY_BROKER_URI = 'pyamqp://{rabbit_username}:{rabbit_password}@{rabbit_host}:{rabbit_port}//'.format(
-    rabbit_username=os.getenv("CELERY_RABBITMQ_USERNAME", 'rabbit'),
-    rabbit_password=os.getenv("CELERY_RABBITMQ_PASSWORD", 'carrot'),
-    rabbit_host=os.getenv("CELERY_RABBITMQ_HOST", 'localhost'),
-    rabbit_port=os.getenv("CELERY_RABBITMQ_PORT", 5672)
+    rabbit_username=os.getenv("RABBITMQ_USERNAME", 'rabbit'),
+    rabbit_password=os.getenv("RABBITMQ_PASSWORD", 'carrot'),
+    rabbit_host=os.getenv("RABBITMQ_HOST", 'localhost'),
+    rabbit_port=os.getenv("RABBITMQ_PORT", 5672)
 )
 
 app = Celery('airbnb_app', task_cls='app.task_managers:BaseTaskWithRetry', broker=CELERY_BROKER_URI,
@@ -40,7 +40,7 @@ app.conf.beat_schedule = {
         'schedule': crontab(minute=0, hour='*/4'),  # At minute 0 past every 4th hour.
         'kwargs': {
             "how_many": 5000,
-            "age_days": 14
+            "age_hours": 14 * 24
         },
         'options': {
             'priority': 4
@@ -51,7 +51,7 @@ app.conf.beat_schedule = {
         'schedule': crontab(minute=0, hour='*/4'),  # At minute 0 past every 4th hour.
         'kwargs': {
             "how_many": 1500,
-            "age_days": 14
+            "age_hours": 14 * 24
         },
         'options': {
             'priority': 4
@@ -62,7 +62,7 @@ app.conf.beat_schedule = {
         'schedule': crontab(minute=0, hour='*/4'),  # At minute 0 past every 4th hour.
         'kwargs': {
             "how_many": 500,
-            "age_days": 14,
+            "age_hours": 14 * 24,
             "max_listings": 50
         },
         'options': {
@@ -72,7 +72,12 @@ app.conf.beat_schedule = {
     'op_update_calendar_periodical': {
         'task': 'app.operations.calendars.op_update_calendar_periodical',
         'schedule': crontab(minute=0, hour='*/4'),  # At minute 0 past every 4th hour.
-        'kwargs': {"how_many": 10000, "age_hours": 23, "priority": 5, "use_aoi_shapes": True},
+        'kwargs': {
+            "how_many": 10000,
+            "age_hours": 23,
+            "priority": 5,
+            "use_aoi_shapes": True
+        },
         'options': {
             'priority': 5
         }
@@ -80,13 +85,18 @@ app.conf.beat_schedule = {
     'op_discover_new_listings_periodical': {
         'task': 'app.operations.discovery.op_discover_new_listings_periodical',
         'schedule': crontab(minute=0, hour='*/4'),  # At minute 0 past every 4th hour.
-        'kwargs': {"how_many": 500, "age_days": 7, "use_aoi": True, "priority": 4},
+        'kwargs': {
+            "how_many": 500,
+            "age_hours": 7 * 24,
+            "use_aoi": True,
+            "priority": 4
+        },
         'options': {
             'priority': 4
         }
     },
     'op_tidy_grids': {
-        'task': 'app.task.task_tidy_grids',
+        'task': 'app.tasks.task_tidy_grids',
         'schedule': crontab(minute=0, hour=0, day_of_month=15),  # At 00:00 on day-of-month 15.
         'kwargs': {"less_than": 50},
         'options': {

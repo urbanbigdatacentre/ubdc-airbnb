@@ -17,14 +17,6 @@ from pathlib import Path
 from socket import gethostbyname, gaierror
 
 
-# def getDabaseHost() -> str:
-#     try:
-#         gethostbyname()
-#         return ''
-#     except gaierror:
-#         return 'localhost'
-
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -94,11 +86,11 @@ WSGI_APPLICATION = 'dj_airbnb.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': "django.contrib.gis.db.backends.postgis",
-        "USER": os.getenv("APP_DATABASE_USERNAME", "postgres"),
-        "PASSWORD": os.getenv("APP_DATABASE_PASSWORD", "airbnb"),
-        'NAME': os.getenv("APP_DATABASE_DBNAME", "postgres"),
-        "HOST": os.getenv("APP_DATABASE_HOST", "localhost"),
-        "PORT": os.getenv("APP_DATABASE_PORT", 5432),
+        "USER": os.getenv("DATABASE_USERNAME", "postgres"),
+        "PASSWORD": os.getenv("DATABASE_PASSWORD", "airbnb"),
+        'NAME': os.getenv("DATABASE_DBNAME", "postgres"),
+        "HOST": os.getenv("DATABASE_HOST", "localhost"),
+        "PORT": os.getenv("DATABASE_PORT", 5432),
     }
 }
 
@@ -147,10 +139,10 @@ CELERY_RESULT_EXPIRES = 0
 CELERY_TASK_QUEUE_MAX_PRIORITY = 10
 CELERY_TASK_DEFAULT_PRIORITY = 5  # from scale 1 to 10 how urgent the task is. 1 is the lowest, 10 the highest
 
-task_default_rate_limit = os.getenv('CELERY_TASK_DEFAULT_RATE_LIMIT', '60/m')  # 1 task per 20 seconds  (per worker)
-task_inherit_parent_priority = True
+CELERY_DEFAULT_RATE_LIMIT = os.getenv('CELERY_DEFAULT_RATE_LIMIT', '60/m')  # 1 task per 20 seconds  (per worker)
+CELERY_TASK_INHERIT_PARENT_PRIORITY = True
 timezone = TIME_ZONE
-worker_prefetch_multiplier = os.getenv('CELERY_WORKER_PREFETCH_MULTIPLIER', 1)
+CELERY_WORKER_PREFETCH_MULTIPLIER = os.getenv('CELERY_WORKER_PREFETCH_MULTIPLIER', 10)
 
 # CELERY BEAT
-DJANGO_CELERY_BEAT_TZ_AWARE = True
+DJANGO_CELERY_BEAT_TZ_AWARE = USE_TZ

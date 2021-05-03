@@ -10,6 +10,7 @@ RUN chmod -eox;\
 ADD ./src/dj_airbnb /code/dj_airbnb
 ADD ./docker-entrypoint.sh /code/docker-entrypoint.sh
 ADD ./requirements.txt /code/requirements.txt
+
 WORKDIR /code
 RUN chmod +x docker-entrypoint.sh
 RUN pip install -r requirements.txt

@@ -150,11 +150,13 @@ def op_update_listing_details_periodical(how_many: int = 5000, age_hours: int = 
     start_day_today = now().replace(hour=0, minute=0, second=0, microsecond=0)
 
     if use_aoi:
+        logger.debug("Use AOI: True")
         qs_aoi = AOIShape.objects.filter(collect_listing_details=True, geom_3857__intersects=OuterRef('geom_3857'))[:1]
         qs_listings = AirBnBListing.objects.filter(
             geom_3857__intersects=Subquery(qs_aoi.values('geom_3857')))
         logger.info(f"Found {qs_listings.count()} listings")
     else:
+        logger.info("Use AOI: False")
         qs_listings = AirBnBListing.objects.all()
 
     excluded_listings = (UBDCTask.objects
@@ -163,16 +165,18 @@ def op_update_listing_details_periodical(how_many: int = 5000, age_hours: int = 
                          .filter(status=UBDCTask.TaskTypeChoices.SUBMITTED)
                          .filter(task_kwargs__has_key='listing_id')
                          .annotate(listing_ids=Cast(KeyTextTransform('listing_id', 'task_kwargs'), IntegerField())))
+    logger.info(f"Excluded Listings  {excluded_listings.count()}")
 
     qs_listings = (qs_listings
-                      .exclude(listing_id__in=Subquery(excluded_listings.values_list('listing_ids', flat=True)))
-                      .filter(
+                   .exclude(listing_id__in=Subquery(excluded_listings.values_list('listing_ids', flat=True)))
+                   .filter(
         Q(listing_updated_at__lt=start_day_today - relativedelta(hours=age_hours)) |
         Q(listing_updated_at__isnull=True)
     ).order_by(F('listing_updated_at').asc(nulls_first=True)))
 
     if qs_listings.exists():
         listing_ids = list(qs_listings.values_list('listing_id', flat=True)[:how_many])
+        logger.info(f"Found {len(listing_ids)} listing ids for collection")
         job = group(task_add_listing_detail.s(listing_id=listing_id) for listing_id in listing_ids)
         group_result: GroupResult = job.apply_async(priority=priority, expires=expire_23hour_later)
 

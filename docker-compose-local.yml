@@ -1,0 +1,38 @@
+---
+version: "3.8"
+
+services:
+  db:
+    build:
+      context: ./docker/postgis
+    image: airbnb_postgis
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRE
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: airbnb
+    volumes:
+      - db_volume:/var/lib/postgresql/data
+
+  rabbit:
+    image: library/rabbitmq:3.8-management
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbit
+      RABBITMQ_DEFAULT_PASS: carrot
+    ports:
+      - 5672:5672
+      - 8080:15672
+
+  beat:
+    environment:
+      RABBITMQ_HOST: rabbit
+      DATABASE_HOST: db
+
+  worker:
+    environment:
+      RABBITMQ_HOST: rabbit
+      DATABASE_HOST: db
+
+volumes:
+  db_volume:
