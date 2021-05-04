@@ -2,6 +2,13 @@
 version: "3.8"
 
 # extension fields (x-..) come from version 3.4 onwards
+# format is [x-name]: [&anchor_name] [value]
+#           Change the value's value as needed
+
+# to deploy the service into a swarm mode, create a cluster and
+# docker stack deploy --compose-file docker-compose.yml ubdc-airbnb
+
+
 # App Config
 x-airbnb-proxy: &X-AIRBNB-PROXY "http://b0e04b81eab04836979cbc1afd568d9e:@proxy.crawlera.com:8011/"
 
@@ -11,13 +18,13 @@ x-celery-worker-prefetch-multiplier: &X-CELERY-WORKER-PREFETCH-MULTIPLIER 2
 x-celery-task-default-rate-limit: &X-CELERY-DEFAULT-RATE-LIMIT '10/m'
 
 # RABBITMQ Config
-x-rabbitmq-host: &X-RABBITMQ_HOST "172.20.67.71"
+x-rabbitmq-host: &X-RABBITMQ_HOST "host.docker.internal"
 x-rabbitmq_username: &X-RABBITMQ_USERNAME "rabbit"
 x-rabbitmq-password: &X-RABBITMQ-PASSWORD "carrot"
 x-rabbitmq-port: &X-RABBITMQ-PORT 5672
 
 # Database conf
-x-database-host: &X-DATABASE-HOST "172.20.67.71"
+x-database-host: &X-DATABASE-HOST "host.docker.internal"
 x-database-dbname: &X-DATABASE-DBNAME "postgres"
 x-database-username: &X-DATABASE-USERNAME "postgres"
 x-database-password: &X-DATABASE-PASSWORD "airbnb"
@@ -27,13 +34,14 @@ x-database-port: &X-DATABASE-PORT 5432
 x-common-env: &common-env
   AIRBNB_PROXY: *X-AIRBNB-PROXY
   DJANGO_DEBUG: "False"
-  CELERY_WORKER_PREFETCH_MULTIPLIER: *X-CELERY-WORKER-PREFETCH-MULTIPLIER
   WORKERS_PER_INSTANCE: *X-WORKERS-PER-INSTANCE
-  RABBITMQ_HOST: *X-RABBITMQ_HOST
-  CELERY_RABBITMQ_PORT: *X-RABBITMQ-PORT
-  CELERY_RABBITMQ_USERNAME: *X-RABBITMQ_USERNAME
-  CELERY_RABBITMQ_PASSWORD: *X-RABBITMQ-PASSWORD
+  CELERY_WORKER_PREFETCH_MULTIPLIER: *X-CELERY-WORKER-PREFETCH-MULTIPLIER
   CELERY_DEFAULT_RATE_LIMIT: *X-CELERY-DEFAULT-RATE-LIMIT
+  RABBITMQ_HOST: *X-RABBITMQ_HOST
+  RABBITMQ_PORT: *X-RABBITMQ-PORT
+  RABBITMQ_USERNAME: *X-RABBITMQ_USERNAME
+  RABBITMQ_PASSWORD: *X-RABBITMQ-PASSWORD
+
 
   DATABASE_DBNAME: *X-DATABASE-DBNAME
   DATABASE_HOST: *X-DATABASE-HOST
@@ -44,11 +52,14 @@ x-common-env: &common-env
 
 x-build-app: &build
   build:
+
     context: .
     dockerfile: ./docker/airbnb/Dockerfile
 
 services:
   beat:
+    deploy:
+      replicas: 1
     image: ${UBDC_DOCKER_REGISTRY}ubdc/ubdc_beat
     <<: *build
     environment:
@@ -56,7 +67,9 @@ services:
       MODE: "beat"
 
   worker:
-    image: ${UBDC_DOCKER_REGISTRY}ubdc/worker
+    deploy:
+      replicas: 1
+    image: ${UBDC_DOCKER_REGISTRY}ubdc/ubdc_worker
     <<: *build
     environment:
       <<: *common-env

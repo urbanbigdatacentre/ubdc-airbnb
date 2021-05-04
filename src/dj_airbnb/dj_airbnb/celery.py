@@ -76,7 +76,7 @@ app.conf.beat_schedule = {
             "how_many": 10000,
             "age_hours": 23,
             "priority": 5,
-            "use_aoi_shapes": True
+            "use_aoi": True
         },
         'options': {
             'priority': 5
