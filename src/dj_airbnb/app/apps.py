@@ -6,5 +6,5 @@ class AppConfig(AppConfig):
     name = 'app'
 
     def ready(self):
+        # noinspection PyUnresolvedReferences
         from app import signals
-        dir(signals)  # does nothing; but my IDE wants to remove it if I don't wrap it.

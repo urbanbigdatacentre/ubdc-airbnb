@@ -3,7 +3,7 @@ from argparse import ArgumentParser, ArgumentTypeError
 from django.core.management import BaseCommand, call_command
 
 from app.utils.grids import generate_initial_grid
-from app.tasks import tidy_grids
+from app.tasks import task_tidy_grids
 
 
 def check_positive(value) -> int:
@@ -30,4 +30,4 @@ class Command(BaseCommand):
         self.stdout.write(self.style.NOTICE(f'Successfully generated grids {len(final_grids)}'))
 
         if tidy:
-            tidy_grids(less_than=50)
+            task_tidy_grids(less_than=50)

@@ -535,21 +535,6 @@ def task_debug_sometimes_fail(fail_percentage=0.8, verbose=True) -> str:
     return 'Finished'
 
 
-__all__ = [
-    "task_add_listing_detail",
-    "task_debug_add_w_delay",
-    "task_debug_sometimes_fail",
-    "task_debug_wait",
-    "task_discover_listings_at_grid",
-    "task_estimate_listings_or_divide",
-    "task_get_booking_detail",
-    "task_get_or_create_user",
-    "task_update_calendar",
-    "task_update_or_add_reviews_at_listing",
-    "task_update_user_details"
-]
-
-
 @shared_task
 def task_tidy_grids(less_than: int = 50):
     less_than = int(less_than)
@@ -618,3 +603,19 @@ def task_tidy_grids(less_than: int = 50):
     except Exception as excp:
         print(f'An error has occured. Db was reverted back to its original state')
         raise excp
+
+
+__all__ = [
+    "task_add_listing_detail",
+    "task_debug_add_w_delay",
+    "task_debug_sometimes_fail",
+    "task_debug_wait",
+    "task_discover_listings_at_grid",
+    "task_estimate_listings_or_divide",
+    "task_get_booking_detail",
+    "task_get_or_create_user",
+    "task_update_calendar",
+    "task_update_or_add_reviews_at_listing",
+    "task_update_user_details",
+    "task_tidy_grids"
+]

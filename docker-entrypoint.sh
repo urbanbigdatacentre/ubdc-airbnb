@@ -23,6 +23,13 @@ if [[ -n "$1" ]]; then
   elif [ "$1" = "send-task" ]; then
     python ./dj_airbnb/manage.py send_task "$2"
     exit
+  elif [ "$1" = 'tidy-grids' ]; then
+    python ./dj_airbnb/manage.py tidi_grid
+    exit
+  elif [ "$1" = 'shell' ]; then
+    python ./dj_airbnb/manage.py shell
+    exit
+
   fi
   exec "$@"
 fi

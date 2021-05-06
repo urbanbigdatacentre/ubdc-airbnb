@@ -3,7 +3,7 @@ import inspect
 from celery import signals
 from celery.app.task import Context
 from celery.utils.log import get_task_logger
-from datetime import datetime
+from django.utils.datetime_safe import datetime
 
 from app.models import UBDCTask, UBDCGroupTask
 
@@ -67,7 +67,7 @@ def ubdc_handles_task_revoke(sender, expired: bool, request: Context, terminated
 
     this_task = UBDCTask.objects.get(task_id=task_id)
     this_task.status = UBDCTask.TaskTypeChoices.REVOKED
-    this_task.datetime_finished = datetime.utcnow()
+    this_task.datetime_finished = datetime.now()
     this_task.save()
 
     logger.info(f'Task: {task_id} have been successfully revoked')
