@@ -193,33 +193,6 @@ class UBDCGrid(models.Model):
 
         return c_tiles
 
-    # def estimate_listings(self, **kwargs) -> int:
-    #     """ Query airbnb for an estimation of how many listings are in this grid
-    #
-    #     :returns int
-    #     """
-    #
-    #     if self.id is None:
-    #         raise self.DoesNotExist('This instance has not been saved in the database yet.')
-    #
-    #     bbox = bbox_from_quadkey(self.quadkey)
-    #
-    #     (west=west, south=south, east=east, north=north)
-    #     ubdc_response : AirBnBResponse = AirBnBResponse.objects.response_and_create(
-    #         "number_of_listings", _type=AirBnBResponseTypes.searchMetaOnly,
-    #     )
-    #     estimated_listings, response = estimate_listings_at_grid(self.quadkey)
-    #     search_response: AirBnBResponse = AirBnBResponse.objects.create_from_response(response,
-    #                                                                                   _type=AirBnBResponseTypes.search,
-    #                                                                                   **kwargs)
-    #
-    #     self.estimated_listings = estimated_listings
-    #
-    #     search_response.grid = self
-    #     search_response.save()
-    #
-    #     return self.estimated_listings
-
 
 class AirBnBResponseTypes(models.TextChoices):
     unknown = 'UNK', 'Unknown'
@@ -245,8 +218,8 @@ class AirBnBResponse(models.Model):
                              default=AirBnBResponseTypes.unknown,
                              verbose_name='Response Type')
     status_code: int = models.IntegerField(db_index=True, help_text='Status code of the response')
-    resource_url: str = models.TextField()
     payload: dict = models.JSONField(default=dict)
+    request_headers: dict = models.JSONField(default=dict)
     url: str = models.TextField(null=False, blank=False)
     query_params: dict = models.JSONField(default=dict)
     seconds_to_complete: int = models.IntegerField(null=False,

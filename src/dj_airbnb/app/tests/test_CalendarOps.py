@@ -1,12 +1,11 @@
+import os
 import time
 
-from celery.result import AsyncResult
 from django.utils import timezone
-from requests import HTTPError
 
 from . import UBDCBaseTestWorker
 from . import get_fixture
-from ..errors import UBDCError, UBDCRetriableError
+from ..errors import UBDCError
 from ..models import AirBnBResponseTypes
 
 
@@ -55,11 +54,11 @@ class TestGridOps(UBDCBaseTestWorker):
 
         task = op_discover_new_listings_at_grid.s(self.quadkey)
         job = task.apply_async()
-
+        time.sleep(1)
         while not all(list(x.ready() for x in job.children)):
             print('waiting...')
             time.sleep(1)
-        result = job.get()
+        group_result_id = job.get()
 
         print('do some actual testing')
 

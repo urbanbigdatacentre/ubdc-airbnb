@@ -26,9 +26,7 @@ class TestGridOps(UBDCBaseTestWorker):
         g = UBDCGrid.objects.get(quadkey=self.quadkey)
         g.datetime_last_estimated_listings_scan = timezone.now()
         g.save()
-        # call_command('flush', no_input='yes')
-        # call_command('import_world_mask', only_iso='GRC')
-        # call_command('add_aoi', create_grid=False, geo_file=self.test_input_aoi.as_posix())
+
 
     def test_warmup(self):
         from app.models import AirBnBListing

@@ -27,7 +27,7 @@ class AirBnBResponseManager(models.Manager):
                             **kwargs):
         method = getattr(ubdc_airbnbapi, method_name)
         if method is None:
-            raise
+            raise Exception(f'{method_name} is not a valid method.')
         listing_id = kwargs.get('listing_id', None)
         response: Optional[requests.Response] = None
         try:
@@ -80,7 +80,7 @@ class AirBnBResponseManager(models.Manager):
             _type=_type,
             listing_id=listing_id,
             status_code=response.status_code,
-            resource_url=response.url,
+            request_headers=dict(**response.request.headers),
             payload=payload,
             url=response.url,
             query_params=query_params_from_url(response.url),

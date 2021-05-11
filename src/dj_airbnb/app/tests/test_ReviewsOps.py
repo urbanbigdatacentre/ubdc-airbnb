@@ -1,12 +1,9 @@
-from pathlib import Path
-
 from django.utils import timezone
 
+from app.operations.reviews import op_update_reviews_aoi, op_update_comment_at_listings
 from . import UBDCBaseTestWorker
 from . import get_fixture
-
-from app.operations.reviews import op_update_reviews_aoi, op_update_reviews_periodical, op_update_comment_at_listings
-from ..models import AirBnBReview, AirBnBResponse, AirBnBUser, AOIShape
+from ..models import AirBnBReview, AirBnBResponse, AirBnBUser, AOIShape, AirBnBListing, AirBnBResponseTypes
 from ..tasks import task_update_or_add_reviews_at_listing
 
 
@@ -30,7 +27,14 @@ class TestReviewsOps(UBDCBaseTestWorker):
         self.aoi = AOIShape.objects.first()
 
     def test_op_update_comment_at_listings(self):
-        op_update_comment_at_listings(self.listing_200)
+        listing_id = op_update_comment_at_listings(self.listing_200)
+        self.assertEqual(listing_id, self.listing_200)
+
+        listing = AirBnBListing.objects.get(listing_id=listing_id)
+        latest_listing_detail: AirBnBResponse = listing.responses.filter(
+            _type=AirBnBResponseTypes.calendar).latest('timestamp')
+
+        self.assertEqual(latest_listing_detail.listing_id, self.listing_200)
 
     def test_op_update_comment_at_listings_task(self):
         task = op_update_comment_at_listings.s(self.listing_200)
