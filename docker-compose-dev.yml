@@ -11,4 +11,6 @@ services:
     <<: *dev-volumes
 
   worker:
+    environment:
+      DJANGO_DEBUG: "True"
     <<: *dev-volumes

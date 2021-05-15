@@ -8,5 +8,4 @@ if os.getenv('AIRBNB_PROXY') is None:
 else:
     print(f'proxy set: {os.getenv("AIRBNB_PROXY")}')
 
-
 ubdc_airbnbapi = Api(proxy=os.getenv("AIRBNB_PROXY", None))

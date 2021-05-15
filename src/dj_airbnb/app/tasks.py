@@ -68,7 +68,7 @@ def task_update_or_add_reviews_at_listing(self, listing_id: int, force_check: bo
                                 Defaults to True
 
 
-    :return: Returns the number of Comments that were processed.
+    :return: Returns the number of reviews that were processed.
     :rtype: int
 
     """
@@ -365,10 +365,11 @@ def task_add_listing_detail(self, listing_id: Union[str, int]) -> int:
 @shared_task(bind=True)
 @convert_exceptions
 def task_estimate_listings_or_divide(self: BaseTaskWithRetry, quadkey: str, less_than: int = 50) -> Optional[str]:
-    """This task will produce at least 4 tasks (grouped) if the queried key has more that the *less_than* number
+    """This task will query airbnb to get a sense of how many listings it contains. If it has more than
+    *less_than* number (default 50) it will split this grid, and apply the same logic to each.
 
     :param quadkey: quadkey
-    :param less_than: int
+    :param less_than: int, default 50
 
     :returns: GroupResult uuid
     :rtype: str

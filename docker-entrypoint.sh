@@ -16,6 +16,26 @@ if [[ -n "$1" ]]; then
       python ./dj_airbnb/manage.py import_world_mask
     fi
     exit
+  elif [ "$1" = "fetch-calendar" ]; then
+    echo "fetch-calendar"
+    python ./dj_airbnb/manage.py fetch_resource_for_listing calendar "$2"
+    exit
+  elif [ "$1" = "fetch-listing-detail" ]; then
+    echo "fetch-listing-detail"
+    python ./dj_airbnb/manage.py fetch_resource_for_listing listing-detail "$2"
+    exit
+  elif [ "$1" = "fetch-reviews" ]; then
+    echo "fetch-reviews"
+    python ./dj_airbnb/manage.py fetch_resource_for_listing reviews "$2"
+    exit
+  elif [ "$1" = "find-listings" ]; then
+    echo "find-listings"
+    python ./dj_airbnb/manage.py find_listings_aoi "$2"
+    exit
+  elif [ "$1" = "sense-aoi" ]; then
+    echo "sense-aoi"
+    python ./dj_airbnb/manage.py sense_aoi "$2"
+    exit
   elif [ "$1" = "prep-grid" ]; then
     echo "prep-grid"
     python ./dj_airbnb/manage.py generate_grid "$2"

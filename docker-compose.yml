@@ -1,13 +1,14 @@
 ---
 version: "3.8"
 
-# extension fields (x-..) come from version 3.4 onwards
+# extension fields (x-..) indroduced with docker-compose syntax 3.4.
+# Anything that does not start with x-.. is going to be rejected.
+#
 # format is [x-name]: [&anchor_name] [value]
-#           Change the value's value as needed
+#           Change as needed
 
 # to deploy the service into a swarm mode, create a cluster and
 # docker stack deploy --compose-file docker-compose.yml ubdc-airbnb
-
 
 # App Config
 x-airbnb-proxy: &X-AIRBNB-PROXY "http://b0e04b81eab04836979cbc1afd568d9e:@proxy.crawlera.com:8011/"
@@ -18,13 +19,13 @@ x-celery-worker-prefetch-multiplier: &X-CELERY-WORKER-PREFETCH-MULTIPLIER 2
 x-celery-task-default-rate-limit: &X-CELERY-DEFAULT-RATE-LIMIT '10/m'
 
 # RABBITMQ Config
-x-rabbitmq-host: &X-RABBITMQ_HOST "host.docker.internal"
+x-rabbitmq-host: &X-RABBITMQ_HOST "host.docker.internal"  # default: host.docker.internal (points at the host machine)
 x-rabbitmq_username: &X-RABBITMQ_USERNAME "rabbit"
 x-rabbitmq-password: &X-RABBITMQ-PASSWORD "carrot"
 x-rabbitmq-port: &X-RABBITMQ-PORT 5672
 
 # Database conf
-x-database-host: &X-DATABASE-HOST "host.docker.internal"
+x-database-host: &X-DATABASE-HOST "host.docker.internal"  # default: host.docker.internal (points at the host machine)
 x-database-dbname: &X-DATABASE-DBNAME "postgres"
 x-database-username: &X-DATABASE-USERNAME "postgres"
 x-database-password: &X-DATABASE-PASSWORD "airbnb"
