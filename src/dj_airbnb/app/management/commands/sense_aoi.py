@@ -5,7 +5,6 @@ from django.core.management import BaseCommand
 from django.db.models import QuerySet
 
 from app.models import UBDCGrid, AOIShape, UBDCGroupTask
-from app.utils.grids import generate_initial_grid
 from app.tasks import task_estimate_listings_or_divide
 
 
@@ -18,7 +17,7 @@ def check_positive(value) -> int:
 
 
 class Command(BaseCommand):
-    help = "Generates initial grid based on the AOI and then tidies the database"
+    help = """Queries the approximate number of listings in the grids intersecting the provided AOI."""
 
     def add_arguments(self, parser: ArgumentParser):
         parser.add_argument('aoi', type=check_positive)
