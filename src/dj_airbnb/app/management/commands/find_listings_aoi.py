@@ -1,11 +1,12 @@
-from argparse import ArgumentParser, ArgumentTypeError
 import concurrent.futures
+from argparse import ArgumentParser, ArgumentTypeError
 
 from django.core.management import BaseCommand
 from django.db.models import QuerySet
 
-from app.models import UBDCGrid, AOIShape
+from app.models import UBDCGrid
 from app.tasks import task_discover_listings_at_grid
+from . import int_to_aoi
 
 
 def check_positive(value) -> int:
@@ -20,12 +21,13 @@ class Command(BaseCommand):
     help = "AOI designated by its AOI-ID for listings."
 
     def add_arguments(self, parser: ArgumentParser):
-        parser.add_argument('aoi', type=check_positive)
+        parser.add_argument('aoi', type=int_to_aoi)
+        parser.add_argument('--workers', type=check_positive, default=2, help="Number of workers/threads for this "
+                                                                              "operation. Default 2")
 
     def handle(self, *args, **options):
-        aoishape_id = options['aoi']
-
-        aoi = AOIShape.objects.get(id=aoishape_id)
+        aoi = options['aoi']
+        workers = options['workers']
 
         self.stdout.write(self.style.NOTICE(f'Scanning for listings at AOI: {aoi}'))
         grids: QuerySet = UBDCGrid.objects.filter(geom_3857__intersects=aoi.geom_3857)
@@ -33,7 +35,7 @@ class Command(BaseCommand):
         if grids.exists():
             quadkeys = list(grids.values_list('quadkey', flat=True))
             func = task_discover_listings_at_grid
-            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
                 futures = []
                 for qk in quadkeys:
                     future = executor.submit(func, quadkey=qk)

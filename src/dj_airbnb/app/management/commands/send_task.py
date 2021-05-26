@@ -1,20 +1,15 @@
 import os
 import sysconfig
-import json
-from pprint import pprint
-from pathlib import Path
 from argparse import ArgumentParser, ArgumentTypeError
-from typing import List, Optional, Union
+from pathlib import Path
 
-from celery.result import AsyncResult
 from django.core.management.base import BaseCommand
-from dj_airbnb.celery import app as celery_app
 
-from app.models import AOIShape, AirBnBResponse, AirBnBResponseTypes, AirBnBListing, AirBnBUser
 from app.operations import (op_discover_new_listings_periodical,
                             op_estimate_listings_or_divide_periodical,
                             op_update_listing_details_periodical, op_update_calendar_periodical,
                             op_update_reviews_periodical, op_get_booking_detail_periodical)
+from dj_airbnb.celery import app as celery_app
 
 os.environ.setdefault(
     "PROJ_LIB", os.getenv('PROJ_LIB') or Path(

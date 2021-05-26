@@ -17,7 +17,8 @@ def check_positive(value) -> int:
 
 
 class Command(BaseCommand):
-    help = """Queries the approximate number of listings in the grids intersecting the provided AOI."""
+    help = """Queries the approximate number of listings in the grids intersecting the provided AOI. Needs an active 
+    worker. """
 
     def add_arguments(self, parser: ArgumentParser):
         parser.add_argument('aoi', type=check_positive)

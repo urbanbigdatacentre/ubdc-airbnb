@@ -1,20 +1,14 @@
 import glob
-import sysconfig
-from pathlib import Path
 import os
-from typing import List, Optional, Union
+import sysconfig
+from datetime import datetime
+from pathlib import Path
 
-from django.contrib.gis.gdal.datasource import DataSource
-from django.contrib.gis.gdal.layer import Layer
-from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from datetime import datetime
-
 from app.models import AOIShape
 from app.utils.grids import generate_initial_grid
-
 from . import _GeoFileHandler
 
 os.environ.setdefault(

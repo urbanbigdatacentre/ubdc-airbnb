@@ -1,9 +1,9 @@
 from argparse import ArgumentParser, ArgumentTypeError
 
-from django.core.management import BaseCommand, call_command
+from django.core.management import BaseCommand
 
-from app.utils.grids import generate_initial_grid
 from app.tasks import task_tidy_grids
+from app.utils.grids import generate_initial_grid
 
 
 def check_positive(value) -> int:

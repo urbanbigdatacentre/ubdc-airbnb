@@ -1,25 +1,13 @@
-import glob
-import sysconfig
 import json
-from pprint import pprint
-from pathlib import Path
-
 import os
+import sysconfig
 from argparse import ArgumentParser, ArgumentTypeError
-from typing import List, Optional, Union
+from pathlib import Path
+from pprint import pprint
 
-from django.contrib.gis.gdal.datasource import DataSource
-from django.contrib.gis.gdal.layer import Layer
-from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
 from django.core.management.base import BaseCommand
-from django.db import transaction
 
-from datetime import datetime
-
-from app.models import AOIShape, AirBnBResponse, AirBnBResponseTypes, AirBnBListing, AirBnBUser
-from app.utils.grids import generate_initial_grid
-
-from . import _GeoFileHandler
+from app.models import AirBnBResponse, AirBnBResponseTypes, AirBnBListing, AirBnBUser
 
 os.environ.setdefault(
     "PROJ_LIB", os.getenv('PROJ_LIB') or Path(
@@ -94,7 +82,6 @@ class Command(BaseCommand):
                 booking_response = listing_obj.responses.filter(_type=AirBnBResponseTypes.bookingQuote).order_by(
                     "timestamp").first()
                 self.stdout.write(json.dumps(booking_response.payload, indent=4, sort_keys=True))
-
 
         except AirBnBResponse.DoesNotExist as exc:
             error['error'] = "ResponseError"

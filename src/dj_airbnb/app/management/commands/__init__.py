@@ -1,13 +1,12 @@
+from argparse import ArgumentTypeError
 from pathlib import Path
-from typing import Union
-import glob
 from typing import List, Optional, Union
 
 from django.contrib.gis.gdal.datasource import DataSource
 from django.contrib.gis.gdal.layer import Layer
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
-from django.core.management.base import BaseCommand
-from django.db import transaction
+
+from app.models import AOIShape, AirBnBListing
 
 
 class _GeoFileHandler(object):
@@ -103,3 +102,15 @@ class _GeoFileHandler(object):
             return_geom.transform(destination_srid)
 
         return return_geom
+
+
+def int_to_aoi(pk: int) -> AOIShape:
+    """ Cast to AOI Object"""
+    return AOIShape.objects.get(id=pk)
+
+
+def int_to_listing(value) -> AirBnBListing:
+    """ Cast to AirBnBListing Object"""
+    listing = AirBnBListing.objects.get(listing_id=value)
+
+    return listing
