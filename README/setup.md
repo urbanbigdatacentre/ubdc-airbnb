@@ -1,10 +1,5 @@
 ### Required Software
 
-~~- Conda Python3.8 [Link](https://docs.conda.io/en/latest/miniconda.html)
-
-- (Use Python version 3.8, otherwise conda will have difficulties with GDAL.)
-- Familiarity of basic setup of Conda~~
-
 - Docker [Link](https://www.docker.com/get-started)
 	- For Windows, please follow these instructions https://docs.docker.com/docker-for-windows/install/
 	- On Windows Docker requires that you enable
@@ -65,10 +60,7 @@ already completed are as follows:
 	  data execution protection. The specific setting within your BIOS will vary based on hardware vendor.
 	  See [here](https://docs.docker.com/docker-for-windows/troubleshoot/#virtualization-must-be-enabled) for more
 	  details.
-	  ~~1. Install a Conda environment  
-	  Please use Anaconda/miniconda with python3.8 - python 3.9 will not work because as I am writing this GDAL, which
-	  is a key library, is not yet updated to work with python3.9 withing conda distributions.~~
-
+	  
 1. Install git.
 
 (After you have installed all three pieces of software above, open your favorite Windows terminal - I recommend
@@ -112,7 +104,7 @@ this will launch a complete stack with all the services:
 - a broker
 - an EMPTY fresh database
 	- The data are stored inside the container, thus when you remove it, they will get deleted. The postgres that I am
-	  using here is based on the the official postgres image. Please read the
+	  using here is based on the official postgres image. Please read the
 	  documentation [here](https://hub.docker.com/_/postgres) on how to make the data persistent
 - one worker.
 
@@ -154,10 +146,10 @@ Using a ubdc-airbnb miniconda console, `cd`  at the /src/dj_airbnb subfolder in 
 following command to import the land boundaries for a single country identified by its ISO:
 
 ```powershell
-docker-compose run --rm  -f docker-compose.yml -f docker-compose-local.yml worker  load-mask --only-iso GBR 
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker  load-mask --only-iso GBR 
 ```
 
-`docker-compose run --rm -f docker-compose.yml -f docker-compose-local.yml worker
+`docker-compose  -f docker-compose.yml -f docker-compose-local.yml run --rm worker
 
 The subroutine will download the GADM global border mask file (this step only has to be done once), and then import it
 the country specified above.
@@ -166,7 +158,7 @@ If you want, you can import ALL the countries by omitting the `--only-iso` param
 time to complete:
 
 ```powershell
-docker-compose run --rm  -f docker-compose.yml -f docker-compose-local.yml worker load-mask 
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm  worker load-mask 
 ```
 
 #### Set up scan locations - Areas of Interest (AOIs)
@@ -206,7 +198,7 @@ Requirements:
    the your project source directory. There:
 
 ```powershell
-docker-compose run --rm -f docker-compose.yml -f docker-compose-local.yml worker prep-grid <AOI-ID>
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker prep-grid <AOI-ID>
 ```
 
 (replace with the actual AOI-ID that was given to the shape after it was saved in the database with qgis)
@@ -223,7 +215,7 @@ no more than 50 listings, as reported by Airbnb.
 To initiate this grid scan:
 
 ```powershell
-docker-compose run --rm -f docker-compose.yml -f docker-compose-local.yml worker sense-aoi <AOI-ID>
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker sense-aoi <AOI-ID>
 ```
 
 (replace with the actual AOI-ID that was given to the shape after it was saved in the database with qgis)
@@ -238,7 +230,7 @@ completion.
 To send a generic task manually you can use the following command:
 
 ```powershell
-docker-compose run --rm -f docker-compose.yml -f docker-compose-local.yml worker send_task <name_of_the_task>
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send_task <name_of_the_task>
 ```
 
 NB For these commands to be successful, all the services with the exception of the scheduler must be
@@ -251,7 +243,7 @@ For convenience, we've set up dedicated commands for common tasks.
 Discover listings in a designated AOI:
 
 ```powershell
-docker-compose run --rm -f docker-compose.yml -f docker-compose-local.yml worker find-listings <AOI-ID>
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker find-listings <AOI-ID>
 ```
 
 (replace with the actual AOI-ID that was given to the shape after it was saved in the database with qgis)
@@ -263,20 +255,20 @@ Or to sent to discover/update all the listings in all the AOIs that have been ma
 flag  `scan_for_new_listings == True`
 
 ```powershell
-docker-compose run --rm -f docker-compose.yml -f docker-compose-local.yml worker send_task discover-listings
+docker-compose -f docker-compose.yml -f docker-compose-local.yml worker run --rm send_task discover-listings
 ```
 
 #### Collect Listing Details
 
 ```powershell
-docker-compose run --rm -f docker-compose.yml -f docker-compose-local.yml worker fetch-listing-detail <LISTING-ID>
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker  fetch-listing-detail <LISTING-ID>
 ```
 
 (replace with the actual LISTING-ID with an actual airbnb listing ID. You can load all the listings in an analysis
 environment with qgis.
 
 ```powershell
-docker-compose run --rm -f docker-compose.yml -f docker-compose-local.yml worker send_task get-listing-details
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send_task get-listing-details
 ```
 
 The above command will collect the listing details for the __known__ listings within the AOIs that are marked with the
@@ -285,14 +277,14 @@ flag `collect_details == True`
 #### Collect Calendars
 
 ```powershell
-docker-compose run --rm -f docker-compose.yml -f docker-compose-local.yml worker fetch-calendar <LISTING-ID>
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker fetch-calendar <LISTING-ID>
 ```
 
 (replace with the actual LISTING-ID with an actual airbnb listing ID. You can load all the listings in an analysis
 environment with qgis.
 
 ```powershell
-docker-compose run --rm -f docker-compose.yml -f docker-compose-local.yml worker send_task get-calendars
+docker-compose  -f docker-compose.yml -f docker-compose-local.yml run --rm worker send_task get-calendars
 ```
 
 The above command will collect the listing details for the __known__ listings within the AOIs that are marked with the
@@ -301,14 +293,14 @@ flag `collect_calendars == True`
 #### Collect Reviews
 
 ```powershell
-docker-compose run --rm -f docker-compose.yml -f docker-compose-local.yml worker fetch-reviews <LISTING-ID>
+docker-compose -f docker-compose.yml -f docker-compose-local.yml worker run --rm  fetch-reviews <LISTING-ID>
 ```
 
 (replace with the actual LISTING-ID with an actual airbnb listing ID. You can load all the listings in an analysis
 environment with qgis.
 
 ```powershell
-docker-compose run --rm -f docker-compose.yml -f docker-compose-local.yml worker send_task get-reviews
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send_task get-reviews
 ```
 
 The above command will scan and collect the reviews and user details for the __known__ listings within AOIs that are
@@ -317,7 +309,7 @@ marked with the flag `collect_review == True`
 #### Collect Booking Quotes
 
 ```powershell
-docker-compose run --rm -f docker-compose.yml -f docker-compose-local.yml worker send_task get-booking-quotes
+docker-compose -f docker-compose.yml -f docker-compose-local.yml worker run --rm send_task get-booking-quotes
 ```
 
 The above command will scan and collect the booking quotes for details for the __known__ listings within AOIs that are
@@ -345,4 +337,6 @@ operations can be found on the [operations](./operations.md)
 
 To enable the scheduler, open a console, and navigate at the project source folder. There run the command:
 
-`docker-compose up beat`
+```powershell
+docker-compose up beat
+```
