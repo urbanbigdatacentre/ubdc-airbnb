@@ -40,3 +40,8 @@ class Command(BaseCommand):
                 for qk in quadkeys:
                     future = executor.submit(func, quadkey=qk)
                     futures.append(future)
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        data = future.result()
+                    except Exception as exc:
+                        self.stdout.write(self.style.ERROR(f'error:%s') % exc)
