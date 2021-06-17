@@ -61,7 +61,7 @@ services:
   beat:
     deploy:
       replicas: 1
-    image: ${UBDC_DOCKER_REGISTRY}ubdc/ubdc_beat:0.7.1
+    image: ${UBDC_DOCKER_REGISTRY}ubdc/ubdc_beat:1.0.0
     <<: *build
     environment:
       <<: *common-env
@@ -70,7 +70,7 @@ services:
   worker:
     deploy:
       replicas: 1
-    image: ${UBDC_DOCKER_REGISTRY}ubdc/ubdc_worker:0.7.1
+    image: ${UBDC_DOCKER_REGISTRY}ubdc/ubdc_worker:1.0.0
     <<: *build
     environment:
       <<: *common-env
