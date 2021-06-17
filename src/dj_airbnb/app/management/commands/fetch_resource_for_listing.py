@@ -22,12 +22,15 @@ class Command(BaseCommand):
 
         if op == "calendar":
             r = task_update_calendar(listing_id=listing.listing_id)
+            self.stdout.write(f'Fetched calendar for listing {r}')
             return
         if op == "listing-detail":
             r = task_add_listing_detail(listing_id=listing.listing_id)
+            self.stdout.write(f'Fetched listing-details for listing {r}')
             return
         if op == "reviews":
             r = task_update_or_add_reviews_at_listing(listing_id=listing.listing_id)
+            self.stdout.write(f'Fetched reviews for listing {r}')
             return
 
         print('Done!')
