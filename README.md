@@ -12,6 +12,6 @@ contains some brief instructions on how to get up and running collecting airbnb 
 
 #### Contact 
 
-For any questions please contact the author at nick.ves@glasgow.ac.uk or UBDC directly at ...@glasgow.ac.uk
+For any questions please contact the author at nick.ves@glasgow.ac.uk
 
 #### Licence

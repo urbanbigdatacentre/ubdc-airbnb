@@ -146,7 +146,7 @@ Using a ubdc-airbnb miniconda console, `cd`  at the /src/dj_airbnb subfolder in 
 following command to import the land boundaries for a single country identified by its ISO:
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker  load-mask --only-iso GBR 
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker load-mask --only-iso GBR 
 ```
 
 `docker-compose  -f docker-compose.yml -f docker-compose-local.yml run --rm worker
@@ -158,7 +158,7 @@ If you want, you can import ALL the countries by omitting the `--only-iso` param
 time to complete:
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm  worker load-mask 
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker load-mask 
 ```
 
 #### Set up scan locations - Areas of Interest (AOIs)
@@ -255,7 +255,7 @@ Or to sent to discover/update all the listings in all the AOIs that have been ma
 flag  `scan_for_new_listings == True`
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml worker run --rm send_task discover-listings
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send_task discover-listings
 ```
 
 #### Collect Listing Details
@@ -293,7 +293,7 @@ flag `collect_calendars == True`
 #### Collect Reviews
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml worker run --rm  fetch-reviews <LISTING-ID>
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run worker --rm worker fetch-reviews <LISTING-ID>
 ```
 
 (replace with the actual LISTING-ID with an actual airbnb listing ID. You can load all the listings in an analysis
@@ -309,7 +309,7 @@ marked with the flag `collect_review == True`
 #### Collect Booking Quotes
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml worker run --rm send_task get-booking-quotes
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send_task get-booking-quotes
 ```
 
 The above command will scan and collect the booking quotes for details for the __known__ listings within AOIs that are
