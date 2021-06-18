@@ -126,7 +126,7 @@ Note, that the database needs to be up and running. [HOW-TO](#activate-the-backe
 Inside the project folder; run the following command:
 
 ```powershell
-docker-compose run --rm  -f docker-compose.yml -f docker-compose-local.yml worker migrate`
+docker-compose  -f docker-compose.yml -f docker-compose-local.yml run --rm worker migrate
 ```
 
 The worker will connect at the database, and will run the migration script creating all the tables, relationships and
@@ -149,7 +149,7 @@ following command to import the land boundaries for a single country identified 
 docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker load-mask --only-iso GBR 
 ```
 
-`docker-compose  -f docker-compose.yml -f docker-compose-local.yml run --rm worker
+`docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker
 
 The subroutine will download the GADM global border mask file (this step only has to be done once), and then import it
 the country specified above.
@@ -230,7 +230,7 @@ completion.
 To send a generic task manually you can use the following command:
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send_task <name_of_the_task>
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send-task <name_of_the_task>
 ```
 
 NB For these commands to be successful, all the services with the exception of the scheduler must be
@@ -255,20 +255,20 @@ Or to sent to discover/update all the listings in all the AOIs that have been ma
 flag  `scan_for_new_listings == True`
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send_task discover-listings
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send-task discover-listings
 ```
 
 #### Collect Listing Details
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker  fetch-listing-detail <LISTING-ID>
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker fetch-listing-detail <LISTING-ID>
 ```
 
 (replace with the actual LISTING-ID with an actual airbnb listing ID. You can load all the listings in an analysis
 environment with qgis.
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send_task get-listing-details
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send-task get-listing-details
 ```
 
 The above command will collect the listing details for the __known__ listings within the AOIs that are marked with the
@@ -284,7 +284,7 @@ docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker
 environment with qgis.
 
 ```powershell
-docker-compose  -f docker-compose.yml -f docker-compose-local.yml run --rm worker send_task get-calendars
+docker-compose  -f docker-compose.yml -f docker-compose-local.yml run --rm worker send-task get-calendars
 ```
 
 The above command will collect the listing details for the __known__ listings within the AOIs that are marked with the
@@ -293,14 +293,14 @@ flag `collect_calendars == True`
 #### Collect Reviews
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml run worker --rm worker fetch-reviews <LISTING-ID>
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run  --rm worker fetch-reviews <LISTING-ID>
 ```
 
 (replace with the actual LISTING-ID with an actual airbnb listing ID. You can load all the listings in an analysis
 environment with qgis.
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send_task get-reviews
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send-task get-reviews
 ```
 
 The above command will scan and collect the reviews and user details for the __known__ listings within AOIs that are
@@ -309,7 +309,7 @@ marked with the flag `collect_review == True`
 #### Collect Booking Quotes
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send_task get-booking-quotes
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker send-task get-booking-quotes
 ```
 
 The above command will scan and collect the booking quotes for details for the __known__ listings within AOIs that are
