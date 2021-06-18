@@ -210,7 +210,7 @@ class AirBnBResponse(models.Model):
     """ A model to hold Airbnb responses.
     If ubdc_task is Null, that means the data fetch was initiated manually """
 
-    listing_id: str = models.IntegerField(null=True, db_index=True)
+    listing_id: str = models.BigIntegerField(null=True, db_index=True)
 
     _type = models.CharField(max_length=3, db_column='type',
                              db_index=True,
@@ -246,7 +246,7 @@ class AirBnBResponse(models.Model):
 
 
 class AirBnBListing(models.Model):
-    listing_id = models.IntegerField(unique=True, null=False, help_text='(PK) Airbnb ListingID', primary_key=True)
+    listing_id = models.BigIntegerField(unique=True, null=False, help_text='(PK) Airbnb ListingID', primary_key=True)
     geom_3857 = models.PointField(srid=3857, help_text='Current Geom Point (\'3857\') of listing\'s location')
     timestamp = models.DateTimeField(auto_now_add=True, help_text='Datetime of entry')
     listing_updated_at = models.DateTimeField(null=True, blank=True, help_text='Datetime of last listing update')
@@ -265,7 +265,7 @@ class AirBnBListing(models.Model):
 
 # not using the User name, so we wont get confused with functional user
 class AirBnBUser(models.Model):
-    user_id = models.IntegerField(unique=True, null=False, blank=True, help_text='Airbnb User id')
+    user_id = models.BigIntegerField(unique=True, null=False, blank=True, help_text='Airbnb User id')
     first_name = models.TextField(default='')
     about = models.TextField(default='')
     airbnb_listing_count = models.IntegerField(default=0, help_text='as reported by airbnb')
@@ -292,7 +292,7 @@ class AirBnBUser(models.Model):
 
 
 class AirBnBReview(models.Model):
-    review_id = models.IntegerField(unique=True, null=False, blank=False, help_text='AirBNB Review id')  # required
+    review_id = models.BigIntegerField(unique=True, null=False, blank=False, help_text='AirBNB Review id')  # required
     created_at = models.DateTimeField(help_text='as reported by AirBNB', blank=False, null=False)  # required
     timestamp = models.DateTimeField(auto_now_add=True, verbose_name='Date of row creation.')
     review_text = models.TextField()
