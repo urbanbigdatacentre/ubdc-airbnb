@@ -1,8 +1,7 @@
----
-version: "3.8"
+version: "3.9"
 
-# extension fields (x-..) indroduced with docker-compose syntax 3.4.
-# Anything that does not start with x-.. is going to be rejected.
+# extension fields (x-..) introduced with docker-compose syntax 3.4.
+# Anything that does not start with x-.. will raise error.
 #
 # format is [x-name]: [&anchor_name] [value]
 #           Change as needed
@@ -11,7 +10,7 @@ version: "3.8"
 # docker stack deploy --compose-file docker-compose.yml ubdc-airbnb
 
 # App Config
-x-airbnb-proxy: &X-AIRBNB-PROXY "http://b0e04b81eab04836979cbc1afd568d9e:@proxy.crawlera.com:8011/"
+x-airbnb-proxy: &X-AIRBNB-PROXY "http://${ZYTE_PROXY_KEY:?zyte-key not set}:@proxy.crawlera.com:8011/"
 
 ## CELERY Config
 x-app-workers-per-instance: &X-WORKERS-PER-INSTANCE 1
@@ -19,10 +18,11 @@ x-celery-worker-prefetch-multiplier: &X-CELERY-WORKER-PREFETCH-MULTIPLIER 2
 x-celery-task-default-rate-limit: &X-CELERY-DEFAULT-RATE-LIMIT '10/m'
 
 # RABBITMQ Config
-x-rabbitmq-host: &X-RABBITMQ_HOST "host.docker.internal"  # default: host.docker.internal (points at the host machine)
-x-rabbitmq_username: &X-RABBITMQ_USERNAME "rabbit"
-x-rabbitmq-password: &X-RABBITMQ-PASSWORD "carrot"
+x-rabbitmq-host: &X-RABBITMQ_HOST "${RABBITMQ_HOST:-host.docker.internal}"  # default:  (points at the host machine)
+x-rabbitmq_username: &X-RABBITMQ-USERNAME "${RABBITMQ_USERNAME:-rabbit}"
+x-rabbitmq-password: &X-RABBITMQ-PASSWORD "${RABBITMQ_PASSWORD:-carrot}"
 x-rabbitmq-port: &X-RABBITMQ-PORT 5672
+x-rabbitmq-vhost: &X-RABBITMQ-VHOST "${RABBITMQ_VIRTUAL_HOST:-/}"
 
 # Database conf
 x-database-host: &X-DATABASE-HOST "host.docker.internal"  # default: host.docker.internal (points at the host machine)
@@ -40,8 +40,9 @@ x-common-env: &common-env
   CELERY_DEFAULT_RATE_LIMIT: *X-CELERY-DEFAULT-RATE-LIMIT
   RABBITMQ_HOST: *X-RABBITMQ_HOST
   RABBITMQ_PORT: *X-RABBITMQ-PORT
-  RABBITMQ_USERNAME: *X-RABBITMQ_USERNAME
+  RABBITMQ_USERNAME: *X-RABBITMQ-USERNAME
   RABBITMQ_PASSWORD: *X-RABBITMQ-PASSWORD
+  RABBITMQ_VIRTUAL_HOST: *X-RABBITMQ-VHOST
 
 
   DATABASE_DBNAME: *X-DATABASE-DBNAME
@@ -53,15 +54,14 @@ x-common-env: &common-env
 
 x-build-app: &build
   build:
-
     context: .
     dockerfile: ./docker/airbnb/Dockerfile
 
 services:
   beat:
     deploy:
-      replicas: 1
-    image: ${UBDC_DOCKER_REGISTRY}ubdc/ubdc_beat:1.0.1
+      replicas: 0
+    image: ${UBDC_DOCKER_REGISTRY:-}ubdc/ubdc-airbnb-engine:1.0.1
     <<: *build
     environment:
       <<: *common-env
@@ -70,7 +70,7 @@ services:
   worker:
     deploy:
       replicas: 1
-    image: ${UBDC_DOCKER_REGISTRY}ubdc/ubdc_worker:1.0.1
+    image: ${UBDC_DOCKER_REGISTRY:-}ubdc/ubdc-airbnb-engine:1.0.1
     <<: *build
     environment:
       <<: *common-env

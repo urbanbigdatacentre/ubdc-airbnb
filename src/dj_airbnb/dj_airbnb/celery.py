@@ -8,12 +8,22 @@ from celery.utils.log import get_task_logger
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'dj_airbnb.settings')
 django.setup()
 
-CELERY_BROKER_URI = 'pyamqp://{rabbit_username}:{rabbit_password}@{rabbit_host}:{rabbit_port}//'.format(
-    rabbit_username=os.getenv("RABBITMQ_USERNAME", 'rabbit'),
-    rabbit_password=os.getenv("RABBITMQ_PASSWORD", 'carrot'),
-    rabbit_host=os.getenv("RABBITMQ_HOST", 'localhost'),
-    rabbit_port=os.getenv("RABBITMQ_PORT", 5672)
-)
+# localhost host,
+#    default port,
+#   user name guest,
+#   password guest and
+# virtual host “/”
+
+# amqp://guest:guest@localhost:5672//
+CELERY_BROKER_URI = \
+    'pyamqp://{rabbit_username}:{rabbit_password}@{rabbit_host}:{rabbit_port}/{rabbit_virtual_host}'.format(
+        rabbit_username=os.getenv("RABBITMQ_USERNAME", 'rabbit'),
+        rabbit_password=os.getenv("RABBITMQ_PASSWORD", 'carrot'),
+        rabbit_host=os.getenv("RABBITMQ_HOST", 'localhost'),
+        rabbit_port=os.getenv("RABBITMQ_PORT", 5672),
+        rabbit_virtual_host=os.getenv("RABBITMQ_VIRTUAL_HOST", "/")
+    )
+print(CELERY_BROKER_URI)
 
 app = Celery('airbnb_app', task_cls='app.task_managers:BaseTaskWithRetry', broker=CELERY_BROKER_URI,
              result_extended=True)

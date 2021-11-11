@@ -1,5 +1,5 @@
 # from __future__ import absolute_import, unicode_literals
-
+import os
 from collections import Counter
 from datetime import timedelta
 from random import random
@@ -298,12 +298,18 @@ def task_discover_listings_at_grid(self, quadkey: str, stale_tolerance_days: int
 
                 print(f'Listing {listing_id} already exists and was seen ({timesince(listing_obj.timestamp)} ago)')
 
-                # compare if the location was moved more and than 10 cm form the one we know.
-                # if it has update with the new location and make a note
-                if distance > 150:
+                # compare if the location was moved more than the threshold the one we know.
+                # if it has, update with the new location and make a note
+                if distance > os.getenv('AIRBNB_LISTINGS_MOVED_MIN_DISTANCE', 150):
                     key = timezone.now().isoformat()
                     root: dict = listing_obj.notes
-                    root[key] = f"MOVE:FROM:{listing_obj.geom_3857.wkt}:TO:{point_3857.wkt}:DISTANCE:{distance}"
+                    root[key] = {
+                        'move': {
+                            'from': listing_obj.geom_3857.wkt,
+                            'to': point_3857.wkt,
+                            'distance': distance
+                        }
+                    }
                     listing_obj.geom_3857 = point_3857
             else:
                 listing_obj = AirBnBListing.objects.create(listing_id=listing_id, geom_3857=point_3857)

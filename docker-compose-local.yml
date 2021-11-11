@@ -24,15 +24,8 @@ services:
       - 5672:5672
       - 8080:15672
 
-  beat:
-    environment:
-      RABBITMQ_HOST: rabbit
-      DATABASE_HOST: db
 
   worker:
     environment:
       RABBITMQ_HOST: rabbit
       DATABASE_HOST: db
-
-volumes:
-  db_volume:

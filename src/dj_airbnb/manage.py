@@ -2,16 +2,10 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
-import sysconfig
-from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv()
-
-conda_venv_base = Path(sysconfig.get_paths()["data"])
-os.environ.setdefault("PROJ_LIB", os.getenv('PROJ_LIB', conda_venv_base.joinpath(
-    "Library/share/proj").as_posix() if conda_venv_base.joinpath(
-    "Library/share/proj").is_dir() else None))
 
 
 def main():
