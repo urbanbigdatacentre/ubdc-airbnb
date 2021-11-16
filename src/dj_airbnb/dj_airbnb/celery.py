@@ -1,6 +1,7 @@
 import os
+from typing import Any, Optional
+
 import django
-from typing import Any, Optional, Dict, Union, Tuple
 from celery import Celery, Task
 from celery.schedules import crontab
 from celery.utils.log import get_task_logger
@@ -23,7 +24,6 @@ CELERY_BROKER_URI = \
         rabbit_port=os.getenv("RABBITMQ_PORT", 5672),
         rabbit_virtual_host=os.getenv("RABBITMQ_VIRTUAL_HOST", "/")
     )
-print(CELERY_BROKER_URI)
 
 app = Celery('airbnb_app', task_cls='app.task_managers:BaseTaskWithRetry', broker=CELERY_BROKER_URI,
              result_extended=True)

@@ -4,13 +4,13 @@ import os
 from collections import namedtuple
 from datetime import datetime
 from hashlib import md5
-from typing import Dict, Iterator, Optional, Tuple, Mapping, List, Type
+from typing import Dict, Iterator, Optional, Tuple, Mapping, Type
 from uuid import uuid4
 
 import requests
 from dotenv import load_dotenv
 from jsonpath_ng import parse as json_parse
-from more_itertools import flatten, chunked
+from more_itertools import chunked
 from urllib3.exceptions import InsecureRequestWarning
 
 # disable InsecureRequest Warning until i fix the ubdc_airbnb_worker-container (debian buster seems not to like it)
