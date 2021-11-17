@@ -58,7 +58,7 @@ x-common-env: &common-env
 
 
 x-worker-image: &x-ubdc-airbnb-engine
-  image: "${UBDC_DOCKER_REGISTRY:-172.20.67.71}/ubdc/airbnb-engine:${IMAGE_TAG:-1.0.1}"
+  image: "${UBDC_DOCKER_REGISTRY:-172.20.67.71}/ubdc/airbnb-engine:${IMAGE_TAG:-1.0.2}"
   build:
     context: "."
     dockerfile: "./docker/airbnb/Dockerfile"
