@@ -22,7 +22,7 @@ CELERY_BROKER_URI = \
         rabbit_password=os.getenv("RABBITMQ_PASSWORD", 'carrot'),
         rabbit_host=os.getenv("RABBITMQ_HOST", 'localhost'),
         rabbit_port=os.getenv("RABBITMQ_PORT", 5672),
-        rabbit_virtual_host=os.getenv("RABBITMQ_VIRTUAL_HOST", "/")
+        rabbit_virtual_host=os.getenv("RABBITMQ_VHOST", "/")
     )
 
 app = Celery('airbnb_app', task_cls='app.task_managers:BaseTaskWithRetry', broker=CELERY_BROKER_URI,
