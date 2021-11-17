@@ -344,15 +344,24 @@ def task_add_listing_detail(self, listing_id: Union[str, int]) -> int:
             "get_listing_details", listing_id=_listing_id, task_id=task_id, _type=AirBnBResponseTypes.listingDetail)
 
         new_points = listing_locations_from_response(airbnb_response.payload)
-        new_point = new_points.get(listing_id, None)
-        if new_point is not None:
-            new_point.transform(3857)
-            distance = new_point.distance(listing_entry.geom_3857)
-            if distance > 0.1:
-                key = time_now.isoformat()
+        new_point_4326 = new_points.get(listing_id, None)
+        if new_point_4326 is not None:
+            previous_point_3857 = listing_entry.geom_3857
+            previous_point_4326: Point = previous_point_3857.transform(4326, clone=True)
+            new_point_3857 = new_point_4326.transform(3857, clone=True)
+            distance = new_point_3857.distance(previous_point_3857)
+            if distance > os.getenv('MOVED_LISTING_THRESHOLD', 0.1):
                 root: dict = listing_entry.notes
-                root[key] = f"MOVE:FROM:{listing_entry.geom_3857.wkt}:TO:{new_point.wkt}:DISTANCE:{distance}"
-                listing_entry.geom_3857 = new_point
+                notes = root.get('notes', [])
+                entry = {
+                    'type': 'move',
+                    'timestamp': time_now.isoformat(),
+                    'from': previous_point_4326.ewkt,
+                    'to': new_point_4326.ewkt,
+                    'distance': distance
+                }
+                notes.append(entry)
+                listing_entry.geom_3857 = new_point_3857
         listing_entry.save()
 
     except HTTPError as exc:
