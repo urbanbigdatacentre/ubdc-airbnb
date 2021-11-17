@@ -1,0 +1,34 @@
+version: "3.8"
+# This will create a database service for the airbnb project
+# activate by $> docker compose -f docker-compose.db.yaml up
+
+# replace where appropriate.
+
+# 'db' -> service name of db service
+x-dev-database-dbname: &X-DEV-DATABASE-DBNAME airbnb
+x-dev-database-username: &X-DEV-DATABASE-USERNAME airbnb
+x-dev-database-password: &X-DEV-DATABASE-PASSWORD airbnb
+
+x-db-image: &x-db-image
+  image: ${UBDC_DOCKER_REGISTRY:-docker.io}/${PROJECT_NAME:-ubdc-library}/postgis:1.0.0
+  build:
+    context: .
+    dockerfile: ./docker/postgis/Dockerfile
+
+services:
+  db:
+    <<: *x-db-image
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: *X-DEV-DATABASE-DBNAME
+      POSTGRES_USER: *X-DEV-DATABASE-USERNAME
+      POSTGRES_PASSWORD: *X-DEV-DATABASE-PASSWORD
+    volumes:
+      - db_volume:/var/lib/postgresql/data
+    networks:
+      - ubdc_airbnb_v2
+
+networks:
+  ubdc_airbnb_v2:
+    external: true

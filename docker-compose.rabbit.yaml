@@ -1,0 +1,22 @@
+version: "3.9"
+
+# Create a db service using the following credentials
+# for dev reasons, but it could be used as starting point for creating a rabbit
+x-dev-rabbit-username: &X-DEV-RABBITMQ-USERNAME rabbit
+x-dev-rabbit-password: &X-DEV-RABBITMQ-PASSWORD carrot
+
+services:
+  rabbit:
+    image: library/rabbitmq:3.8-management
+    environment:
+      RABBITMQ_DEFAULT_USER: *X-DEV-RABBITMQ-USERNAME
+      RABBITMQ_DEFAULT_PASS: *X-DEV-RABBITMQ-PASSWORD
+    ports:
+      - "5672:5672"
+      - "8080:15672"
+    networks:
+      - ubdc_airbnb_v2
+
+networks:
+  ubdc_airbnb_v2:
+    external: true

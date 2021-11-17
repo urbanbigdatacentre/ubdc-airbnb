@@ -1,0 +1,16 @@
+---
+version: "3.9"
+
+services:
+  # main service definition at the docker-compose file
+  worker:
+    environment:
+      DJANGO_DEBUG: "True"
+
+  beat:
+    environment:
+      DJANGO_DEBUG: "True"
+
+networks:
+  ubdc_airbnb_v2:
+    external: true
