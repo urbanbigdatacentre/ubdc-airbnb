@@ -2,15 +2,17 @@ from typing import List, Optional, Sequence, Union
 
 from celery import group, shared_task
 from celery.result import GroupResult
+from celery.utils.log import get_task_logger
 from dateutil.relativedelta import relativedelta
-from django.contrib.postgres.fields.jsonb import KeyTextTransform
-from django.db.models import F, IntegerField, Q, QuerySet, Subquery, OuterRef
+from django.db.models import F, BigIntegerField, Q, Subquery, OuterRef
+from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.utils.timezone import now
-from celery.utils.log import get_task_logger
-from app.errors import UBDCError
-from app.models import AOIShape, AirBnBListing, UBDCGroupTask, UBDCTask
-from app.tasks import task_update_or_add_reviews_at_listing
+
+from ubdc_airbnb.errors import UBDCError
+from ubdc_airbnb.models import AOIShape, AirBnBListing, UBDCGroupTask, UBDCTask
+from ubdc_airbnb.tasks import task_update_or_add_reviews_at_listing
+from ubdc_airbnb.utils.time import seconds_later_from_now
 
 logger = get_task_logger(__name__)
 
@@ -106,7 +108,7 @@ def op_update_reviews_periodical(how_many: int = 50, age_hours: int = 3 * 7 * 24
     if not (0 < priority < 10 + 1):
         raise UBDCError('The variable priority must be between 1 than 10')
 
-    expire_23hour_later = 23 * 60 * 60
+    expire_23hour_later = seconds_later_from_now()
 
     if use_aoi:
         qs_aoi = AOIShape.objects.filter(collect_reviews=True, geom_3857__intersects=OuterRef('geom_3857'))[:1]
@@ -122,7 +124,7 @@ def op_update_reviews_periodical(how_many: int = 50, age_hours: int = 3 * 7 * 24
                              .filter(task_name=task_update_or_add_reviews_at_listing.name)
                              .filter(status=UBDCTask.TaskTypeChoices.SUBMITTED)
                              .filter(task_kwargs__has_key='listing_id')
-                             .annotate(listing_ids=Cast(KeyTextTransform('listing_id', 'task_kwargs'), IntegerField())))
+                             .annotate(listing_ids=Cast(KeyTextTransform('listing_id', 'task_kwargs'), BigIntegerField())))
 
     qs_listings = (qs_listings.filter(
         Q(reviews_updated_at__lt=start_day_today - relativedelta(hours=age_hours)) |

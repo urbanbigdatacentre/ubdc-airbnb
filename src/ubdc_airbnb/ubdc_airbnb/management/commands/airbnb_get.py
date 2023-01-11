@@ -7,7 +7,7 @@ from pprint import pprint
 
 from django.core.management.base import BaseCommand
 
-from app.models import AirBnBResponse, AirBnBResponseTypes, AirBnBListing, AirBnBUser
+from ubdc_airbnb.models import AirBnBResponse, AirBnBResponseTypes, AirBnBListing, AirBnBUser
 
 os.environ.setdefault(
     "PROJ_LIB", os.getenv('PROJ_LIB') or Path(
@@ -47,7 +47,7 @@ class Command(BaseCommand):
         error = {"error": None, "msg": None}
         try:
             if options.get('command') == 'calendar':
-                from app.tasks import task_update_calendar
+                from ubdc_airbnb.tasks import task_update_calendar
                 listing_id = task_update_calendar(options.get('listing_id'))
                 response = AirBnBResponse.objects.filter(listing_id=listing_id,
                                                          _type=AirBnBResponseTypes.calendar).order_by(
@@ -55,7 +55,7 @@ class Command(BaseCommand):
                 self.stdout.write(json.dumps(response.payload, indent=4, sort_keys=True))
 
             if options.get('command') == 'listing-detail':
-                from app.tasks import task_add_listing_detail
+                from ubdc_airbnb.tasks import task_add_listing_detail
                 listing_id = task_add_listing_detail(options.get('listing_id'))
                 response = AirBnBListing.responses.objects.filter(listing_id=listing_id,
                                                                   _type=AirBnBResponseTypes.listingDetail).order_by(
@@ -64,7 +64,7 @@ class Command(BaseCommand):
                 self.stdout.write(json.dumps(response.payload, indent=4, sort_keys=True))
 
             if options.get('command') == 'user-detail':
-                from app.tasks import task_get_or_create_user, task_update_user_details
+                from ubdc_airbnb.tasks import task_get_or_create_user, task_update_user_details
 
                 user_id = task_get_or_create_user(user_id=options.get('user_id'), defer=False)
                 user_obj = AirBnBUser.objects.filter(user_id=user_id).first()
@@ -73,7 +73,7 @@ class Command(BaseCommand):
                 self.stdout.write(json.dumps(response.payload, indent=4, sort_keys=True))
 
             if options.get('command') == 'booking-quote':
-                from app.tasks import task_update_calendar, task_get_booking_detail
+                from ubdc_airbnb.tasks import task_update_calendar, task_get_booking_detail
                 listing_id = options.get('listing_id')
                 # listing_id = task_update_calendar(listing_id)
                 listing_id = task_get_booking_detail(listing_id=listing_id)

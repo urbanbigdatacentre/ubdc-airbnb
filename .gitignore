@@ -1,4 +1,4 @@
 .idea
 .ubdc-airbnb-service.env
-.env
-docker-compose.overide.yml
+docker-compose.overide.local.yml
+.env.*

@@ -6,8 +6,8 @@ from requests import HTTPError
 
 from . import UBDCBaseTestWorker
 from . import get_fixture
-from ..errors import UBDCError, UBDCRetriableError
-from ..models import AirBnBResponseTypes
+from ubdc_airbnb.errors import UBDCError, UBDCRetriableError
+from ubdc_airbnb.models import AirBnBResponseTypes
 
 
 class TestGridOps(UBDCBaseTestWorker):

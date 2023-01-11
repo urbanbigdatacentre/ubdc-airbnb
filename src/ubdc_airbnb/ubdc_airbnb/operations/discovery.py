@@ -5,14 +5,15 @@ from celery import group, shared_task
 from celery.result import GroupResult, AsyncResult
 from celery.utils.log import get_task_logger
 from dateutil.relativedelta import relativedelta
-from django.contrib.postgres.fields.jsonb import KeyTextTransform
 from django.db.models import TextField, Q, Subquery, OuterRef, Count
+from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.utils.timezone import now
 
-from app.errors import UBDCError
-from app.models import UBDCGroupTask, UBDCTask, UBDCGrid, AOIShape
-from app.tasks import task_discover_listings_at_grid
+from ubdc_airbnb.errors import UBDCError
+from ubdc_airbnb.models import UBDCGroupTask, UBDCTask, UBDCGrid, AOIShape
+from ubdc_airbnb.tasks import task_discover_listings_at_grid
+from ubdc_airbnb.utils.time import seconds_later_from_now
 
 logger = get_task_logger(__name__)
 
@@ -75,19 +76,19 @@ def op_discover_new_listings_periodical(how_many: int = 500,
     how_many = int(how_many)
     age_hours = int(age_hours)
     priority = int(priority)
+    expire_23hour_later = seconds_later_from_now()
 
-    expire_23hour_later = 23 * 60 * 60
     start_day_today = now().replace(hour=0, minute=0, second=0, microsecond=0)
     future_qk = list(
         UBDCTask
-            .objects
-            .filter(
+        .objects
+        .filter(
             datetime_submitted__gte=start_day_today - relativedelta(days=1))  # datetime_submitted has index on it
-            .filter(task_name=task_discover_listings_at_grid.name)
-            .filter(status=UBDCTask.TaskTypeChoices.SUBMITTED)
-            .filter(task_kwargs__has_key='quadkey')
-            .annotate(quadkey=Cast(KeyTextTransform('quadkey', 'task_kwargs'), TextField()))
-            .values_list('quadkey', flat=True)
+        .filter(task_name=task_discover_listings_at_grid.name)
+        .filter(status=UBDCTask.TaskTypeChoices.SUBMITTED)
+        .filter(task_kwargs__has_key='quadkey')
+        .annotate(quadkey=Cast(KeyTextTransform('quadkey', 'task_kwargs'), TextField()))
+        .values_list('quadkey', flat=True)
     )
 
     if use_aoi:

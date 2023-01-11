@@ -3,15 +3,16 @@ from typing import Union, List, Sequence, Collection, Optional
 from celery import shared_task, group
 from celery.result import GroupResult
 from dateutil.relativedelta import relativedelta
-from django.contrib.postgres.fields.jsonb import KeyTextTransform
-from django.db.models import IntegerField, Subquery, Q, F, OuterRef
+from django.db.models import BigIntegerField, Subquery, Q, F, OuterRef
+from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.utils.timezone import now
 
-from app.errors import UBDCError
-from app.models import UBDCGroupTask, UBDCGrid, AOIShape, AirBnBListing, UBDCTask
-from app.operations.discovery import logger
-from app.tasks import task_add_listing_detail
+from ubdc_airbnb.errors import UBDCError
+from ubdc_airbnb.models import UBDCGroupTask, UBDCGrid, AOIShape, AirBnBListing, UBDCTask
+from ubdc_airbnb.operations.discovery import logger
+from ubdc_airbnb.tasks import task_add_listing_detail
+from ubdc_airbnb.utils.time import seconds_later_from_now
 
 
 @shared_task
@@ -145,7 +146,7 @@ def op_update_listing_details_periodical(how_many: int = 5000, age_hours: int = 
     if not (0 < priority < 10 + 1):
         raise UBDCError('The variable priority must be between 1 than 10')
 
-    expire_23hour_later = 23 * 60 * 60
+    expire_23hour_later = seconds_later_from_now()
 
     start_day_today = now().replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -164,7 +165,7 @@ def op_update_listing_details_periodical(how_many: int = 5000, age_hours: int = 
                          .filter(task_name=task_add_listing_detail.name)
                          .filter(status=UBDCTask.TaskTypeChoices.SUBMITTED)
                          .filter(task_kwargs__has_key='listing_id')
-                         .annotate(listing_ids=Cast(KeyTextTransform('listing_id', 'task_kwargs'), IntegerField())))
+                         .annotate(listing_ids=Cast(KeyTextTransform('listing_id', 'task_kwargs'), BigIntegerField())))
     logger.info(f"Excluded Listings  {excluded_listings.count()}")
 
     qs_listings = (qs_listings

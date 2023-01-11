@@ -7,8 +7,9 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import Subquery, Q, F, OuterRef, Count
 from django.utils import timezone
 
-from app.models import AOIShape, UBDCGroupTask, AirBnBListing
-from app.tasks import task_update_calendar, task_get_booking_detail
+from ubdc_airbnb.models import AOIShape, UBDCGroupTask, AirBnBListing
+from ubdc_airbnb.tasks import task_update_calendar, task_get_booking_detail
+from ubdc_airbnb.utils.time import seconds_later_from_now
 
 logger = get_task_logger(__name__)
 
@@ -39,7 +40,7 @@ def op_get_booking_detail_periodical(how_many: int = 500, age_hours: int = 23, p
                                      use_aoi=True):
     how_many = int(how_many)
     age_hours = int(age_hours)
-    expire_23hour_later = 23 * 60 * 60
+    expire_23hour_later = seconds_later_from_now()
 
     start_day_today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
     if use_aoi:

@@ -1,12 +1,13 @@
 import os
 from typing import Any, Optional
+from django.conf import settings
 
 import django
 from celery import Celery, Task
 from celery.schedules import crontab
 from celery.utils.log import get_task_logger
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ubdc_airbnb.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
 # localhost host,
@@ -15,22 +16,25 @@ django.setup()
 #   password guest and
 # virtual host “/”
 
-# amqp://guest:guest@localhost:5672//
-CELERY_BROKER_URI = \
-    'pyamqp://{rabbit_username}:{rabbit_password}@{rabbit_host}:{rabbit_port}/{rabbit_virtual_host}'.format(
-        rabbit_username=os.getenv("RABBITMQ_USERNAME", 'rabbit'),
-        rabbit_password=os.getenv("RABBITMQ_PASSWORD", 'carrot'),
-        rabbit_host=os.getenv("RABBITMQ_HOST", 'localhost'),
-        rabbit_port=os.getenv("RABBITMQ_PORT", 5672),
-        rabbit_virtual_host=os.getenv("RABBITMQ_VHOST", "/")
-    )
-
-app = Celery('airbnb_app', task_cls='app.task_managers:BaseTaskWithRetry', broker=CELERY_BROKER_URI,
-             result_extended=True)
-app.config_from_object('django.conf:settings', namespace='CELERY', force=True)
-
+app = Celery(
+    'airbnb_app',
+    task_cls='ubdc_airbnb.task_managers:BaseTaskWithRetry',
+    broker=settings.CELERY_BROKER_URI,
+    result_extended=True)
+app.config_from_object(
+    settings,
+    namespace='CELERY',
+    force=True)
 app.autodiscover_tasks(force=True)
-app.autodiscover_tasks(related_name='operations', force=True)
+app.autodiscover_tasks(
+    related_name='operations',
+    force=True)
+
+task_registry_copy = app.tasks.copy()
+for k in task_registry_copy.keys():
+    new_key = k.replace('ubdc_airbnb', 'app')
+    app.tasks[new_key] = app.tasks[k]
+
 
 app.conf.beat_schedule = {
     # 'add-every-monday-morning': {
@@ -46,7 +50,7 @@ app.conf.beat_schedule = {
     #     }
     # },
     'op_update_listing_details_periodical': {
-        'task': 'app.operations.listing_details.op_update_listing_details_periodical',
+        'task': 'ubdc_airbnb.operations.listing_details.op_update_listing_details_periodical',
         'schedule': crontab(minute=0, hour='*/4'),  # At minute 0 past every 4th hour.
         'kwargs': {
             "how_many": 5000,
@@ -57,7 +61,7 @@ app.conf.beat_schedule = {
         }
     },
     'op_update_reviews_periodical': {
-        'task': 'app.operations.reviews.op_update_reviews_periodical',
+        'task': 'ubdc_airbnb.operations.reviews.op_update_reviews_periodical',
         'schedule': crontab(minute=0, hour='*/4'),  # At minute 0 past every 4th hour.
         'kwargs': {
             "how_many": 1500,
@@ -68,7 +72,7 @@ app.conf.beat_schedule = {
         }
     },
     'op_estimate_listings_or_divide_periodical': {
-        'task': 'app.operations.grids.op_estimate_listings_or_divide_periodical',
+        'task': 'ubdc_airbnb.operations.grids.op_estimate_listings_or_divide_periodical',
         'schedule': crontab(minute=0, hour='*/4'),  # At minute 0 past every 4th hour.
         'kwargs': {
             "how_many": 500,
@@ -80,7 +84,7 @@ app.conf.beat_schedule = {
         }
     },
     'op_update_calendar_periodical': {
-        'task': 'app.operations.calendars.op_update_calendar_periodical',
+        'task': 'ubdc_airbnb.operations.calendars.op_update_calendar_periodical',
         'schedule': crontab(minute=0, hour='*/4'),  # At minute 0 past every 4th hour.
         'kwargs': {
             "how_many": 10000,
@@ -93,7 +97,7 @@ app.conf.beat_schedule = {
         }
     },
     'op_discover_new_listings_periodical': {
-        'task': 'app.operations.discovery.op_discover_new_listings_periodical',
+        'task': 'ubdc_airbnb.operations.discovery.op_discover_new_listings_periodical',
         'schedule': crontab(minute=0, hour='*/4'),  # At minute 0 past every 4th hour.
         'kwargs': {
             "how_many": 500,
@@ -106,7 +110,7 @@ app.conf.beat_schedule = {
         }
     },
     'op_tidy_grids': {
-        'task': 'app.tasks.task_tidy_grids',
+        'task': 'ubdc_airbnb.tasks.task_tidy_grids',
         'schedule': crontab(minute=0, hour=0, day_of_month=15),  # At 00:00 on day-of-month 15.
         'kwargs': {"less_than": 50},
         'options': {

@@ -4,8 +4,8 @@ from django.utils import timezone
 
 from . import UBDCBaseTestWorker
 from . import get_fixture
-from ..errors import UBDCError
-from ..models import AirBnBResponseTypes
+from ubdc_airbnb.errors import UBDCError
+from ubdc_airbnb.models import AirBnBResponseTypes
 
 
 class TestGridOps(UBDCBaseTestWorker):
@@ -16,7 +16,7 @@ class TestGridOps(UBDCBaseTestWorker):
 
     def setUp(self):
         self.listing_404 = 30729869
-        self.listing_200 = 40197612
+        self.listing_200 = 51593353
         self.quadkey = "03113323321103333"
 
         from ubdc_airbnb.models import UBDCGrid
@@ -50,7 +50,6 @@ class TestGridOps(UBDCBaseTestWorker):
 
         print('do some actual testing')
 
-
     def test_get_calendar_404(self):
         from ubdc_airbnb.tasks import task_update_calendar
 
@@ -76,7 +75,6 @@ class TestGridOps(UBDCBaseTestWorker):
         group_result_id = job.get()
 
         print('do some actual testing')
-
 
     def test_grab_listing_calendar_non_existent(self):
         from ubdc_airbnb.operations import op_update_calendars_for_listing_ids

@@ -332,7 +332,7 @@ to have two workers in total issue the following command:
 It is possible to set the system on scheduled mode. In that mode passively the system fires pretold tasks on predefined
 times.
 
-The schedule can be found inside [celery.py](../src/dj_airbnb/dj_airbnb/celery.py) and a list of all the avaiable
+The schedule can be found inside [celery.py](../src/ubdc_airbnb/core/celery.py) and a list of all the avaiable
 operations can be found on the [operations](./operations.md)
 
 To enable the scheduler, open a console, and navigate at the project source folder. There run the command:

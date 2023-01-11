@@ -4,8 +4,8 @@ from celery import group
 from django.core.management import BaseCommand
 from django.db.models import QuerySet
 
-from app.models import UBDCGrid, AOIShape, UBDCGroupTask
-from app.tasks import task_estimate_listings_or_divide
+from ubdc_airbnb.models import UBDCGrid, AOIShape, UBDCGroupTask
+from ubdc_airbnb.tasks import task_estimate_listings_or_divide
 
 
 def check_positive(value) -> int:

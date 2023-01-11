@@ -1,73 +1,61 @@
 #!/usr/bin/env bash
 set -Eeo pipefail
-CONCURRENCY=${WORKERS_PER_INSTANCE:-1}
 
-if [[ -n "$1" ]]; then
-  # if we start with a params assume we want to run that
-  # prep commands
+case $1 in
+migrate)
+  echo -n "migrate"
+  python ./manage.py migrate
+  ;;
+load-mask)
+  echo -n "load-mask"
+  python ./manage.py import_world_mask "${@:2}"
+  ;;
+tidy-grids)
+  echo -n "tidy-grids"
+  python ./manage.py tidy_grid
+  ;;
+sense-aoi)
+  echo "sense-aoi"
+  python ./manage.py sense_aoi "${@:2}"
+  ;;
+prep-grid)
+  echo "prep-grid"
+  python ./manage.py generate_grid "${@:2}"
+  ;;
 
-  if [ "$1" = "migrate" ]; then
-    echo "migrate"
-    python ./dj_airbnb/manage.py migrate
-    exit
-  elif [ "$1" = "load-mask" ]; then
-    echo "load-mask"
-    python ./dj_airbnb/manage.py import_world_mask "${@:2}"
-    exit
-  elif [ "$1" = "sense-aoi" ]; then
-    echo "sense-aoi"
-    python ./dj_airbnb/manage.py sense_aoi "${@:2}"
-    exit
-  elif [ "$1" = "prep-grid" ]; then
-    echo "prep-grid"
-    python ./dj_airbnb/manage.py generate_grid "${@:2}"
-    exit
-  elif [ "$1" = 'tidy-grids' ]; then
-    python ./dj_airbnb/manage.py tidi_grid
-    exit
+fetch-calendar)
+  echo "fetch-calendar"
+  python ./manage.py fetch_resource_for_listing calendar "${@:2}"
+  ;;
+find-listings)
+  echo "find-listings"
+  python ./manage.py find_listings_aoi "${@:2}"
+  ;;
+fetch-listing-detail)
+  echo "fetch-listing-detail"
+  python ./manage.py fetch_resource_for_listing listing-detail "${@:2}"
+  ;;
+fetch-reviews)
+  echo "fetch-reviews"
+  python ./manage.py fetch_resource_for_listing reviews "${@:2}"
+  ;;
 
-    # Op commands
-  elif [ "$1" = "find-listings" ]; then
-    echo "find-listings"
-    python ./dj_airbnb/manage.py find_listings_aoi "${@:2}"
-    exit
-  elif [ "$1" = "fetch-calendar" ]; then
-    echo "fetch-calendar"
-    python ./dj_airbnb/manage.py fetch_resource_for_listing calendar "${@:2}"
-    exit
-  elif [ "$1" = "fetch-listing-detail" ]; then
-    echo "fetch-listing-detail"
-    python ./dj_airbnb/manage.py fetch_resource_for_listing listing-detail "${@:2}"
-    exit
-  elif [ "$1" = "fetch-reviews" ]; then
-    echo "fetch-reviews"
-    python ./dj_airbnb/manage.py fetch_resource_for_listing reviews "${@:2}"
-    exit
-  elif
-    [ "$1" = "send-task" ]
-  then
-    python ./dj_airbnb/manage.py send_task "${@:2}"
-    exit
-
-  elif [ "$1" = 'shell' ]; then
-    python ./dj_airbnb/manage.py shell
-    exit
-  fi
-  exec "$@"
-fi
-
-if
-  [ "$MODE" = "worker" ]
-then
+sent-task)
+  python ./manage.py send_task "${@:2}"
+  ;;
+manage)
+  python ./manage.py "${@:2}"
+  ;;
+start-worker)
   echo "!!!Starting Worker!!!"
-  celery -A dj_airbnb.celery:app worker -l info --concurrency="${CONCURRENCY}"
-  exit
-elif
-  [ "$MODE" = "beat" ]
-then
+  celery -A core.celery:app worker -l info --concurrency=1
+  ;;
+start-beat)
   echo "Starting Beat"
-  celery -A dj_airbnb.celery:app beat -l info -s /celerybeat-schedule.d --pidfile="$(mktemp)".pid
-  exit
-fi
-
+  celery -A core.celery:app beat -l info -s /celerybeat-schedule.d --pidfile="$(mktemp)".pid
+  ;;
+*)
+  exec "$@"
+  ;;
+esac
 exit $?

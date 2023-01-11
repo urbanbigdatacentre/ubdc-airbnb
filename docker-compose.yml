@@ -10,63 +10,59 @@ version: "3.9"
 # docker stack deploy --compose-file docker-compose.yml ubdc-airbnb
 
 # App Config
-x-airbnb-proxy: &X-AIRBNB-PROXY "http://${ZYTE_PROXY_KEY:?zyte-key not set}:@proxy.crawlera.com:8011/"
-x-airbnb-public-token: &X-AIRBNB-PUBLIC-TOKEN "${AIRBNB_API_KEY:?airbnb-key not set}"
+#x-airbnb-proxy: &X-AIRBNB-PROXY "http://${ZYTE_PROXY_KEY:?zyte-key not set}:@proxy.crawlera.com:8011/"
+#x-airbnb-public-token: &X-AIRBNB-PUBLIC-TOKEN "${AIRBNB_API_KEY:?airbnb-key not set}"
 
 ## CELERY Config
-x-app-workers-per-instance: &X-WORKERS-PER-INSTANCE 1
-x-celery-worker-prefetch-multiplier: &X-CELERY-WORKER-PREFETCH-MULTIPLIER 2
-x-celery-task-default-rate-limit: &X-CELERY-DEFAULT-RATE-LIMIT '10/m'
+#x-app-workers-per-instance: &X-WORKERS-PER-INSTANCE 1
+#x-celery-worker-prefetch-multiplier: &X-CELERY-WORKER-PREFETCH-MULTIPLIER 2
+#x-celery-task-default-rate-limit: &X-CELERY-DEFAULT-RATE-LIMIT '10/m'
 
 # RABBITMQ Config
 # Check docker-compose.rabbit.yaml for rabbit service
-x-rabbitmq-host: &X-RABBITMQ-HOST "${RABBITMQ_HOST:-host.docker.internal}"  # default:  (points at the host machine)
-x-rabbitmq_username: &X-RABBITMQ-USERNAME "${RABBITMQ_USERNAME:-rabbit}"
-x-rabbitmq-password: &X-RABBITMQ-PASSWORD "${RABBITMQ_PASSWORD:-carrot}"
-x-rabbitmq-port: &X-RABBITMQ-PORT 5672
-x-rabbitmq-vhost: &X-RABBITMQ-VHOST "${RABBITMQ_VHOST:-/}"
+#x-rabbitmq-host: &X-RABBITMQ-HOST "${RABBITMQ_HOST:-host.docker.internal}"  # default:  (points at the host machine)
+#x-rabbitmq_username: &X-RABBITMQ-USERNAME "${RABBITMQ_USERNAME:-rabbit}"
+#x-rabbitmq-password: &X-RABBITMQ-PASSWORD "${RABBITMQ_PASSWORD:-carrot}"
+#x-rabbitmq-port: &X-RABBITMQ-PORT 5672
+#x-rabbitmq-vhost: &X-RABBITMQ-VHOST "${RABBITMQ_VHOST:-/}"
 
 # Database conf
 # Check docker-compose.db.yaml for database service
-x-database-host: &X-DATABASE-HOST "${DATABASE_HOST:-host.docker.internal}"  # default: (points at the host machine)
-x-database-dbname: &X-DATABASE-DBNAME "${DATABASE_NAME:-postgres}"
-x-database-username: &X-DATABASE-USERNAME "${DATABASE_USERNAME:-postgres}"
-x-database-password: &X-DATABASE-PASSWORD "${DATABASE_PASSWORD:-postgres}"
-x-database-port: &X-DATABASE-PORT 5432
+#x-database-host: &X-DATABASE-HOST "${DATABASE_HOST:-host.docker.internal}"  # default: (points at the host machine)
+#x-database-dbname: &X-DATABASE-DBNAME "${DATABASE_NAME:-postgres}"
+#x-database-username: &X-DATABASE-USERNAME "${DATABASE_USERNAME:-postgres}"
+#x-database-password: &X-DATABASE-PASSWORD "${DATABASE_PASSWORD:-postgres}"
+#x-database-port: &X-DATABASE-PORT 5432
 
 
-x-common-env: &common-env
-  environment:
-    AIRBNB_PROXY: *X-AIRBNB-PROXY
-    AIRBNB_PUBLIC_API_KEY: *X-AIRBNB-PUBLIC-TOKEN
-
-    DJANGO_DEBUG: "False"
-    WORKERS_PER_INSTANCE: *X-WORKERS-PER-INSTANCE
-    CELERY_WORKER_PREFETCH_MULTIPLIER: *X-CELERY-WORKER-PREFETCH-MULTIPLIER
-    CELERY_DEFAULT_RATE_LIMIT: *X-CELERY-DEFAULT-RATE-LIMIT
-    RABBITMQ_HOST: *X-RABBITMQ-HOST
-    RABBITMQ_PORT: *X-RABBITMQ-PORT
-    RABBITMQ_USERNAME: *X-RABBITMQ-USERNAME
-    RABBITMQ_PASSWORD: *X-RABBITMQ-PASSWORD
-    RABBITMQ_VHOST: *X-RABBITMQ-VHOST
-
-    DATABASE_DBNAME: *X-DATABASE-DBNAME
-    DATABASE_HOST: *X-DATABASE-HOST
-    DATABASE_PASSWORD: *X-DATABASE-PASSWORD
-    DATABASE_PORT: *X-DATABASE-PORT
-    DATABASE_USERNAME: *X-DATABASE-USERNAME
+#x-common-env: &common-env
+#  environment:
+#    AIRBNB_PROXY: *X-AIRBNB-PROXY
+#    AIRBNB_PUBLIC_API_KEY: *X-AIRBNB-PUBLIC-TOKEN
+#
+#    DJANGO_DEBUG: "False"
+#    WORKERS_PER_INSTANCE: *X-WORKERS-PER-INSTANCE
+#    CELERY_WORKER_PREFETCH_MULTIPLIER: *X-CELERY-WORKER-PREFETCH-MULTIPLIER
+#    CELERY_DEFAULT_RATE_LIMIT: *X-CELERY-DEFAULT-RATE-LIMIT
+#    RABBITMQ_HOST: *X-RABBITMQ-HOST
+#    RABBITMQ_PORT: *X-RABBITMQ-PORT
+#    RABBITMQ_USERNAME: *X-RABBITMQ-USERNAME
+#    RABBITMQ_PASSWORD: *X-RABBITMQ-PASSWORD
+#    RABBITMQ_VHOST: *X-RABBITMQ-VHOST
+#
+#    DATABASE_DBNAME: *X-DATABASE-DBNAME
+#    DATABASE_HOST: *X-DATABASE-HOST
+#    DATABASE_PASSWORD: *X-DATABASE-PASSWORD
+#    DATABASE_PORT: *X-DATABASE-PORT
+#    DATABASE_USERNAME: *X-DATABASE-USERNAME
 
 
 x-worker-image: &x-ubdc-airbnb-engine
-  image: "${UBDC_DOCKER_REGISTRY:-172.20.67.71}/ubdc/airbnb-engine:${IMAGE_TAG:-1.0.2}"
+  image: "ubdc/ubdc-airbnb:latest"
   build:
     context: "."
-    dockerfile: "./docker/airbnb/Dockerfile"
+    dockerfile: "Dockerfile"
 
-# extra entries to be appended at each container /etc/hosts
-x-extra-hosts: &extra-hosts
-  extra_hosts:
-    - "c-node-1:10.0.75.71"
 
 x-common-deploy: &deploy
   deploy:
@@ -77,24 +73,31 @@ x-network: &network
     - ubdc_airbnb_v2
 
 services:
+  # This service produces tasks for workers to consume
   beat:
     <<: *x-ubdc-airbnb-engine
     <<: *deploy
     <<: *network
-    <<: *extra-hosts
-    <<: *common-env
-    environment:
-      MODE: "beat"
+    #    <<: *common-env
+    env_file:
+      - .env
+      - .env.local
+    command:
+      - start-beat
 
   worker:
+    # This service consumes tasks produced by beat
     <<: *x-ubdc-airbnb-engine
     <<: *deploy
     <<: *network
-    <<: *extra-hosts
-    <<: *common-env
-    environment:
-      MODE: "worker"
+    #    <<: *common-env
+    command:
+      - start-worker
+    env_file:
+      - .env
+      - .env.local
 
+# docker network create --driver overlay --attachable ubdc_airbnb_v2
 networks:
   ubdc_airbnb_v2:
     external: true

@@ -14,7 +14,7 @@ from django.contrib.gis.gdal.feature import Feature
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 
-from app.models import WorldShape
+from ubdc_airbnb.models import WorldShape
 from . import _GeoFileHandler
 from ...convenience import reproject
 

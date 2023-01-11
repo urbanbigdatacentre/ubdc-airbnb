@@ -1,8 +1,8 @@
-from collections import Iterable
-from typing import List, Optional
+from typing import List, Optional, Iterable
 
 import mercantile
-from app.errors import UBDCError
+
+from ubdc_airbnb.errors import UBDCError
 
 
 def generate_initial_grid(aoishape_id: int, profile: Optional[str] = 'rural', zoom: Optional[int] = None) -> List[str]:
@@ -10,7 +10,7 @@ def generate_initial_grid(aoishape_id: int, profile: Optional[str] = 'rural', zo
      zoom level or profile.
      These grids should be then further refined using the estimated_listings_or_divide
      """
-    from app.models import AOIShape, UBDCGrid
+    from ubdc_airbnb.models import AOIShape, UBDCGrid
 
     if not zoom and not profile:
         raise UBDCError('Either zoom or profile must be specified.')

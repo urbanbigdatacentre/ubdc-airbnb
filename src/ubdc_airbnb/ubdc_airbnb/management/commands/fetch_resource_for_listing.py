@@ -2,11 +2,11 @@ from argparse import ArgumentParser
 
 from django.core.management import BaseCommand
 
-from app.management.commands import int_to_listing
-from app.models import AirBnBListing
-from app.tasks import task_add_listing_detail
-from app.tasks import task_update_calendar
-from app.tasks import task_update_or_add_reviews_at_listing
+from ubdc_airbnb.management.commands import int_to_listing
+from ubdc_airbnb.models import AirBnBListing
+from ubdc_airbnb.tasks import task_add_listing_detail
+from ubdc_airbnb.tasks import task_update_calendar
+from ubdc_airbnb.tasks import task_update_or_add_reviews_at_listing
 
 
 class Command(BaseCommand):

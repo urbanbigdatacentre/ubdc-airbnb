@@ -4,8 +4,8 @@ from argparse import ArgumentParser, ArgumentTypeError
 from django.core.management import BaseCommand
 from django.db.models import QuerySet
 
-from app.models import UBDCGrid
-from app.tasks import task_discover_listings_at_grid
+from ubdc_airbnb.models import UBDCGrid
+from ubdc_airbnb.tasks import task_discover_listings_at_grid
 from . import int_to_aoi
 
 

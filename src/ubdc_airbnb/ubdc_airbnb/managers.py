@@ -12,50 +12,56 @@ from more_itertools import collapse
 from requests import HTTPError
 from requests.exceptions import ProxyError
 
-from app.utils.json_parsers import airbnb_response_parser
-from app.convenience import reproject, make_point, postgis_distance_a_to_b, query_params_from_url
-from app import models as app_models
-from app import ubdc_airbnbapi
+from ubdc_airbnb import models as app_models
+from ubdc_airbnb.airbnb_interface import airbnb_client
+from ubdc_airbnb.convenience import reproject, make_point, postgis_distance_a_to_b, query_params_from_url
+from ubdc_airbnb.errors import UBDCRetriableError, UBDCError
+from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
 
-logger = get_task_logger('ubdc::app::obj_manager')
+logger = get_task_logger(__name__)
 
 
 class AirBnBResponseManager(models.Manager):
 
-    def response_and_create(self, method_name: str, _type: str,
-                            task_id: str = None,
-                            **kwargs):
-        method = getattr(ubdc_airbnbapi, method_name)
+    def response_and_create(
+            self, method_name: str,
+            _type: str,
+            task_id: str = None,
+            **kwargs):
+
+        method = getattr(airbnb_client, method_name)
+
         if method is None:
             raise Exception(f'{method_name} is not a valid method.')
-        listing_id = kwargs.get('listing_id', None)
-        response: Optional[requests.Response] = None
+
+        logger.info(f"method:{method.__name__} params:{kwargs}")
         try:
-            logger.debug(f"method:{method.__name__} params:{kwargs}")
-            method(**kwargs)
-            response = ubdc_airbnbapi.response
+            response, payload = method(**kwargs)
         except (HTTPError, ProxyError) as exc:
             response = exc.response
-        finally:
-            # if response is not None:
-            obj = self.create_from_response(
-                response=response,
-                _type=_type,
-                task_id=task_id,
-                listing_id=listing_id)
-            try:
-                response.raise_for_status()
-            except (HTTPError, ProxyError) as exc:
-                exc.ubdc_response = obj
-                raise exc
+
+        # if response is not None:
+        listing_id = kwargs.get('listing_id', None)
+        obj = self.create_from_response(
+            response=response,
+            _type=_type,
+            task_id=task_id,
+            listing_id=listing_id)
+        try:
+            response.raise_for_status()
+        except (HTTPError, ProxyError) as exc:
+            exc.ubdc_response = obj
+            raise exc
 
         return obj
 
-    def create_from_response(self, response: requests.Response,
-                             _type: str,
-                             task_id: str = None,
-                             listing_id: int = None):
-        from app.models import UBDCTask
+    def create_from_response(
+            self, response: requests.Response,
+            _type: str,
+            task_id: str = None,
+            listing_id: int = None):
+
+        from ubdc_airbnb.models import UBDCTask
         if _type is None:
             # TODO: Heuristics?
             _type = None
@@ -64,14 +70,18 @@ class AirBnBResponseManager(models.Manager):
             raise AttributeError('Listing_id is not set for a request that should have one')
 
         try:
-            # there are cases where the response is coming back Empty?. I think
-            # it's related to crawlera maybe.
             payload = response.json()
-        except (JSONDecodeError, AttributeError):
+
+        except JSONDecodeError as e:
             logger.info('Error when trying to decode the response payload: \n'
                         f'\tResponse status_code:{response.status_code} \n'
                         f'\tResponse Content: {response.content}. ')
-            payload = {}
+            raise UBDCError(f'Response text was not Json. It was {response.text}') from e
+
+        except AttributeError as e:
+            # there are cases where the response come back Empty?.
+            logger.info('Attribute error came back empty')
+            raise UBDCRetriableError('Attribute error, retrying') from e
 
         ubdc_task = UBDCTask.objects.filter(task_id=task_id).first()  # returns None if not found
 
@@ -101,11 +111,12 @@ class AirBnBListingManager(models.Manager):
          :param lat: Latitude in EPSG:4326
          """
 
-        prev_location = app_models.AirBnbListingLocations.objects.filter(listing_id=listing_id)
-
+        # prev_location = app_models.AirBnBListing.objects.get(listing_id=listing_id).geom_3857
+        _4326_point = make_point(lon, lat, 4326)
+        _3857_point = reproject(_4326_point, to_srid=3857)
         obj = self.create(
             listing_id=listing_id,
-            geom_3857=reproject(make_point(lon, lat, 4326), 3857)
+            geom_3857=_3857_point
         )
 
         return obj

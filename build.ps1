@@ -1,4 +1,4 @@
 Write-Output "Building Images"
-$Env:UBDC_DOCKER_REGISTRY = "172.20.67.71/"
+$Env:UBDC_DOCKER_REGISTRY = "ubdc"
 Invoke-Expression -Command `
     "docker compose build worker"

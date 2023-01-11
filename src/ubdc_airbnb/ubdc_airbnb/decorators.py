@@ -1,12 +1,11 @@
-from collections import Callable
 from functools import wraps
 from logging import Logger
-from typing import Any
+from typing import Any, Callable
 
 from celery.utils.log import get_task_logger
 from requests.exceptions import HTTPError, ProxyError
 
-from app.errors import UBDCRetriableError, UBDCError
+from ubdc_airbnb.errors import UBDCRetriableError, UBDCError
 
 logger: Logger = get_task_logger(__name__)
 
@@ -29,7 +28,9 @@ def convert_exceptions(fun: Callable):
             # Exception Chaining, PEP 3134,
             # https://stackoverflow.com/a/792163/528025
 
-            # 503 Server Error. Airbnb acting funny? Crawlera captures these as 'banned' retry to be sure
+            # 503 Server Error.
+            # Zyte marks them as these as 'banned'.
+            # retry to be sure
             if status_code == 503:
                 raise UBDCRetriableError(message) from exc
 

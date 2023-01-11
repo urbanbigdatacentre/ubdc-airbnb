@@ -1,8 +1,8 @@
 from celery.utils.log import get_task_logger
 from requests import HTTPError
 
-from app import ubdc_airbnbapi
-from app.models import AirBnBResponse, AirBnBResponseTypes
+from ubdc_airbnb import ubdc_airbnbapi
+from ubdc_airbnb.models import AirBnBResponse, AirBnBResponseTypes
 
 # logger = get_task_logger(__name__)
 

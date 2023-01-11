@@ -4,17 +4,18 @@ from celery import group, shared_task
 from celery.result import GroupResult
 from celery.utils.log import get_task_logger
 from dateutil.relativedelta import relativedelta
-from django.contrib.postgres.fields.jsonb import KeyTextTransform
-from django.db.models import F, IntegerField, Q, QuerySet, Subquery, OuterRef
+from django.db.models import F, Q, QuerySet, Subquery, OuterRef, BigIntegerField
+from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.utils.timezone import now
 
-from app.models import AOIShape, UBDCGroupTask, AirBnBListing, UBDCTask
-from app.tasks import task_update_calendar
+from ubdc_airbnb.models import AOIShape, UBDCGroupTask, AirBnBListing, UBDCTask
+from ubdc_airbnb.tasks import task_update_calendar
+from ubdc_airbnb.utils.time import seconds_later_from_now
 
 logger = get_task_logger(__name__)
 
-_23hour_later = 23 * 60 * 60
+
 
 
 @shared_task
@@ -78,6 +79,7 @@ def op_update_calendar_periodical(how_many: int = 17_000 * 2.5,
     how_many = int(how_many)
     age_hours = int(age_hours)
     priority = int(priority)
+    expire_23hour_later = seconds_later_from_now()
 
     if use_aoi:
         qs_aoi = AOIShape.objects.filter(collect_calendars=True, geom_3857__intersects=OuterRef('geom_3857'))[:1]
@@ -92,7 +94,7 @@ def op_update_calendar_periodical(how_many: int = 17_000 * 2.5,
                          .filter(task_name=task_update_calendar.name)
                          .filter(status=UBDCTask.TaskTypeChoices.SUBMITTED)
                          .filter(task_kwargs__has_key='listing_id')
-                         .annotate(listing_id=Cast(KeyTextTransform('listing_id', 'task_kwargs'), IntegerField())))
+                         .annotate(listing_id=Cast(KeyTextTransform('listing_id', 'task_kwargs'), BigIntegerField())))
 
     qs_listings = (qs_listings.filter(
         Q(calendar_updated_at__lt=now() - relativedelta(hours=age_hours)) |
@@ -104,7 +106,7 @@ def op_update_calendar_periodical(how_many: int = 17_000 * 2.5,
     if qs_listings.exists():
         listing_ids = list(qs_listings.values_list('listing_id', flat=True))
         job = group(task_update_calendar.s(listing_id=listing_id) for listing_id in listing_ids)
-        group_result: GroupResult = job.apply_async(priority=priority, expires=_23hour_later)
+        group_result: GroupResult = job.apply_async(priority=priority, expires=expire_23hour_later)
 
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
         group_task.op_name = task_update_calendar.name

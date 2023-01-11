@@ -8,9 +8,10 @@ from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.utils import timezone
 
-from app.errors import UBDCError
-from app.models import AOIShape, UBDCGrid, UBDCGroupTask, UBDCTask
-from app.tasks import task_estimate_listings_or_divide
+from ubdc_airbnb.errors import UBDCError
+from ubdc_airbnb.models import AOIShape, UBDCGrid, UBDCGroupTask, UBDCTask
+from ubdc_airbnb.tasks import task_estimate_listings_or_divide
+from ubdc_airbnb.utils.time import seconds_later_from_now
 
 
 @shared_task
@@ -96,6 +97,8 @@ def op_estimate_listings_or_divide_periodical(
     age_hours = int(age_hours)
     priority = int(priority)
 
+    expire_23hour_later = seconds_later_from_now()
+
     if how_many < 0:
         raise UBDCError('The variable how_many must be larger than 0')
     if age_hours < 0:
@@ -103,7 +106,6 @@ def op_estimate_listings_or_divide_periodical(
     if not (0 < priority < 10 + 1):
         raise UBDCError('The variable priority must be between 1 than 10')
 
-    expire_23hour_later = 23 * 60 * 60
     start_day_today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
     future_qk = (UBDCTask.objects.filter(
         datetime_submitted__gte=start_day_today - relativedelta(days=1))  # datetime_submitted has index on it

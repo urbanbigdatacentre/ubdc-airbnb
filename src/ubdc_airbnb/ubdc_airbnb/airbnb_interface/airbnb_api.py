@@ -1,6 +1,5 @@
 import functools
 import json
-import os
 from collections import namedtuple
 from datetime import datetime
 from hashlib import md5
@@ -8,21 +7,21 @@ from typing import Dict, Iterator, Optional, Tuple, Mapping, Type
 from uuid import uuid4
 
 import requests
-from dotenv import load_dotenv
+from django.conf import settings
 from jsonpath_ng import parse as json_parse
 from more_itertools import chunked
-from urllib3.exceptions import InsecureRequestWarning
+from requests import Response
 
-# disable InsecureRequest Warning until i fix the ubdc_airbnb_worker-container (debian buster seems not to like it)
-requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
-load_dotenv()
+AIRBNB_API_KEY = settings.AIRBNB_PUBLIC_API_KEY
+AIRBNB_PROXY = settings.AIRBNB_PROXY
 
-API_URL = "https://www.airbnb.co.uk/api"
+if settings.AIRBNB_PROXY is None:
+    import warnings
 
-AIRBNB_PUBLIC_API_KEY = 'd306zoyjsyarp7ifhu67rjxn52tv0t20'
-
-AIRBNB_API_KEY = os.getenv('AIRBNB_API_KEY', AIRBNB_PUBLIC_API_KEY)
-AIRBNB_PROXY = os.environ.get('AIRBNB_PROXY', None)
+    message = f"No proxy is set. Not using a proxy could lead Airbnb QoS to be activated."
+    warnings.warn(message)
+else:
+    print(f'proxy set: {settings.AIRBNB_PROXY}')
 
 
 class AuthError(Exception):
@@ -92,7 +91,7 @@ class Api(object):
     def __init__(self,
                  api_key: str = None,
                  proxy: str = None,
-                 extra_headers: Dict[str, str] = {},
+                 extra_headers: Dict[str, str] = dict(),
                  randomize: bool = None):
         """
 
@@ -231,8 +230,10 @@ class Api(object):
         self._udid = value
         self._session.headers['airbnb-device-id'] = self._udid
 
-    def get_calendar(self, listing_id, starting_month=None,
-                     starting_year=None, calendar_months=12) -> dict:
+    def get_calendar(
+            self,
+            listing_id, starting_month=None,
+            starting_year=None, calendar_months=12) -> (Response, dict):
         """
         Get availability calendar for a given listing
         """
@@ -250,12 +251,14 @@ class Api(object):
             'month': str(starting_month)
         }
 
-        r = self._session.get(API_URL + "/v2/calendar_months", params=params)
+        r = self._session.get(
+            settings.AIRBNB_API_ENDPOINT + "/v2/calendar_months",
+            params=params)
         r.raise_for_status()
 
-        return r.json()
+        return r, r.json()
 
-    def get_reviews(self, listing_id, offset=0, limit=20) -> Dict:
+    def get_reviews(self, listing_id, offset=0, limit=20) -> (Response, dict):
         """
         Get reviews for a given listing, currently limit is up to 100.
         """
@@ -268,7 +271,9 @@ class Api(object):
             '_format': 'for_mobile_client',
         }
 
-        r = self._session.get(API_URL + "/v2/reviews", params=params)
+        r = self._session.get(
+            settings.AIRBNB_API_ENDPOINT + "/v2/reviews",
+            params=params)
         r.raise_for_status()
 
         return r.json()
@@ -285,7 +290,8 @@ class Api(object):
 
     def get_homes(self, query: str = None,
                   west: float = None, south: float = None, east: float = None, north: float = None,
-                  checkin=None, checkout=None, items_offset=0, items_per_grid=8, metadata_only=False) -> Dict:
+                  checkin=None, checkout=None, items_offset=0, items_per_grid=8, metadata_only=False) -> (
+    Response, dict):
         """
         TODO: Update Docstring
         """
@@ -342,12 +348,12 @@ class Api(object):
             params['checkin'] = checkin
             params['checkout'] = checkout
 
-        r = self._session.get(API_URL + '/v2/explore_tabs', params=params)
+        r = self._session.get(settings.AIRBNB_API_ENDPOINT + '/v2/explore_tabs', params=params)
         r.raise_for_status()
 
         return r.json()
 
-    def get_listing_details(self, listing_id: int):
+    def get_listing_details(self, listing_id: int) -> (Response, dict):
         params = {
             'adults': '0',
             '_format': 'for_native',
@@ -355,7 +361,8 @@ class Api(object):
             'children': '0'
         }
 
-        r = self._session.get(API_URL + '/v2/pdp_listing_details/' + str(listing_id), params=params)
+        r = self._session.get(settings.AIRBNB_API_ENDPOINT + '/v2/pdp_listing_details/' + str(listing_id),
+                              params=params)
         r.raise_for_status()
 
         return r.json()
@@ -388,13 +395,13 @@ class Api(object):
         # clear federated_search_session_id
         self.federated_search_session_id = None
 
-    def get_user(self, user_id):
+    def get_user(self, user_id) -> (Response, dict):
         params = {}
-        r = self._session.get(API_URL + f'/v2/users/{user_id}', params=params)
+        r = self._session.get(settings.AIRBNB_API_ENDPOINT + f'/v2/users/{user_id}', params=params)
         r.raise_for_status()
         self.response = r
 
-        return r.json()
+        return r, r.json()
 
     def number_of_listings(self, store_federated_search_session_id: bool = False, **kwargs) -> int:
         """ Return the number_results of this query.
@@ -411,8 +418,11 @@ class Api(object):
 
         return int(target)
 
-    def get_booking_details(self, listing_id: int, calendar: dict = None,
-                            start_search_from: Type[datetime.date] = None):
+    def get_booking_details(
+            self,
+            listing_id: int,
+            calendar: dict = None,
+            start_search_from: Type[datetime.date] = None) -> (Response, dict):
         """
 
         :param listing_id: Listing Id
@@ -488,13 +498,16 @@ class Api(object):
             check_in=checkin,
             check_out=checkout
         )
-        r = self._session.get(API_URL + f'/v2/pdp_listing_booking_details', params=params)
+        r = self._session.get(settings.AIRBNB_API_ENDPOINT + f'/v2/pdp_listing_booking_details', params=params)
         r.raise_for_status()
 
-        return r.json()
+        return r, r.json()
 
 
-if __name__ == "__main__":
-    import doctest
+airbnb_client = Api(
+    proxy=settings.AIRBNB_PROXY
+)
 
-    doctest.testmod()
+__all__ = [
+    airbnb_client
+]

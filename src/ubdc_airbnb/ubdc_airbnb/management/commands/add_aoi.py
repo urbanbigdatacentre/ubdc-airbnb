@@ -7,8 +7,8 @@ from pathlib import Path
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from app.models import AOIShape
-from app.utils.grids import generate_initial_grid
+from ubdc_airbnb.models import AOIShape
+from ubdc_airbnb.utils.grids import generate_initial_grid
 from . import _GeoFileHandler
 
 os.environ.setdefault(

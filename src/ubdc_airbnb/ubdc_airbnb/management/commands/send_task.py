@@ -5,10 +5,10 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand
 
-from app.operations import (op_discover_new_listings_periodical,
-                            op_estimate_listings_or_divide_periodical,
-                            op_update_listing_details_periodical, op_update_calendar_periodical,
-                            op_update_reviews_periodical, op_get_booking_detail_periodical)
+from ubdc_airbnb.operations import (op_discover_new_listings_periodical,
+                                    op_estimate_listings_or_divide_periodical,
+                                    op_update_listing_details_periodical, op_update_calendar_periodical,
+                                    op_update_reviews_periodical, op_get_booking_detail_periodical)
 from core.celery import app as celery_app
 
 os.environ.setdefault(

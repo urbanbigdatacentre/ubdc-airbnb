@@ -1,7 +1,7 @@
 from celery.result import AsyncResult
 from . import UBDCBaseTestWorker
 from ubdc_airbnb.tasks import task_get_or_create_user
-from ..models import AirBnBUser, UBDCTask
+from ubdc_airbnb.models import AirBnBUser, UBDCTask
 
 
 class TestGridOps(UBDCBaseTestWorker):

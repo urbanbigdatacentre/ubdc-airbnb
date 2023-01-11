@@ -4,8 +4,8 @@ from django.utils import timezone
 
 from . import UBDCBaseTestWorker
 from . import get_fixture
-from ..models import AirBnBResponse, AOIShape, AirBnBListing, AirBnBResponseTypes
-from ..tasks import task_add_listing_detail
+from ubdc_airbnb.models import AirBnBResponse, AOIShape, AirBnBListing, AirBnBResponseTypes
+from ubdc_airbnb.tasks import task_add_listing_detail
 
 
 class TestReviewsOps(UBDCBaseTestWorker):

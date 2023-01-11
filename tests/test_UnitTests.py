@@ -6,9 +6,9 @@ from requests import HTTPError
 
 from . import UBDCBaseTestWorker, UBDCBaseTest
 from . import get_fixture
-from ..errors import UBDCError, UBDCRetriableError
-from ..models import AirBnBResponseTypes, AirBnBUser, AirBnBResponse
-from ..tasks import task_get_or_create_user
+from ubdc_airbnb.errors import UBDCError, UBDCRetriableError
+from ubdc_airbnb.models import AirBnBResponseTypes, AirBnBUser, AirBnBResponse
+from ubdc_airbnb.tasks import task_get_or_create_user
 
 
 class TestsUnits(UBDCBaseTest):

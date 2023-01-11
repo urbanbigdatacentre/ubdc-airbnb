@@ -3,8 +3,8 @@ from django.utils import timezone
 from ubdc_airbnb.operations.reviews import op_update_reviews_aoi, op_update_comment_at_listings
 from . import UBDCBaseTestWorker
 from . import get_fixture
-from ..models import AirBnBReview, AirBnBResponse, AirBnBUser, AOIShape, AirBnBListing, AirBnBResponseTypes
-from ..tasks import task_update_or_add_reviews_at_listing
+from ubdc_airbnb.models import AirBnBReview, AirBnBResponse, AirBnBUser, AOIShape, AirBnBListing, AirBnBResponseTypes
+from ubdc_airbnb.tasks import task_update_or_add_reviews_at_listing
 
 
 class TestReviewsOps(UBDCBaseTestWorker):

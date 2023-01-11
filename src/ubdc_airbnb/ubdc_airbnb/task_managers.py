@@ -4,10 +4,10 @@ from celery import Task
 from celery.utils.log import get_task_logger
 from django.utils import timezone
 from dotenv import load_dotenv
-from requests.exceptions import HTTPError, ProxyError
+from requests.exceptions import ProxyError
 
-from app.errors import UBDCRetriableError
-from app.models import UBDCTask
+from ubdc_airbnb.errors import UBDCRetriableError
+from ubdc_airbnb.models import UBDCTask
 
 load_dotenv()
 
@@ -23,8 +23,8 @@ def delta_time(hours=24):
 # no need to re-implement it
 class BaseTaskWithRetry(Task):
     autoretry_for = (UBDCRetriableError, ProxyError)
-    retry_kwargs = {'max_retries': 2}
-    retry_backoff = 1  # * 60  # 1 min
+    # retry_kwargs = {'max_retries': 2}
+    # retry_backoff = 1  # * 60  # 1 min
     retry_backoff_max = 30  # * 60  # 30 min
     retry_jitter = True
     # it's overridden by  CELERY_TASK_DEFAULT_RATE_LIMIT
@@ -43,7 +43,7 @@ class BaseTaskWithRetry(Task):
         # so it should be an entry with that task_id.
         # Exception is it's 'eager' which then the task is applied locally
 
-        if not self.request.is_eager and (self.name.startswith('app') or self.name.startswith('ubdc_airbnb')):
+        if not self.request.is_eager and (self.name.startswith('ubdc_airbnb') or self.name.startswith('ubdc_airbnb')):
 
             ubdc_task_entry_qs = UBDCTask.objects.select_related('group_task').filter(task_id=task_id)
 

@@ -14,8 +14,8 @@ from django.utils.functional import cached_property
 from django_celery_results.models import TaskResult as celery_Task
 from more_itertools import flatten
 
-from app.errors import UBDCError
-from app.managers import UserManager, UBDCGridManager, AirBnBResponseManager
+from ubdc_airbnb.errors import UBDCError
+from ubdc_airbnb.managers import UserManager, UBDCGridManager, AirBnBResponseManager
 
 
 class WorldShape(models.Model):
@@ -246,17 +246,40 @@ class AirBnBResponse(models.Model):
 
 
 class AirBnBListing(models.Model):
-    listing_id = models.BigIntegerField(unique=True, null=False, help_text='(PK) Airbnb ListingID', primary_key=True)
-    geom_3857 = models.PointField(srid=3857, help_text='Current Geom Point (\'3857\') of listing\'s location')
-    timestamp = models.DateTimeField(auto_now_add=True, help_text='Datetime of entry')
-    listing_updated_at = models.DateTimeField(null=True, blank=True, help_text='Datetime of last listing update')
-    calendar_updated_at = models.DateTimeField(null=True, blank=True, help_text='Datetime of last calendar update')
-    booking_quote_updated_at = models.DateTimeField(null=True, blank=True,
-                                                    help_text='Datetime of latest booking quote update')
-    reviews_updated_at = models.DateTimeField(null=True, blank=True, help_text='Datetime of last comment update')
-    notes = models.JSONField(default=dict,
-                             encoder=DjangoJSONEncoder,
-                             help_text='Notes about this listing')
+    listing_id = models.BigIntegerField(
+        unique=True,
+        null=False,
+        help_text='(PK) Airbnb ListingID',
+        primary_key=True)
+    geom_3857 = models.PointField(
+        null=True,
+        srid=3857,
+        help_text='Current Geom Point (\'3857\') of listing\'s location'
+    )
+    timestamp = models.DateTimeField(
+        auto_now_add=True,
+        help_text='Datetime of entry')
+    listing_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Datetime of last listing update')
+    calendar_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Datetime of last calendar update'
+    )
+    booking_quote_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Datetime of latest booking quote update')
+    reviews_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Datetime of last comment update')
+    notes = models.JSONField(
+        default=dict,
+        encoder=DjangoJSONEncoder,
+        help_text='Notes about this listing')
 
     responses = models.ManyToManyField('AirBnBResponse')
 

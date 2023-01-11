@@ -8,7 +8,7 @@ from django.db import connection
 from jsonpath_ng import parse
 from more_itertools import sliced
 
-from app.errors import UBDCCoordinateError
+from ubdc_airbnb.errors import UBDCCoordinateError
 
 
 def listing_locations_from_response(response: dict) -> Dict[str, GEOSPoint]:
@@ -75,7 +75,7 @@ def postgis_distance_a_to_b(point_a: Union[str, GEOSPoint, Sequence[float]],
 
 
 def make_point(x: float, y: float, srid: int = 4326) -> GEOSPoint:
-    """ Return a Point at these coordinates, at that coordinate system (default 4326) """
+    """ Cast coordinates to Point object """
 
     return GEOSPoint(x, y, srid=srid)
 

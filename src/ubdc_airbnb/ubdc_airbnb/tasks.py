@@ -1,14 +1,13 @@
-# from __future__ import absolute_import, unicode_literals
-import os
 from collections import Counter
 from datetime import timedelta
 from random import random
 from typing import Dict, Optional, Union, List
 
 import mercantile
-from celery import group, shared_task
 from celery import Task
+from celery import group, shared_task
 from celery.utils.log import get_task_logger
+from django.conf import settings
 from django.contrib.gis.db.models import Extent
 from django.contrib.gis.geos import Point, Polygon as GEOSPolygon
 from django.db import transaction
@@ -20,24 +19,21 @@ from more_itertools import collapse
 from requests import HTTPError
 from requests.exceptions import ProxyError
 
-from app import ubdc_airbnbapi
-from app.convenience import make_point, reproject
-from app.decorators import convert_exceptions
-from app.errors import UBDCError, UBDCRetriableError
-from app.convenience import listing_locations_from_response
-
-from app.models import (AirBnBListing,
-                        UBDCGrid, UBDCGroupTask,
-                        AirBnBResponse,
-                        AirBnBResponseTypes,
-                        AirBnBUser,
-                        AirBnBReview
-                        )
-from app.utils.grids import bbox_from_quadkey
-
-from app.utils.json_parsers import airbnb_response_parser
-# from app.utils.users import ubdc_response_for_airbnb_user
-from app.task_managers import BaseTaskWithRetry
+from ubdc_airbnb.airbnb_interface import airbnb_client
+from ubdc_airbnb.convenience import listing_locations_from_response
+from ubdc_airbnb.convenience import reproject
+from ubdc_airbnb.decorators import convert_exceptions
+from ubdc_airbnb.errors import UBDCError, UBDCRetriableError
+from ubdc_airbnb.models import (AirBnBListing,
+                                UBDCGrid, UBDCGroupTask,
+                                AirBnBResponse,
+                                AirBnBResponseTypes,
+                                AirBnBUser,
+                                AirBnBReview)
+# from ubdc_airbnb.utils.users import ubdc_response_for_airbnb_user
+from ubdc_airbnb.task_managers import BaseTaskWithRetry
+from ubdc_airbnb.utils.grids import bbox_from_quadkey
+from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
 
 logger = get_task_logger(__name__)
 
@@ -192,14 +188,15 @@ def task_update_calendar(self, listing_id: int, months: int = 12) -> int:
     """
 
     # kwargs = {'task_id': self.request.id}
-    listing_entry = AirBnBListing.objects.get(listing_id=listing_id)
+    listing_entry, created = AirBnBListing.objects.get_or_create(listing_id=listing_id)
     ubdc_response = None
     try:
-        # result = ubdc_airbnbapi.get_calendar(listing_id, calendar_months=months)
-        ubdc_response = AirBnBResponse.objects.response_and_create('get_calendar',
-                                                                   _type=AirBnBResponseTypes.calendar,
-                                                                   calendar_months=months, task_id=self.request.id,
-                                                                   listing_id=listing_id)
+        ubdc_response = AirBnBResponse.objects.response_and_create(
+            'get_calendar',
+            _type=AirBnBResponseTypes.calendar,
+            calendar_months=months, task_id=self.request.id,
+            listing_id=listing_id)
+
     except (HTTPError, ProxyError) as exc:
         ubdc_response = exc.ubdc_response
         raise exc
@@ -220,7 +217,7 @@ def task_get_booking_detail(self, listing_id: int) -> int:
     Returns the listing_id if operation was successful.
     """
 
-    listing = AirBnBListing.objects.get(listing_id=listing_id)
+    listing, created = AirBnBListing.objects.get_or_create(listing_id=listing_id)
     calendar: AirBnBResponse = \
         AirBnBResponse.objects.filter(
             listing_id=listing_id,
@@ -233,9 +230,10 @@ def task_get_booking_detail(self, listing_id: int) -> int:
             "get_booking_details", listing_id=listing_id, calendar=calendar.payload,
             _type=AirBnBResponseTypes.bookingQuote, task_id=self.request.id
         )
+
     except HTTPError as exc:
-        booking_response = exc.ubdc_response
         raise exc
+
     finally:
         listing.booking_quote_updated_at = timezone.now()
         if booking_response:
@@ -249,7 +247,7 @@ def task_get_booking_detail(self, listing_id: int) -> int:
 @convert_exceptions
 def task_discover_listings_at_grid(self, quadkey: str, stale_tolerance_days: int = 14) -> Dict:
     """ Queries airbnb for listings in this grid.
-
+    :param self: missing
     :param quadkey: quadkey
     :param stale_tolerance_days:
     :returns a ::Counter:: with the number of Listings in the GRID and Δ Listings since last run
@@ -272,15 +270,17 @@ def task_discover_listings_at_grid(self, quadkey: str, stale_tolerance_days: int
         raise UBDCError(f'Grid: {quadkey} is stale (over two weeks since last scan.')
 
     west, south, east, north = list(mercantile.bounds(mercantile.quadkey_to_tile(tile.quadkey)))
-    data_pages_gen = ubdc_airbnbapi.iterate_homes(west=west, south=south, east=east, north=north)
+    data_pages_gen = airbnb_client.iterate_homes(west=west, south=south, east=east, north=north)
 
     # no functinal usage, just for a nice output
     counter = Counter()
     for page, _ in data_pages_gen:
-        airbnbapi_response = ubdc_airbnbapi.response
-        search_response_obj = AirBnBResponse.objects.create_from_response(airbnbapi_response,
-                                                                          _type=AirBnBResponseTypes.search,
-                                                                          task_id=task_id)
+        airbnbapi_response = airbnb_client.response
+        search_response_obj = AirBnBResponse.objects.create_from_response(
+            airbnbapi_response,
+            _type=AirBnBResponseTypes.search,
+            task_id=task_id
+        )
 
         listings = listing_locations_from_response(airbnbapi_response.json())
 
@@ -289,42 +289,44 @@ def task_discover_listings_at_grid(self, quadkey: str, stale_tolerance_days: int
         for listing_id, point in listings.items():
 
             # pnt_new_location_4326 = make_point(x=x, y=y, srid=4326)
-            point_3857 = reproject(point, to_srid=3857)  # to measure any Δdistance in m
+            point_3857 = reproject(
+                point,
+                to_srid=3857)  # to measure any Δ distance in m
 
-            exists = AirBnBListing.objects.filter(listing_id=listing_id).exists()
-            if exists:
-                listing_obj = AirBnBListing.objects.get(listing_id=listing_id)
-                distance = point_3857.distance(listing_obj.geom_3857)
-
-                print(f'Listing {listing_id} already exists and was seen ({timesince(listing_obj.timestamp)} ago)')
-
+            listing, created = AirBnBListing.objects.get_or_created(listing_id=listing_id)
+            if created:
+                logger.info(f'setting the initial coordinates of listing {listing_id}')
+                listing.geom_3857 = point_3857
+                counter.update(['created'], )
+            else:
+                logger.info(f'Listing {listing_id} already exists and was seen ({timesince(listing.timestamp)} ago)')
+                distance = point_3857.distance(listing.geom_3857)
                 # compare if the location was moved more than the threshold the one we know.
                 # if it has, update with the new location and make a note
-                if distance > os.getenv('AIRBNB_LISTINGS_MOVED_MIN_DISTANCE', 150):
+
+                if distance > settings.AIRBNB_LISTINGS_MOVED_MIN_DISTANCE:
                     key = timezone.now().isoformat()
-                    root: dict = listing_obj.notes
+                    root: dict = listing.notes
                     root[key] = {
                         'move': {
-                            'from': listing_obj.geom_3857.wkt,
+                            'from': listing.geom_3857.wkt,
                             'to': point_3857.wkt,
                             'distance': distance
                         }
                     }
-                    listing_obj.geom_3857 = point_3857
-            else:
-                listing_obj = AirBnBListing.objects.create(listing_id=listing_id, geom_3857=point_3857)
-                counter.update(['created'], )
+                    listing.geom_3857 = point_3857
 
             # listing_obj.responses.add(search_response_obj)
 
             counter.update(['number_of_listings'], )
-            listing_obj.save()
+            listing.save()
 
         search_response_obj.grid = tile
         search_response_obj.save()
 
     tile.datetime_last_listings_scan = timezone.now()
     tile.save()
+
     return dict(counter)
 
 
@@ -341,7 +343,11 @@ def task_add_listing_detail(self, listing_id: Union[str, int]) -> int:
 
     try:
         airbnb_response = AirBnBResponse.objects.response_and_create(
-            "get_listing_details", listing_id=_listing_id, task_id=task_id, _type=AirBnBResponseTypes.listingDetail)
+            method_name="get_listing_details",
+            listing_id=_listing_id,
+            task_id=task_id,
+            _type=AirBnBResponseTypes.listingDetail
+        )
 
         new_points = listing_locations_from_response(airbnb_response.payload)
         new_point_4326 = new_points.get(listing_id, None)
@@ -350,7 +356,8 @@ def task_add_listing_detail(self, listing_id: Union[str, int]) -> int:
             previous_point_4326: Point = previous_point_3857.transform(4326, clone=True)
             new_point_3857 = new_point_4326.transform(3857, clone=True)
             distance = new_point_3857.distance(previous_point_3857)
-            if distance > os.getenv('MOVED_LISTING_THRESHOLD', 0.1):
+            # if distance > os.getenv('MOVED_LISTING_THRESHOLD', 0.1):
+            if distance > settings.AIRBNB_LISTINGS_MOVED_MIN_DISTANCE:
                 root: dict = listing_entry.notes
                 notes = root.get('notes', [])
                 entry = {
@@ -363,15 +370,12 @@ def task_add_listing_detail(self, listing_id: Union[str, int]) -> int:
                 notes.append(entry)
                 listing_entry.geom_3857 = new_point_3857
         listing_entry.save()
-
-    except HTTPError as exc:
-        airbnb_response = exc.ubdc_response
-        raise exc
-
-    finally:
         listing_entry.listing_updated_at = time_now
         listing_entry.responses.add(airbnb_response)
         listing_entry.save()
+
+    except HTTPError as exc:
+        raise exc
 
     return _listing_id
 
@@ -379,10 +383,14 @@ def task_add_listing_detail(self, listing_id: Union[str, int]) -> int:
 # noinspection PyIncorrectDocstring
 @shared_task(bind=True)
 @convert_exceptions
-def task_estimate_listings_or_divide(self: BaseTaskWithRetry, quadkey: str, less_than: int = 50) -> Optional[str]:
+def task_estimate_listings_or_divide(
+        self: BaseTaskWithRetry,
+        quadkey: str,
+        less_than: int = 50) -> Optional[str]:
     """This task will query airbnb to get a sense of how many listings it contains. If it has more than
     *less_than* number (default 50) it will split this grid, and apply the same logic to each.
-
+    :param self: BaseTaskWithRetry
+    :type self: BaseTaskWithRetry
     :param quadkey: quadkey
     :param less_than: int, default 50
 
@@ -436,17 +444,17 @@ def task_update_user_details(self: BaseTaskWithRetry, user_id: int) -> int:
 
     task_id = self.request.id
 
-    user = AirBnBUser.objects.get(user_id=user_id)
+    user, created = AirBnBUser.objects.get_or_create(user_id=user_id)
     try:
         airbnb_response = AirBnBResponse.objects.response_and_create(
             "get_user", user_id=user_id, _type=AirBnBResponseTypes.userDetail,
             task_id=task_id)
-    except HTTPError as exc:
-        logger.info(f'user_id: {user_id} is NOT ACCESSIBLE at this moment:', exc)
-        airbnb_response = exc.ubdc_response
+    except (HTTPError, ProxyError) as exc:
+        logger.info(f'user_id: {user_id} is inaccessible', exc)
+        # airbnb_response = exc.ubdc_response
         raise exc
-    finally:
-        user.responses.add(airbnb_response)
+
+    user.responses.add(airbnb_response)
 
     payload = airbnb_response.payload
     user_payload = payload['user']
@@ -457,14 +465,15 @@ def task_update_user_details(self: BaseTaskWithRetry, user_id: int) -> int:
     except IndexError:
         picture_url = ''
 
-    new_data.update(first_name=user_payload.get('first_name', user.first_name),
-                    about=user_payload.get('about', user.about),
-                    airbnb_listing_count=user_payload.get('listings_count', user.listing_count),
-                    verifications=user_payload.get('verifications', user.verifications),
-                    picture_url=picture_url or user.picture_url,
-                    created_at=user_payload.get('created_at', user.created_at),
-                    location=user_payload.get('location', user.location)
-                    )
+    new_data.update(
+        first_name=user_payload.get('first_name', user.first_name),
+        about=user_payload.get('about', user.about),
+        airbnb_listing_count=user_payload.get('listings_count', user.listing_count),
+        verifications=user_payload.get('verifications', user.verifications),
+        picture_url=picture_url or user.picture_url,
+        created_at=user_payload.get('created_at', user.created_at),
+        location=user_payload.get('location', user.location)
+    )
 
     for k, v in new_data.items():
         setattr(user, k, v)
@@ -475,7 +484,11 @@ def task_update_user_details(self: BaseTaskWithRetry, user_id: int) -> int:
 
 @shared_task(bind=True)
 @convert_exceptions
-def task_get_or_create_user(self: BaseTaskWithRetry, user_id: int, defer: bool = True, priority=4) -> int:
+def task_get_or_create_user(
+        self: BaseTaskWithRetry,
+        user_id: int,
+        defer: bool = True,
+        priority=4) -> int:
     """ Get from the database or Create a new user if the user id is not found in the database. Returns AirBnBUser id
     If defer is True (default), if the user does not exist in the database,
     a temporary user is returned with that user_id and a task with priority 'priority' to update him is submitted.
@@ -492,43 +505,42 @@ def task_get_or_create_user(self: BaseTaskWithRetry, user_id: int, defer: bool =
     user_id = int(user_id)
     if user_id < 1:
         raise UBDCError('user_id must be gt 0')
-
     task_id = self.request.id
 
-    try:
-        user = AirBnBUser.objects.get(user_id=user_id)
+    user, created = AirBnBUser.objects.get_or_create(
+        user_id=user_id,
+        defaults={
+            'first_name': 'TEMP',
+            'airbnb_listing_count': 0,
+            'verifications': [],
+            'picture_url': '',
+            'location': 'unknown'
+        })
+    if not created:
         return user.user_id
 
-    except AirBnBUser.DoesNotExist:
-        # Make a temp user and submit a job
-        if defer is True:
-            airbnb_user_obj = AirBnBUser.objects.create(user_id=user_id, first_name='TEMP',
-                                                        about='TEMP',
-                                                        airbnb_listing_count=0,
-                                                        verifications=[],
-                                                        picture_url='',
-                                                        created_at=None,
-                                                        location='UNKNOWN')
-            task = task_update_user_details.s(user_id=user_id)
-            task.apply_async(priority=priority)
+    if defer is True:
+        # create a task and return
+        task = task_update_user_details.s(user_id=user.user_id)
+        task.apply_async(priority=priority)
 
-            return airbnb_user_obj.user_id
-        elif defer is False:
+        return user.user_id
+    else:
+        try:
+            ubdc_response = AirBnBResponse.objects.response_and_create(
+                "get_user",
+                user_id=user_id,
+                _type=AirBnBResponseTypes.userDetail,
+                task_id=task_id)
+        except (HTTPError, ProxyError) as exc:
+            logger.info(f'user_id: {user_id} is NOT ACCESSIBLE at this moment:', exc)
+            raise exc
 
-            try:
-                ubdc_response = AirBnBResponse.objects.response_and_create("get_user", user_id=user_id,
-                                                                           _type=AirBnBResponseTypes.userDetail,
-                                                                           task_id=task_id)
-            except HTTPError as exc:
-                logger.info(f'user_id: {user_id} is NOT ACCESSIBLE at this moment:', exc)
-                ubdc_response = exc.ubdc_response
-                if ubdc_response is None:
-                    raise UBDCError('Huh?')
-                raise exc
-            finally:
-                ubdc_airbnb_user = AirBnBUser.objects.create_from_response(ubdc_response=ubdc_response)
+        ubdc_airbnb_user = AirBnBUser.objects.create_from_response(
+            ubdc_response=ubdc_response
+        )
 
-            return ubdc_airbnb_user.user_id
+        return ubdc_airbnb_user.user_id
 
 
 @shared_task(bind=True)
