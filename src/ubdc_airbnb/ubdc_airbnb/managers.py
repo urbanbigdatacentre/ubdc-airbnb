@@ -1,6 +1,6 @@
 from functools import partial
 from json import JSONDecodeError
-from typing import List, Union, Optional
+from typing import List, Union
 
 import mercantile
 import requests
@@ -104,7 +104,11 @@ class AirBnBResponseManager(models.Manager):
 
 class AirBnBListingManager(models.Manager):
 
-    def create_from_data(self, listing_id: int, lon: float, lat: float) -> 'app_models.AirBnBListing':
+    def create_from_data(
+            self,
+            listing_id: int,
+            lon: float,
+            lat: float) -> 'app_models.AirBnBListing':
         """ Create an AirBnBListing Point from data. The returned object is saved in the Database
          :param listing_id:
          :param lon: Longitude in EPSG:4326
@@ -121,7 +125,9 @@ class AirBnBListingManager(models.Manager):
 
         return obj
 
-    def from_endpoint_explore_tabs(self, response: dict, save: bool = True) -> List['app_models.AirBnBListing']:
+    def from_endpoint_explore_tabs(
+            self, response: dict,
+            save: bool = True) -> List['app_models.AirBnBListing']:
         """ TODO: DOC """
         if save:
             op = self.create
@@ -157,8 +163,11 @@ class AirBnBListingManager(models.Manager):
 
 class UserManager(models.Manager):
 
-    def create_from_response(self, ubdc_response: 'app_models.AirBnBResponse' = None,
-                             user_id: int = None, ) -> 'app_models.AirBnBUser':
+    def create_from_response(
+            self,
+            ubdc_response: 'app_models.AirBnBResponse' = None,
+            user_id: int = None,
+    ) -> 'app_models.AirBnBUser':
         """ Create an AirBnBUser from an airbnb response or a placeholder AirbnbUser from just hte user_id  """
 
         #  If airbnb_response = None, make DUMMY entry
@@ -211,11 +220,13 @@ class UBDCGridManager(models.Manager):
     #
     #     return qs.annotate(number_of_listings=Subquery(sub, output_field=CharField()))
 
-    def has_quadkey(self, quadkey) -> bool:
+    def has_quadkey(
+            self, quadkey) -> bool:
         return self.filter(quadkey=quadkey).exists()
 
-    def create_from_quadkey(self, quadkey: Union[str, mercantile.Tile], save=False,
-                            allow_overlap_with_currents=True) -> 'app_models.UBDCGrid':
+    def create_from_quadkey(
+            self, quadkey: Union[str, mercantile.Tile], save=False,
+            allow_overlap_with_currents=True) -> 'app_models.UBDCGrid':
 
         # cast from tile->qk to facilitate the allow_overlap_with_currents
         # routine in  create_from_tile.
@@ -226,10 +237,11 @@ class UBDCGridManager(models.Manager):
         tile = mercantile.quadkey_to_tile(quadkey)
         return self.create_from_tile(tile, allow_overlap_with_currents=allow_overlap_with_currents, save=save, )
 
-    def create_from_tile(self,
-                         tile: mercantile.Tile,
-                         allow_overlap_with_currents: bool = False,
-                         save: bool = False) -> \
+    def create_from_tile(
+            self,
+            tile: mercantile.Tile,
+            allow_overlap_with_currents: bool = False,
+            save: bool = False) -> \
             Union['app_models.UBDCGrid', List['app_models.UBDCGrid'], None]:
         """ Make an UBDCGrid entry and return a ref of it. """
 
