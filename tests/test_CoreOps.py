@@ -1,14 +1,8 @@
 import time
 from datetime import timedelta
 
-from celery.result import AsyncResult
 from django.utils import timezone
-from requests import HTTPError
 
-from . import UBDCBaseTestWorker
-from . import get_fixture
-from ubdc_airbnb.errors import UBDCError, UBDCRetriableError
-from ubdc_airbnb.models import AirBnBResponseTypes
 from ubdc_airbnb.operations import (
     op_discover_new_listings_periodical,
     op_estimate_listings_or_divide_periodical,
@@ -16,6 +10,8 @@ from ubdc_airbnb.operations import (
     op_update_listing_details_periodical,
     op_update_reviews_periodical,
 )
+from . import UBDCBaseTestWorker
+from . import get_fixture
 
 
 # These test represent the X core ops that beat will run periodically

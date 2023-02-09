@@ -1,14 +1,11 @@
-import time
-
-from celery.result import AsyncResult
 from django.utils import timezone
 from requests import HTTPError
+import responses
 
-from . import UBDCBaseTestWorker, UBDCBaseTest
-from . import get_fixture
-from ubdc_airbnb.errors import UBDCError, UBDCRetriableError
 from ubdc_airbnb.models import AirBnBResponseTypes, AirBnBUser, AirBnBResponse
 from ubdc_airbnb.tasks import task_get_or_create_user
+from . import UBDCBaseTest
+from . import get_fixture
 
 
 class TestsUnits(UBDCBaseTest):
@@ -21,7 +18,7 @@ class TestsUnits(UBDCBaseTest):
         self.listing_404 = 30729869
         self.listing_200 = 40197612
         self.quadkey = "03113323321103333"
-        self.me = '141986833'  # me
+        self.me = "141986833"  # me
 
         from ubdc_airbnb.models import UBDCGrid
 
@@ -39,12 +36,15 @@ class TestsUnits(UBDCBaseTest):
 
         self.assertEqual(all_listings.count(), 20)
 
+    @responses.activate
     def test_create_response_cal(self):
         from ubdc_airbnb.models import AirBnBResponse
 
-        ubdc_response = AirBnBResponse.objects.response_and_create('get_calendar',
-                                                                   _type=AirBnBResponseTypes.calendar,
-                                                                   listing_id=self.listing_200)
+        ubdc_response = AirBnBResponse.objects.response_and_create(
+            "get_calendar",
+            _type=AirBnBResponseTypes.calendar,
+            listing_id=self.listing_200,
+        )
 
         self.assertEqual(ubdc_response._type, AirBnBResponseTypes.calendar)
 
@@ -52,9 +52,11 @@ class TestsUnits(UBDCBaseTest):
         from ubdc_airbnb.models import AirBnBResponse
 
         try:
-            AirBnBResponse.objects.response_and_create('get_calendar',
-                                                       _type=AirBnBResponseTypes.calendar,
-                                                       listing_id=self.listing_404)
+            AirBnBResponse.objects.response_and_create(
+                "get_calendar",
+                _type=AirBnBResponseTypes.calendar,
+                listing_id=self.listing_404,
+            )
         except HTTPError as exc:
             r = exc.ubdc_response
             self.assertIsNotNone(r)
@@ -62,8 +64,9 @@ class TestsUnits(UBDCBaseTest):
             self.assertGreater(r.status_code, 399)
 
     def test_response_and_log_user(self):
-        ubdc_response = AirBnBResponse.objects.response_and_create("get_user", user_id=self.me,
-                                                                   _type=AirBnBResponseTypes.userDetail)
+        ubdc_response = AirBnBResponse.objects.response_and_create(
+            "get_user", user_id=self.me, _type=AirBnBResponseTypes.userDetail
+        )
 
         self.assertEqual(ubdc_response.status_code, 200)
 

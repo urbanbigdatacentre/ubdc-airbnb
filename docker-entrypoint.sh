@@ -27,10 +27,6 @@ fetch-calendar)
   echo "fetch-calendar"
   python ./manage.py fetch_resource_for_listing calendar "${@:2}"
   ;;
-find-listings)
-  echo "find-listings"
-  python ./manage.py find_listings_aoi "${@:2}"
-  ;;
 fetch-listing-detail)
   echo "fetch-listing-detail"
   python ./manage.py fetch_resource_for_listing listing-detail "${@:2}"

@@ -26,15 +26,14 @@ class WorldShape(models.Model):
     geom_3857: Polygon = models.PolygonField(srid=3857)  # lets all play at www.epsg.io/3857
 
     def __repr__(self):
-        return f'Id: {self.id}/Alpha: {self.iso3_alpha}'
+        return f"Id: {self.id}/Alpha: {self.iso3_alpha}"
 
 
 class AOIShape(models.Model):
-    geom_3857 = models.MultiPolygonField(srid=3857, help_text='Geometry column. Defined at EPSG:3857',
-                                         editable=False)
-    name = models.TextField(default='', help_text='Name to display.')
-    notes = models.JSONField(default=dict, encoder=DjangoJSONEncoder, help_text='Notes.')
-    timestamp = models.DateTimeField(auto_now_add=True, verbose_name='Date of entry')
+    geom_3857 = models.MultiPolygonField(srid=3857, help_text="Geometry column. Defined at EPSG:3857", editable=False)
+    name = models.TextField(default="", help_text="Name to display.")
+    notes = models.JSONField(default=dict, encoder=DjangoJSONEncoder, help_text="Notes.")
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Date of entry")
 
     scan_for_new_listings = models.BooleanField(default=True, db_index=True)
 
@@ -52,7 +51,7 @@ class AOIShape(models.Model):
         return geom.transform(ct=epsg, clone=True)
 
     def bbox(self, epsg: int = 4326) -> Tuple[float, float, float, float]:
-        """ Returns LR->UL bbox coordinates as tuple. """
+        """Returns LR->UL bbox coordinates as tuple."""
         return self.geom_3857.transform(epsg, clone=True).extent
 
     def as_mtile(self) -> mercantile.Tile:
@@ -89,16 +88,16 @@ class UBDCGrid(models.Model):
     objects = UBDCGridManager()
 
     def __str__(self):
-        return f'{self.__class__.__name__}: {self.id}/{self.quadkey}'
+        return f"{self.__class__.__name__}: {self.id}/{self.quadkey}"
 
     @property
     def as_ewkt(self) -> str:
-        """ Return a WTK representation of the geometry. Includes SRID. """
+        """Return a WTK representation of the geometry. Includes SRID."""
         return self.geom_3857.ewkt
 
     @property
     def as_wkt(self) -> str:
-        """ Alias for as_ewkt """
+        """Alias for as_ewkt"""
         return self.as_ewkt
 
     @property
@@ -108,11 +107,11 @@ class UBDCGrid(models.Model):
     @property
     def as_mtile(self) -> mercantile.Tile:
         if self.quadkey is None:
-            raise ValueError('QuadKey is not set.')
+            raise ValueError("QuadKey is not set.")
         return mercantile.quadkey_to_tile(self.quadkey)
 
     def children(self, intersect_with: Union[int, str] = None, zoom=None, use_landmask=True) -> List[mercantile.Tile]:
-        """ Find the children for this Grid.
+        """Find the children for this Grid.
 
         :param intersect_with: Optionally (recommended) use a *AOISHAPE id* to filter out disjointed children
         :param use_landmask: Use the internal landmask. (UK only)
@@ -149,7 +148,7 @@ class UBDCGrid(models.Model):
                     elif isinstance(intersect_with, str):
                         aoi_geom = GEOSGeometry(intersect_with)
                     else:
-                        raise UBDCError('Could not generate valid geometry to filter with.')
+                        raise UBDCError("Could not generate valid geometry to filter with.")
 
                     aoi_geom = aoi_geom.prepared
 
@@ -164,7 +163,9 @@ class UBDCGrid(models.Model):
                     # cast to prepared version
                     potential_hits_prep = list(geom.prepared for geom in (x.geom_3857 for x in potential_hits))
 
-                    def filter_function_intersects_with_mask(_tile: mercantile.Tile) -> bool:
+                    def filter_function_intersects_with_mask(
+                        _tile: mercantile.Tile,
+                    ) -> bool:
                         polygon = Polygon.from_bbox(mercantile.xy_bounds(*_tile))
                         polygon.srid = 3857
                         # polygon = polygon.prepared
@@ -175,7 +176,7 @@ class UBDCGrid(models.Model):
 
         return children
 
-    def make_children(self, zoom=None, use_landmask=True) -> List['UBDCGrid']:
+    def make_children(self, zoom=None, use_landmask=True) -> List["UBDCGrid"]:
         # higher zoom is up
         if zoom is None:
             zoom = self.tile_z + 1
@@ -195,113 +196,95 @@ class UBDCGrid(models.Model):
 
 
 class AirBnBResponseTypes(models.TextChoices):
-    unknown = 'UNK', 'Unknown'
+    unknown = "UNK", "Unknown"
 
-    bookingQuote = 'BQT', 'Booking Detail'
-    calendar = 'CAL', 'Calendar'
-    review = 'RVW', 'Review'
-    listingDetail = 'LST', 'Listing'
-    search = 'SRH', 'Search'
-    searchMetaOnly = 'SHM', 'Search (MetaOnly)'
-    userDetail = 'USR', 'User'
+    bookingQuote = "BQT", "Booking Detail"
+    calendar = "CAL", "Calendar"
+    review = "RVW", "Review"
+    listingDetail = "LST", "Listing"
+    search = "SRH", "Search"
+    searchMetaOnly = "SHM", "Search (MetaOnly)"
+    userDetail = "USR", "User"
 
 
 class AirBnBResponse(models.Model):
-    """ A model to hold Airbnb responses.
-    If ubdc_task is Null, that means the data fetch was initiated manually """
+    """A model to hold Airbnb responses.
+    If ubdc_task is Null, that means the data fetch was initiated manually"""
 
     listing_id: str = models.BigIntegerField(null=True, db_index=True)
 
-    _type = models.CharField(max_length=3, db_column='type',
-                             db_index=True,
-                             choices=AirBnBResponseTypes.choices,
-                             default=AirBnBResponseTypes.unknown,
-                             verbose_name='Response Type')
-    status_code: int = models.IntegerField(db_index=True, help_text='Status code of the response')
+    _type = models.CharField(
+        max_length=3,
+        db_column="type",
+        db_index=True,
+        choices=AirBnBResponseTypes.choices,
+        default=AirBnBResponseTypes.unknown,
+        verbose_name="Response Type",
+    )
+    status_code: int = models.IntegerField(db_index=True, help_text="Status code of the response")
     payload: dict = models.JSONField(default=dict)
     request_headers: dict = models.JSONField(default=dict)
     url: str = models.TextField(null=False, blank=False)
     query_params: dict = models.JSONField(default=dict)
-    seconds_to_complete: int = models.IntegerField(null=False,
-                                                   blank=False,
-                                                   help_text='Time in seconds for the response to come back.')
+    seconds_to_complete: int = models.IntegerField(
+        null=False,
+        blank=False,
+        help_text="Time in seconds for the response to come back.",
+    )
 
-    timestamp: datetime = models.DateTimeField(auto_now_add=True,
-                                               db_index=True,
-                                               verbose_name='Date of row creation.')
+    timestamp: datetime = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Date of row creation.")
 
     # many 2 one
-    ubdc_task = models.ForeignKey('UBDCTask',
-                                  null=True,
-                                  on_delete=models.DO_NOTHING,
-                                  to_field='task_id')
+    ubdc_task = models.ForeignKey("UBDCTask", null=True, on_delete=models.DO_NOTHING, to_field="task_id")
 
     objects = AirBnBResponseManager()
 
     def __str__(self):
-        return f'{self.id}/{self.get__type_display()}'
+        return f"{self.id}/{self.get__type_display()}"
 
     class Meta:
-        ordering = ["timestamp", ]
+        ordering = [
+            "timestamp",
+        ]
 
 
 class AirBnBListing(models.Model):
-    listing_id = models.BigIntegerField(
-        unique=True,
-        null=False,
-        help_text='(PK) Airbnb ListingID',
-        primary_key=True)
+    listing_id = models.BigIntegerField(unique=True, null=False, help_text="(PK) Airbnb ListingID", primary_key=True)
     geom_3857 = models.PointField(
         null=True,
         srid=3857,
-        help_text='Current Geom Point (\'3857\') of listing\'s location'
+        help_text="Current Geom Point ('3857') of listing's location",
     )
-    timestamp = models.DateTimeField(
-        auto_now_add=True,
-        help_text='Datetime of entry')
-    listing_updated_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text='Datetime of last listing update')
-    calendar_updated_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text='Datetime of last calendar update'
-    )
+    timestamp = models.DateTimeField(auto_now_add=True, help_text="Datetime of entry")
+    listing_updated_at = models.DateTimeField(null=True, blank=True, help_text="Datetime of last listing update")
+    calendar_updated_at = models.DateTimeField(null=True, blank=True, help_text="Datetime of last calendar update")
     booking_quote_updated_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text='Datetime of latest booking quote update')
-    reviews_updated_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text='Datetime of last comment update')
-    notes = models.JSONField(
-        default=dict,
-        encoder=DjangoJSONEncoder,
-        help_text='Notes about this listing')
+        null=True, blank=True, help_text="Datetime of latest booking quote update"
+    )
+    reviews_updated_at = models.DateTimeField(null=True, blank=True, help_text="Datetime of last comment update")
+    notes = models.JSONField(default=dict, encoder=DjangoJSONEncoder, help_text="Notes about this listing")
 
-    responses = models.ManyToManyField('AirBnBResponse')
+    responses = models.ManyToManyField("AirBnBResponse")
 
     objects = AirBnBResponseManager()
 
 
-# not using the User name, so we wont get confused with functional user
+# not using the username, so we won't get confused with functional user
 class AirBnBUser(models.Model):
-    user_id = models.BigIntegerField(unique=True, null=False, blank=True, help_text='Airbnb User id')
-    first_name = models.TextField(default='')
-    about = models.TextField(default='')
-    airbnb_listing_count = models.IntegerField(default=0, help_text='as reported by airbnb')
+    user_id = models.BigIntegerField(unique=True, null=False, blank=True, help_text="Airbnb User id")
+    first_name = models.TextField(default="")
+    about = models.TextField(default="")
+    airbnb_listing_count = models.IntegerField(default=0, help_text="as reported by airbnb")
     location = models.TextField()
     verifications = ArrayField(base_field=models.CharField(max_length=255), blank=True, null=True)
     picture_url = models.TextField()
-    is_superhost = models.BooleanField(help_text='if the user is super host', default=False)
-    created_at = models.DateTimeField(blank=True, null=True, help_text='profile created at airbnb')
-    timestamp = models.DateTimeField(auto_now_add=True, verbose_name='Date of row creation.')
-    last_updated = models.DateTimeField(auto_now=True, verbose_name='Latest update.')
+    is_superhost = models.BooleanField(help_text="if the user is super host", default=False)
+    created_at = models.DateTimeField(blank=True, null=True, help_text="profile created at airbnb")
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Date of row creation.")
+    last_updated = models.DateTimeField(auto_now=True, verbose_name="Latest update.")
 
-    listings = models.ManyToManyField(AirBnBListing, related_name='users')
-    responses = models.ManyToManyField('AirBnBResponse')
+    listings = models.ManyToManyField(AirBnBListing, related_name="users")
+    responses = models.ManyToManyField("AirBnBResponse")
 
     objects = UserManager()
 
@@ -311,28 +294,52 @@ class AirBnBUser(models.Model):
 
     @cached_property
     def url(self) -> str:
-        return f'https://www.airbnb.co.uk/users/show/{self.user_id}'
+        return f"https://www.airbnb.co.uk/users/show/{self.user_id}"
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["first_name"],
+                condition=models.Q(first_name="UBDC-PLACEHOLDER"),
+                name="ubdc_airbnbuser_D87O85F2_idx",
+            )
+        ]
 
 
 class AirBnBReview(models.Model):
-    review_id = models.BigIntegerField(unique=True, null=False, blank=False, help_text='AirBNB Review id')  # required
-    created_at = models.DateTimeField(help_text='as reported by AirBNB', blank=False, null=False)  # required
-    timestamp = models.DateTimeField(auto_now_add=True, verbose_name='Date of row creation.')
+    review_id = models.BigIntegerField(unique=True, null=False, blank=False, help_text="AirBNB Review id")  # required
+    created_at = models.DateTimeField(help_text="as reported by AirBNB", blank=False, null=False)  # required
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Date of row creation.")
     review_text = models.TextField()
-    language = models.CharField(max_length=10, default='')
+    language = models.CharField(max_length=10, default="")
 
-    listing = models.ForeignKey(AirBnBListing, on_delete=models.SET_NULL, to_field='listing_id',
-                                related_name='comments', verbose_name='(AirBNB) Listing id.', null=True)
+    listing = models.ForeignKey(
+        AirBnBListing,
+        on_delete=models.SET_NULL,
+        to_field="listing_id",
+        related_name="comments",
+        verbose_name="(AirBNB) Listing id.",
+        null=True,
+    )
 
     # # one to many
-    author = models.ForeignKey(AirBnBUser, on_delete=models.SET_NULL, to_field='user_id',
-                               related_name='comments_authored',
-                               verbose_name='Author (airbnb user id) of Review', null=True)
-    recipient = models.ForeignKey(AirBnBUser, on_delete=models.SET_NULL, to_field='user_id',
-                                  related_name='comments_received',
-                                  verbose_name='recipient (airbnb user id) of the comment/review', null=True)
-    response = models.ForeignKey('AirBnBResponse', on_delete=models.SET_NULL, related_name='comments',
-                                 null=True)
+    author = models.ForeignKey(
+        AirBnBUser,
+        on_delete=models.SET_NULL,
+        to_field="user_id",
+        related_name="comments_authored",
+        verbose_name="Author (airbnb user id) of Review",
+        null=True,
+    )
+    recipient = models.ForeignKey(
+        AirBnBUser,
+        on_delete=models.SET_NULL,
+        to_field="user_id",
+        related_name="comments_received",
+        verbose_name="recipient (airbnb user id) of the comment/review",
+        null=True,
+    )
+    response = models.ForeignKey("AirBnBResponse", on_delete=models.SET_NULL, related_name="comments", null=True)
 
 
 class UBDCGroupTask(models.Model):
@@ -347,48 +354,59 @@ class UBDCGroupTask(models.Model):
     op_name = models.TextField(blank=True, null=True)
     op_args = ArrayField(base_field=models.CharField(max_length=255), blank=True, null=True)
     op_kwargs = models.JSONField(default=dict)
-    op_initiator = models.TextField(max_length=255, default='')
+    op_initiator = models.TextField(max_length=255, default="")
 
     class Meta:
-        ordering = ["timestamp", ]
-        unique_together = ['group_task_id', 'root_id']
+        ordering = [
+            "timestamp",
+        ]
+        unique_together = ["group_task_id", "root_id"]
 
 
 class UBDCTask(models.Model):
     class TaskTypeChoices(models.TextChoices):
-        SUBMITTED = 'SUBMITTED'
+        SUBMITTED = "SUBMITTED"
         STARTED = c_states.STARTED
         SUCCESS = c_states.SUCCESS
         FAILURE = c_states.FAILURE
         REVOKED = c_states.REVOKED
         RETRY = c_states.RETRY
-        UNKNOWN = 'UNKNOWN'
+        UNKNOWN = "UNKNOWN"
 
     task_id = models.UUIDField(editable=False, unique=True, db_index=True)
     task_name = models.TextField(blank=False)
-    task_args = models.TextField(default='[]')
+    task_args = models.TextField(default="[]")
     parent_id = models.UUIDField(editable=False, db_index=True, null=True)
 
-    status = models.TextField(choices=TaskTypeChoices.choices, default=TaskTypeChoices.SUBMITTED, db_index=True)
+    status = models.TextField(
+        choices=TaskTypeChoices.choices,
+        default=TaskTypeChoices.SUBMITTED,
+        db_index=True,
+    )
 
     datetime_submitted = models.DateTimeField(auto_now_add=True, db_index=True)
     datetime_started = models.DateTimeField(null=True, blank=True)
     datetime_finished = models.DateTimeField(null=True, blank=True)
-    time_to_complete = models.TextField(blank=True, default='')
+    time_to_complete = models.TextField(blank=True, default="")
     retries = models.IntegerField(default=0)
     task_kwargs = models.JSONField(default=dict)
 
-    group_task = models.ForeignKey('UBDCGroupTask', on_delete=models.DO_NOTHING, null=True,
-                                   related_query_name='ubdc_task', related_name='ubdc_tasks',
-                                   to_field='group_task_id')
+    group_task = models.ForeignKey(
+        "UBDCGroupTask",
+        on_delete=models.DO_NOTHING,
+        null=True,
+        related_query_name="ubdc_task",
+        related_name="ubdc_tasks",
+        to_field="group_task_id",
+    )
 
     root_id = models.UUIDField(editable=False, db_index=True, null=True)
 
     class Meta:
-        ordering = ["datetime_submitted", ]
-        indexes = [
-            GinIndex(fields=['task_kwargs'])
+        ordering = [
+            "datetime_submitted",
         ]
+        indexes = [GinIndex(fields=["task_kwargs"])]
 
     @property
     def is_root(self):
@@ -403,14 +421,14 @@ class UBDCTask(models.Model):
 
     def revoke_task(self) -> None:
         if self.status in c_states.READY_STATES:
-            print('Task already finished! Cannot revoke')
+            print("Task already finished! Cannot revoke")
             return
 
         c_task = celery_Task.objects.filter(task_id=self.task_id)
         if c_task.exists():
-            print('Task found at celery task registry')
+            print("Task found at celery task registry")
             self.async_result.revoke()
         else:
-            print('Task NOT found at celery task registry. Assuming tombstone-ed and marking as REVOKED')
+            print("Task NOT found at celery task registry. Assuming tombstone-ed and marking as REVOKED")
             self.status = c_states.REVOKED
             self.save()

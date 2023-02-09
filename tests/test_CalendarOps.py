@@ -1,14 +1,16 @@
 import time
 
+import responses
+from django.conf import settings
 from django.utils import timezone
 
-from . import UBDCBaseTestWorker
-from . import get_fixture
 from ubdc_airbnb.errors import UBDCError
 from ubdc_airbnb.models import AirBnBResponseTypes
+from . import UBDCBaseTestWorker
+from . import get_fixture
 
 
-class TestGridOps(UBDCBaseTestWorker):
+class TestCalendarOps(UBDCBaseTestWorker):
     fixtures = [
         get_fixture("EDIN_AOI_SHAPE.json"),
         get_fixture("EDIN_GRID_LISTINGS.json"),
@@ -24,15 +26,18 @@ class TestGridOps(UBDCBaseTestWorker):
         g = UBDCGrid.objects.get(quadkey=self.quadkey)
         g.datetime_last_estimated_listings_scan = timezone.now()
         g.save()
-        # call_command('flush', no_input='yes')
-        # call_command('import_world_mask', only_iso='GRC')
-        # call_command('add_aoi', create_grid=False, geo_file=self.test_input_aoi.as_posix())
+
+        responses.get(
+            settings.AIRBNB_API_ENDPOINT + "/v2/calendar_months",
+            body="within setup"
+        )
+
 
     def test_warmup(self):
         from ubdc_airbnb.models import AirBnBListing
         all_listings = AirBnBListing.objects.all()
         self.assertEqual(all_listings.count(), 20)
-
+    @responses.activate
     def test_grab_listing_calendar(self):
         from ubdc_airbnb.operations import op_update_calendars_for_listing_ids
         from ubdc_airbnb.models import AirBnBResponse

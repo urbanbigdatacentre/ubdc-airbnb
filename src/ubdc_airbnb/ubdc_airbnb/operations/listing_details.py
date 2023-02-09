@@ -1,23 +1,32 @@
-from typing import Union, List, Sequence, Collection, Optional
+from datetime import timedelta
+from typing import Union, List, Sequence, Collection, Optional, TYPE_CHECKING
 
 from celery import shared_task, group
 from celery.result import GroupResult
-from dateutil.relativedelta import relativedelta
-from django.db.models import BigIntegerField, Subquery, Q, F, OuterRef
-from django.db.models.fields.json import KeyTextTransform
-from django.db.models.functions import Cast
+from celery.utils.log import get_task_logger
+from django.db.models import F
 from django.utils.timezone import now
 
 from ubdc_airbnb.errors import UBDCError
-from ubdc_airbnb.models import UBDCGroupTask, UBDCGrid, AOIShape, AirBnBListing, UBDCTask
-from ubdc_airbnb.operations.discovery import logger
+from ubdc_airbnb.models import (
+    UBDCGroupTask,
+    UBDCGrid,
+    AOIShape,
+    AirBnBListing,
+)
 from ubdc_airbnb.tasks import task_add_listing_detail
-from ubdc_airbnb.utils.time import seconds_later_from_now
+from ubdc_airbnb.utils.spatial import get_listings_qs_for_aoi
+from ubdc_airbnb.utils.tasks import get_engaged_listing_ids_for
+
+logger = get_task_logger(__name__)
+
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
 
 
 @shared_task
 def op_add_listing_details_for_listing_ids(listing_id: Union[int, List[int]]) -> str:
-    """ Fetch and store into the database LISTING DETAILS for one or many LISTING_IDs.
+    """Fetch and store into the database LISTING DETAILS for one or many LISTING_IDs.
     This is an initiating task which will generate len(listing_id) sub tasks.
 
     :param listing_id: an integer or a List[int] to get the listing details from airbnb
@@ -38,15 +47,17 @@ def op_add_listing_details_for_listing_ids(listing_id: Union[int, List[int]]) ->
     group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
     group_task.op_initiator = op_add_listing_details_for_listing_ids.name
     group_task.op_name = task_add_listing_detail.name
-    group_task.op_kwargs = {'listing_id': listing_id}
+    group_task.op_kwargs = {"listing_id": listing_id}
     group_task.save()
 
     return group_result.id
 
 
 @shared_task
-def op_add_listing_details_at_grid(quadkey: Union[str, Collection[str]], ) -> Optional[str]:
-    """ DESCRIPTION MISSING
+def op_add_listing_details_at_grid(
+    quadkey: Union[str, Collection[str]],
+) -> Optional[str]:
+    """DESCRIPTION MISSING
     :param quadkey: quadkey
     :returns: GroupResult uuid
     :rtype: str
@@ -61,7 +72,7 @@ def op_add_listing_details_at_grid(quadkey: Union[str, Collection[str]], ) -> Op
 
     listing_ids = set()
     for grid in grids:
-        listings = list(grid.listings.values_list('listing_id', flat=True))
+        listings = list(grid.listings.values_list("listing_id", flat=True))
         listing_ids.update(listings)
 
     listing_ids = list(listing_ids)
@@ -71,13 +82,13 @@ def op_add_listing_details_at_grid(quadkey: Union[str, Collection[str]], ) -> Op
         result = job.apply_async()
 
         return result.id
-    logger.info('No listings found to act upon')
+    logger.info("No listings found to act upon")
     return
 
 
 @shared_task
 def op_add_listing_details_at_aoi(id_shape: Union[int, List[int]]) -> Optional[str]:
-    """ Fetch and store into the database LISTING DETAILS for the LISTING_IDs found in the quad-grids
+    """Fetch and store into the database LISTING DETAILS for the LISTING_IDs found in the quad-grids
     intersecting with AOI ID_SHAPEs.
 
     This is an initiating task which will generate len(listing_id) sub tasks.
@@ -89,7 +100,7 @@ def op_add_listing_details_at_aoi(id_shape: Union[int, List[int]]) -> Optional[s
     :returns str(UUID) of the group task containing the sub tasks
     """
 
-    if hasattr(id_shape, '__iter__'):
+    if hasattr(id_shape, "__iter__"):
         id_shapes = id_shape
     else:
         id_shapes = (id_shape,)
@@ -98,12 +109,13 @@ def op_add_listing_details_at_aoi(id_shape: Union[int, List[int]]) -> Optional[s
     for _id in id_shapes:
         aoi_shape = AOIShape.objects.get(id=_id)
         _quadkeys = list(
-            UBDCGrid.objects.filter(geom_3857__intersects=aoi_shape.geom_3857).values_list('quadkey', flat=True))
+            UBDCGrid.objects.filter(geom_3857__intersects=aoi_shape.geom_3857).values_list("quadkey", flat=True)
+        )
         quadkeys.update(_quadkeys)
 
     quadkeys = list(quadkeys)
     if len(quadkeys) > 0:
-        kwargs = {'quadkey': quadkeys}
+        kwargs = {"quadkey": quadkeys}
         job = group(op_add_listing_details_at_grid.s(quadkey=quadkey) for quadkey in quadkeys)
         group_result = job.apply_async()
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
@@ -115,14 +127,14 @@ def op_add_listing_details_at_aoi(id_shape: Union[int, List[int]]) -> Optional[s
 
         return group_result.id
 
-    logger.info(f'No quadkeys have been found for AOI Shapes: {id_shapes} to act upon')
+    logger.info(f"No quadkeys have been found for AOI Shapes: {id_shapes} to act upon")
     return
 
 
 @shared_task
-def op_update_listing_details_periodical(how_many: int = 5000, age_hours: int = 24 * 14, priority=4,
-                                         use_aoi=True) -> \
-        Optional[str]:
+def op_update_listing_details_periodical(
+    how_many: int = 5000, age_hours: int = 24 * 14, priority=4, use_aoi=True
+) -> Optional[str]:
     """
     An 'initiator' task that will select at the most 'how_many' (default 5000) listings that their listing details
     are older than 'age_days' (default 15) days old.
@@ -138,54 +150,56 @@ def op_update_listing_details_periodical(how_many: int = 5000, age_hours: int = 
     :param priority:  priority of the tasks generated. int from 1 to 10, 10 being maximum. defaults to 4
     :return: str(UUID)
     """
+    how_many = int(how_many)
+    age_hours = int(age_hours)
+    priority = int(priority)
 
     if how_many < 0:
-        raise UBDCError('The variable how_many must be larger than 0')
+        raise UBDCError("The variable how_many must be larger than 0")
     if age_hours < 0:
-        raise UBDCError('The variable age_days must be larger than 0')
-    if not (0 < priority < 10 + 1):
-        raise UBDCError('The variable priority must be between 1 than 10')
+        raise UBDCError("The variable age_days must be larger than 0")
+    if not (0 < priority <= 10):
+        raise UBDCError("The variable priority must be between 1 than 10")
 
-    expire_23hour_later = seconds_later_from_now()
-
-    start_day_today = now().replace(hour=0, minute=0, second=0, microsecond=0)
-
+    logger.info(f"Using AOI: {use_aoi}")
     if use_aoi:
-        logger.debug("Use AOI: True")
-        qs_aoi = AOIShape.objects.filter(collect_listing_details=True, geom_3857__intersects=OuterRef('geom_3857'))[:1]
-        qs_listings = AirBnBListing.objects.filter(
-            geom_3857__intersects=Subquery(qs_aoi.values('geom_3857')))
-        logger.info(f"Found {qs_listings.count()} listings")
+        qs_listings = get_listings_qs_for_aoi("listing_details")
     else:
-        logger.info("Use AOI: False")
-        qs_listings = AirBnBListing.objects.all()
+        qs_listings: QuerySet = AirBnBListing.objects.all()
 
-    excluded_listings = (UBDCTask.objects
-                         .filter(datetime_submitted__gte=start_day_today - relativedelta(days=1))
-                         .filter(task_name=task_add_listing_detail.name)
-                         .filter(status=UBDCTask.TaskTypeChoices.SUBMITTED)
-                         .filter(task_kwargs__has_key='listing_id')
-                         .annotate(listing_ids=Cast(KeyTextTransform('listing_id', 'task_kwargs'), BigIntegerField())))
-    logger.info(f"Excluded Listings  {excluded_listings.count()}")
+    logger.info(f"Found {qs_listings.count()} listings")
 
-    qs_listings = (qs_listings
-                   .exclude(listing_id__in=Subquery(excluded_listings.values_list('listing_ids', flat=True)))
-                   .filter(
-        Q(listing_updated_at__lt=start_day_today - relativedelta(hours=age_hours)) |
-        Q(listing_updated_at__isnull=True)
-    ).order_by(F('listing_updated_at').asc(nulls_first=True)))
+    engaged_listings = get_engaged_listing_ids_for(purpose="listing_details")
+    qs_listing_ids = qs_listings.exclude(listing_id__in=engaged_listings).order_by("listing_id").distinct()
 
+    timethrehold = (now() - timedelta(hours=age_hours)).date()
+
+    qs_listings = (
+        AirBnBListing.objects.filter(listing_id__in=qs_listing_ids)
+        .filter(listing_updated_at__lte=timethrehold)
+        .order_by(F("listing_updated_at").asc(nulls_first=True))
+    )
+    logger.info(
+        f"Listing that are eligible to fetch their listings details: \t{qs_listings.count()}"
+        f"But will limit the selection to upper bound of {how_many} listings."
+    )
+    qs_listings = qs_listings[:how_many]
     if qs_listings.exists():
-        listing_ids = list(qs_listings.values_list('listing_id', flat=True)[:how_many])
-        logger.info(f"Found {len(listing_ids)} listing ids for collection")
+        listing_ids = list(qs_listings.values_list("listing_id", flat=True))
         job = group(task_add_listing_detail.s(listing_id=listing_id) for listing_id in listing_ids)
-        group_result: GroupResult = job.apply_async(priority=priority, expires=expire_23hour_later)
+        group_result: GroupResult = job.apply_async(priority=priority)
 
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
         group_task.op_initiator = op_update_listing_details_periodical.name
         group_task.op_name = task_add_listing_detail.name
-        group_task.op_kwargs = {'listing_id': listing_ids}
+        group_task.op_kwargs = {"listing_id": listing_ids}
         group_task.save()
 
         return group_result.id
+    logger.info(f"No listings for listing_details have been found!")
     return None
+
+
+__all__ = [
+    "op_update_listing_details_periodical",
+]

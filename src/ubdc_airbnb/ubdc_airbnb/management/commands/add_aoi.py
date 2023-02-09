@@ -1,6 +1,5 @@
 import glob
 import os
-import sysconfig
 from datetime import datetime
 from pathlib import Path
 
@@ -11,11 +10,6 @@ from ubdc_airbnb.models import AOIShape
 from ubdc_airbnb.utils.grids import generate_initial_grid
 from . import _GeoFileHandler
 
-os.environ.setdefault(
-    "PROJ_LIB", os.getenv('PROJ_LIB') or Path(
-        Path(sysconfig.get_paths()["purelib"]) / r"osgeo/data/proj"
-    ).as_posix())
-
 
 def add_file(geo_file) -> AOIShape:
     geo_object = _GeoFileHandler(geo_file)
@@ -23,7 +17,7 @@ def add_file(geo_file) -> AOIShape:
     try:
         username = os.getlogin()
     except:
-        username = 'unknown'
+        username = "unknown"
 
     aoi_obj = AOIShape.objects.create(
         geom_3857=geo_object.convert(),
@@ -32,27 +26,32 @@ def add_file(geo_file) -> AOIShape:
             "user": username,
             "path": Path(geo_file).parent.as_posix(),
             "name": Path(geo_file).name,
-            "import_date": datetime.utcnow()
-        })
+            "import_date": datetime.utcnow(),
+        },
+    )
     return aoi_obj
 
 
 class Command(BaseCommand):
-    help = 'Import AOI to the database from a shapefile/geojson.'
+    help = "Import AOI to the database from a shapefile/geojson."
 
     def add_arguments(self, parser):
-        parser.add_argument('--create-grid',
-                            help="create initial grid after writing the geo-files. Default is False",
-                            dest='create_grid',
-                            action='store_true',
-                            )
+        parser.add_argument(
+            "--create-grid",
+            help="create initial grid after writing the geo-files. Default is False",
+            dest="create_grid",
+            action="store_true",
+        )
         parser.set_defaults(create_grid=False)
-        parser.add_argument('--geo-file', type=str,
-                            help="Path to file to be stored; Files are parsed by glob. Example: **/*.shp")
+        parser.add_argument(
+            "--geo-file",
+            type=str,
+            help="Path to file to be stored; Files are parsed by glob. Example: **/*.shp",
+        )
 
     def handle(self, *args, **options):
-        geo_file = options['geo_file']
-        create_initial_grid = options['create_grid']
+        geo_file = options["geo_file"]
+        create_initial_grid = options["create_grid"]
         files = glob.glob(geo_file)
         aoi_ids = []
         try:
@@ -60,14 +59,14 @@ class Command(BaseCommand):
                 for f in files:
                     aoi_obj = add_file(f)
                     aoi_ids.append(aoi_obj.id)
-                    self.stdout.write(self.style.SUCCESS(f'Successfully imported boundary with id: {aoi_obj.id}'))
+                    self.stdout.write(self.style.SUCCESS(f"Successfully imported boundary with id: {aoi_obj.id}"))
 
                 if create_initial_grid:
-                    self.stdout.write(self.style.NOTICE(f'Generating Initial Grids'))
+                    self.stdout.write(self.style.NOTICE(f"Generating Initial Grids"))
                     for obj_id in aoi_ids:
                         final_grids = generate_initial_grid(aoishape_id=obj_id)
-                    self.stdout.write(self.style.NOTICE(f'Successfully generated grids {len(final_grids)}'))
+                    self.stdout.write(self.style.NOTICE(f"Successfully generated grids {len(final_grids)}"))
 
         except Exception as excp:
-            self.stdout.write(self.style.ERROR(f'An error has occurred. Db was reverted back to its original state'))
+            self.stdout.write(self.style.ERROR(f"An error has occurred. Db was reverted back to its original state"))
             raise excp

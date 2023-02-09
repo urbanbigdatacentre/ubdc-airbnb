@@ -1,6 +1,3 @@
-from datetime import datetime, timedelta
-
-from celery.exceptions import TaskRevokedError
 from celery.result import AsyncResult
 
 from ubdc_airbnb.tasks import task_debug_sometimes_fail, task_debug_wait
@@ -12,16 +9,18 @@ class Test(UBDCBaseTestWorker):
 
     def test_wait(self):
         from ubdc_airbnb.models import UBDCTask
-        task = task_debug_wait.s(value='test', wait=1, verbose=True)
+
+        task = task_debug_wait.s(value="test", wait=1, verbose=True)
         result: AsyncResult = task.apply_async()
 
         obj = UBDCTask.objects.get(task_id=result.task_id)
 
-        assert result.get() == 'test'
+        assert result.get() == "test"
 
     def test_retry(self):
         from ubdc_airbnb.errors import UBDCRetriableError
         from ubdc_airbnb.models import UBDCTask
+
         task = task_debug_sometimes_fail.s(fail_percentage=1, verbose=False)
 
         with self.assertRaises(UBDCRetriableError):

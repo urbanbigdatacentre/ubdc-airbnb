@@ -1,4 +1,3 @@
-from argparse import ArgumentTypeError
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -18,12 +17,12 @@ class _GeoFileHandler(object):
         #     raise FileNotFoundError(f'File {self._file_path.as_posix()} could not be opened')
         self._data_source: DataSource = DataSource(geo_file)
 
-        if self.driver_name not in ('ESRI Shapefile', 'GeoJSON'):
-            raise ValueError('Only shapefiles or GeoJSON are supported in this time')
+        if self.driver_name not in ("ESRI Shapefile", "GeoJSON"):
+            raise ValueError("Only shapefiles or GeoJSON are supported in this time")
 
         self.layer: Layer = self._data_source[0]
-        if self.geometry_type not in ('Polygon', 'MultiPolygon'):
-            raise ValueError('Only Polygons or Multipolygons are supported')
+        if self.geometry_type not in ("Polygon", "MultiPolygon"):
+            raise ValueError("Only Polygons or Multipolygons are supported")
 
     @property
     def nFeatures(self):
@@ -49,10 +48,10 @@ class _GeoFileHandler(object):
         return self.layer.srs.srid
 
     def __str__(self) -> str:
-        return f'{self.__class__.__name__}/{self.name}'
+        return f"{self.__class__.__name__}/{self.name}"
 
     def convert(self, source_srid=None):
-        """ Return a MultiPolygon suitable for entrance to AOIShape model. """
+        """Return a MultiPolygon suitable for entrance to AOIShape model."""
 
         # if the file contains one (multipolygon) polygon -> multipolygon
         # if the file contains multiple features -> merge -> multipolygon
@@ -61,7 +60,7 @@ class _GeoFileHandler(object):
 
         geom_list: List[GEOSGeometry] = self.layer.get_geoms()
         if not len(geom_list):
-            raise AttributeError('No geometries in this file')
+            raise AttributeError("No geometries in this file")
 
         _source_srid = self.srid or source_srid
 
@@ -91,7 +90,7 @@ class _GeoFileHandler(object):
         else:
             geom_bag = []
             for gdal_geom in geom_list:
-                if gdal_geom.geom_type == 'MultiPolygon':
+                if gdal_geom.geom_type == "MultiPolygon":
                     for p in gdal_geom:
                         geom_bag.append(GEOSGeometry(p.ewkt))
                 else:
@@ -105,12 +104,12 @@ class _GeoFileHandler(object):
 
 
 def int_to_aoi(pk: int) -> AOIShape:
-    """ Cast to AOI Object"""
+    """Cast to AOI Object"""
     return AOIShape.objects.get(id=pk)
 
 
 def int_to_listing(value) -> AirBnBListing:
-    """ Cast to AirBnBListing Object"""
+    """Cast to AirBnBListing Object"""
     listing = AirBnBListing.objects.get(listing_id=value)
 
     return listing

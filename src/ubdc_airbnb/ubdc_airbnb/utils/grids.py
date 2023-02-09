@@ -5,24 +5,24 @@ import mercantile
 from ubdc_airbnb.errors import UBDCError
 
 
-def generate_initial_grid(aoishape_id: int, profile: Optional[str] = 'rural', zoom: Optional[int] = None) -> List[str]:
-    """ Generates an initial grid for a the aoishape (identified by it's ID) based either in a proposed
-     zoom level or profile.
-     These grids should be then further refined using the estimated_listings_or_divide
-     """
+def generate_initial_grid(aoishape_id: int, profile: Optional[str] = "rural", zoom: Optional[int] = None) -> List[str]:
+    """Generates an initial grid for a the aoishape (identified by it's ID) based either in a proposed
+    zoom level or profile.
+    These grids should be then further refined using the estimated_listings_or_divide
+    """
     from ubdc_airbnb.models import AOIShape, UBDCGrid
 
     if not zoom and not profile:
-        raise UBDCError('Either zoom or profile must be specified.')
+        raise UBDCError("Either zoom or profile must be specified.")
 
     if not zoom:
         # higher, means finer scale (MORE zoom, 0 -> whole world)
-        if profile.lower() == 'urban':
+        if profile.lower() == "urban":
             zoom = 15
-        elif profile.lower() == 'rural':
+        elif profile.lower() == "rural":
             zoom = 12
         else:
-            raise UBDCError('The profile given is not valid. Must be either urban or rural')
+            raise UBDCError("The profile given is not valid. Must be either urban or rural")
     # zoom = zoom
 
     try:
@@ -30,8 +30,7 @@ def generate_initial_grid(aoishape_id: int, profile: Optional[str] = 'rural', zo
     except AOIShape.DoesNotExist:
         raise UBDCError('Shape "%s" does not exist.' % aoishape_id)
 
-    init_grid = UBDCGrid.objects.create_from_tile(aoi_shape.as_mtile(),
-                                                  allow_overlap_with_currents=True)
+    init_grid = UBDCGrid.objects.create_from_tile(aoi_shape.as_mtile(), allow_overlap_with_currents=True)
 
     children = init_grid.children(intersect_with=aoi_shape.id, zoom=zoom)
 
@@ -49,13 +48,13 @@ def generate_initial_grid(aoishape_id: int, profile: Optional[str] = 'rural', zo
         #         could generate sublist  ----^, replace with more_itertools.collapse
         for grid in grids:
             if UBDCGrid.objects.filter(quadkey=grid.quadkey):
-                print(f'{grid} already exists in the database. Skipping')
+                print(f"{grid} already exists in the database. Skipping")
                 continue
 
             grid_bag.append(grid)
 
     UBDCGrid.objects.bulk_create(grid_bag)
-    print(f'Command ran successfully: Generated %s UBDC tiles' % len(grid_bag))
+    print(f"Command ran successfully: Generated %s UBDC tiles" % len(grid_bag))
 
     return [grid.quadkey for grid in grid_bag]
 

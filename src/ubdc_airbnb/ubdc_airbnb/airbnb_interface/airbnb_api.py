@@ -12,63 +12,27 @@ from jsonpath_ng import parse as json_parse
 from more_itertools import chunked
 from requests import Response
 
+from ubdc_airbnb.errors import MissingParameterError, NoBookingDatesError
+
 AIRBNB_API_KEY = settings.AIRBNB_PUBLIC_API_KEY
 AIRBNB_PROXY = settings.AIRBNB_PROXY
 
 if settings.AIRBNB_PROXY is None:
     import warnings
 
-    message = f"No proxy is set. Not using a proxy could lead Airbnb QoS to be activated."
+    message = f"No proxy is set. Not using a proxy will lead Airbnb QoS mechanisms to be activated."
     warnings.warn(message)
-else:
-    print(f'proxy set: {settings.AIRBNB_PROXY}')
+
+POINT = namedtuple("POINT", "x y")
+BBOX = namedtuple("BBOX", "upper_left lower_right")
 
 
-class AuthError(Exception):
-    """
-    Authentication error
-    """
-    pass
-
-
-class VerificationError(AuthError):
-    """
-    Authentication error
-    """
-    pass
-
-
-class MissingParameterError(Exception):
-    """
-    Missing parameter error
-    """
-    pass
-
-
-class MissingAccessTokenError(MissingParameterError):
-    """
-    Missing access token error
-    """
-    pass
-
-
-class NoBookingDates(Exception):
-    """
-    Unable to identify valid dates to ask for a booking quote.
-    """
-    pass
-
-
-POINT = namedtuple('Point', 'x y')
-BBOX = namedtuple('BBOX', 'upper_left lower_right')
-
-
-def attach_response_obj(r: requests.Response, this_object: 'Api', *args, **kwargs):
-    """ Response Middleware """
+def attach_response_obj(r: requests.Response, this_object: "AirbnbApi", *args, **kwargs):
+    """Response Middleware"""
     this_object.response = r
 
 
-class Api(object):
+class AirbnbApi(object):
     """ Base API class
     # >>> api = Api(access_token=os.environ.get("AIRBNB_ACCESS_TOKEN"))
     # >>> api = Api()
@@ -88,11 +52,13 @@ class Api(object):
     {...}
     """
 
-    def __init__(self,
-                 api_key: str = None,
-                 proxy: str = None,
-                 extra_headers: Dict[str, str] = dict(),
-                 randomize: bool = None):
+    def __init__(
+        self,
+        api_key: str = None,
+        proxy: str = None,
+        extra_headers: Dict[str, str] = None,
+        randomize: bool = None,
+    ):
         """
 
         :param api_key: The api key to access airbnb.
@@ -102,22 +68,19 @@ class Api(object):
         :param randomize: randomise certain identities to further anonymize the request (experimental).
         """
 
-        self._airbnb_api_key: str = ''
+        self._airbnb_api_key: str = ""
         self._federated_search_session_id: Optional[str] = None
         self._client_session_id: Optional[str] = None
         self._session: requests.Session = requests.Session()
-        self._session.verify = True  # requests verify ssl connection
         self._response: Optional[requests.Response] = None
         self._user_agent: Optional[str] = None
         self._udid: str = "9120210f8fb1ae837affff54a0a2f64da821d227"
         self._uuid: str = uuid4().__str__().upper()
         self.randomize: bool = randomize
-        self.currency: str = 'GBP'
-        self.locale: str = 'en'
+        self.currency: str = "GBP"
+        self.locale: str = "en"
 
-        self._session.hooks = {
-            'response': functools.partial(attach_response_obj, this_object=self)
-        }
+        self._session.hooks = {"response": functools.partial(attach_response_obj, this_object=self)}
 
         self._session.headers = {
             "accept": "application/json",
@@ -128,13 +91,13 @@ class Api(object):
             # "x-airbnb-screensize": "w=375.00;h=812.00",
             # "x-airbnb-carrier-name": "T-Mobile",
             # "x-airbnb-network-type": "wifi",
-            'x-airbnb-oauth-token': 'public',
+            "x-airbnb-oauth-token": "public",
             "x-airbnb-currency": self.currency,
             "x-airbnb-locale": self.locale,
             # "x-airbnb-carrier-country": "us",
             "accept-language": "en-GB",
             # "airbnb-device-id": self.udid,
-            "x-airbnb-advertising-id": self.uuid
+            "x-airbnb-advertising-id": self.uuid,
         }
 
         self._session.verify = False
@@ -144,24 +107,21 @@ class Api(object):
             self.airbnb_api_key = AIRBNB_API_KEY
 
         if proxy:
-            self._session.proxies = {
-                "http": proxy,
-                "https": proxy
-            }
+            self._session.proxies = {"http": proxy, "https": proxy}
         if extra_headers:
             self._session.headers.update(extra_headers)
 
     @classmethod
     def param_factory(cls) -> dict:
-        """ Returns a dictionary with the most common params. Makes requests more verbose. """
+        """Returns a dictionary with the most common params. Makes requests more verbose."""
         params = {}
         params.update(
-            version='1.6.5',
+            version="1.6.5",
             timezone_offset=0,
             metadata_only=False,
-            _format='for_explore_search_web',
+            _format="for_explore_search_web",
             is_standard_search=True,
-            satori_version='1.1.9'
+            satori_version="1.1.9",
         )
 
         return params
@@ -209,7 +169,7 @@ class Api(object):
     @user_agent.setter
     def user_agent(self, value):
         self._user_agent = value
-        self._session.headers['user-agent'] = self._user_agent
+        self._session.headers["user-agent"] = self._user_agent
 
     @property
     def uuid(self):
@@ -217,9 +177,9 @@ class Api(object):
 
     @uuid.setter
     def uuid(self, value):
-        """ uuid is used for advertisement id? """
+        """uuid is used for advertisement id?"""
         self._uuid = value
-        self._session.headers['x-airbnb-advertising-id'] = self._uuid
+        self._session.headers["x-airbnb-advertising-id"] = self._uuid
 
     @property
     def udid(self):
@@ -228,12 +188,9 @@ class Api(object):
     @udid.setter
     def udid(self, value):
         self._udid = value
-        self._session.headers['airbnb-device-id'] = self._udid
+        self._session.headers["airbnb-device-id"] = self._udid
 
-    def get_calendar(
-            self,
-            listing_id, starting_month=None,
-            starting_year=None, calendar_months=12) -> (Response, dict):
+    def get_calendar(self, listing_id, starting_month=None, starting_year=None, calendar_months=12) -> (Response, dict):
         """
         Get availability calendar for a given listing
         """
@@ -244,16 +201,14 @@ class Api(object):
             starting_year = datetime.utcnow().year
 
         params = {
-            'year': str(starting_year),
-            'listing_id': str(listing_id),
-            '_format': 'with_conditions',
-            'count': str(calendar_months),
-            'month': str(starting_month)
+            "year": str(starting_year),
+            "listing_id": str(listing_id),
+            "_format": "with_conditions",
+            "count": str(calendar_months),
+            "month": str(starting_month),
         }
 
-        r = self._session.get(
-            settings.AIRBNB_API_ENDPOINT + "/v2/calendar_months",
-            params=params)
+        r = self._session.get(settings.AIRBNB_API_ENDPOINT + "/v2/calendar_months", params=params)
         r.raise_for_status()
 
         return r, r.json()
@@ -263,35 +218,42 @@ class Api(object):
         Get reviews for a given listing, currently limit is up to 100.
         """
         params = {
-            '_order': 'language_country',
-            'listing_id': str(listing_id),
-            '_offset': str(offset),
-            'role': 'all',
-            '_limit': str(limit),
-            '_format': 'for_mobile_client',
+            "_order": "language_country",
+            "listing_id": str(listing_id),
+            "_offset": str(offset),
+            "role": "all",
+            "_limit": str(limit),
+            "_format": "for_mobile_client",
         }
 
-        r = self._session.get(
-            settings.AIRBNB_API_ENDPOINT + "/v2/reviews",
-            params=params)
+        r = self._session.get(settings.AIRBNB_API_ENDPOINT + "/v2/reviews", params=params)
         r.raise_for_status()
 
-        return r.json()
+        return r, r.json()
 
     def iterate_reviews(self, listing_id, by=20):
         has_next_page = True
         c = 1
         while has_next_page:
             reviews = self.get_reviews(listing_id, offset=c * by, limit=by)
-            reviews_count = reviews['metadata']['reviews_count']
+            reviews_count = reviews["metadata"]["reviews_count"]
             c += 1
             has_next_page = reviews_count // (c * by)
             yield reviews
 
-    def get_homes(self, query: str = None,
-                  west: float = None, south: float = None, east: float = None, north: float = None,
-                  checkin=None, checkout=None, items_offset=0, items_per_grid=8, metadata_only=False) -> (
-    Response, dict):
+    def get_homes(
+        self,
+        query: str = None,
+        west: float = None,
+        south: float = None,
+        east: float = None,
+        north: float = None,
+        checkin=None,
+        checkout=None,
+        items_offset=0,
+        items_per_grid=8,
+        metadata_only=False,
+    ) -> (Response, dict):
         """
         TODO: Update Docstring
         """
@@ -299,30 +261,27 @@ class Api(object):
         is_geographic_search = False
 
         params = {
-            'toddlers': '0',
-            'infants': '0',
-            'is_guided_search': 'true',
-            'version': '1.7.0',
-            'section_offset': '0',
-            'items_offset': str(items_offset),
-            'adults': '0',
-            'screen_size': 'large',
-            'source': 'explore_tabs',
-            'items_per_grid': str(items_per_grid),
-            '_format': 'for_explore_search_native',
-            'refinement_paths[]': '/homes',
-            'timezone_offset': '0',
-            'satori_version': '1.1.1',
-
+            "toddlers": "0",
+            "infants": "0",
+            "is_guided_search": "true",
+            "version": "1.7.0",
+            "section_offset": "0",
+            "items_offset": str(items_offset),
+            "adults": "0",
+            "screen_size": "large",
+            "source": "explore_tabs",
+            "items_per_grid": str(items_per_grid),
+            "_format": "for_explore_search_native",
+            "refinement_paths[]": "/homes",
+            "timezone_offset": "0",
+            "satori_version": "1.1.1",
             # if this true, only the metadata of the search will come back. (i.e how many results)
-            'metadata_only': metadata_only,
-            'key': self.airbnb_api_key
+            "metadata_only": metadata_only,
+            "key": self.airbnb_api_key,
         }
 
         if self.federated_search_session_id:
-            params.update({
-                'federated_search_session_id': self.federated_search_session_id
-            })
+            params.update({"federated_search_session_id": self.federated_search_session_id})
 
         if self.client_session_id:
             params.update(client_session_id=self.client_session_id)
@@ -334,60 +293,77 @@ class Api(object):
             raise MissingParameterError("Missing query or bounding box")
 
         if query:
-            params['query'] = query
+            params["query"] = query
 
         if is_geographic_search:
-            params['ne_lat'] = north
-            params['ne_lng'] = east
-            params['sw_lat'] = south
-            params['sw_lng'] = west
+            params["ne_lat"] = north
+            params["ne_lng"] = east
+            params["sw_lat"] = south
+            params["sw_lng"] = west
 
-            params['search_by_map'] = True
+            params["search_by_map"] = True
 
         if checkin and checkout:
-            params['checkin'] = checkin
-            params['checkout'] = checkout
+            params["checkin"] = checkin
+            params["checkout"] = checkout
 
-        r = self._session.get(settings.AIRBNB_API_ENDPOINT + '/v2/explore_tabs', params=params)
+        r = self._session.get(settings.AIRBNB_API_ENDPOINT + "/v2/explore_tabs", params=params)
         r.raise_for_status()
 
-        return r.json()
+        return r, r.json()
 
     def get_listing_details(self, listing_id: int) -> (Response, dict):
         params = {
-            'adults': '0',
-            '_format': 'for_native',
-            'infants': '0',
-            'children': '0'
+            "adults": "0",
+            "_format": "for_native",
+            "infants": "0",
+            "children": "0",
         }
 
-        r = self._session.get(settings.AIRBNB_API_ENDPOINT + '/v2/pdp_listing_details/' + str(listing_id),
-                              params=params)
+        r = self._session.get(
+            settings.AIRBNB_API_ENDPOINT + "/v2/pdp_listing_details/" + str(listing_id),
+            params=params,
+        )
         r.raise_for_status()
 
-        return r.json()
+        return r, r.json()
 
-    def iterate_homes(self, query=None,
-                      checkin=None, checkout=None,
-                      south=None, west=None, east=None, north=None,
-                      per=50) -> Iterator[Tuple[int, Iterator[Mapping[int, int]]]]:
+    def iterate_homes(
+        self,
+        query=None,
+        checkin=None,
+        checkout=None,
+        south=None,
+        west=None,
+        east=None,
+        north=None,
+        per=50,
+    ) -> Iterator[Tuple[int, Iterator[Mapping[int, int]]]]:
 
         # do I need to use the same ip?
         page = 0
         while True:
-            payload = self.get_homes(query, checkin=checkin, checkout=checkout,
-                                     north=north, south=south, west=west, east=east,
-                                     items_offset=page * per, items_per_grid=per)
+            response, payload = self.get_homes(
+                query,
+                checkin=checkin,
+                checkout=checkout,
+                north=north,
+                south=south,
+                west=west,
+                east=east,
+                items_offset=page * per,
+                items_per_grid=per,
+            )
 
             matches = json_parse(r"$..explore_tabs..sections..listing[id,lat,lng]").find(payload)
             res_gen = chunked(matches, 3, strict=True)
             yield page, res_gen
 
             page += 1
-            pagination_metadata = payload['explore_tabs'][0]['pagination_metadata']
-            self.federated_search_session_id = payload['metadata']['federated_search_session_id']
+            pagination_metadata = payload["explore_tabs"][0]["pagination_metadata"]
+            self.federated_search_session_id = payload["metadata"]["federated_search_session_id"]
 
-            has_next_page = pagination_metadata['has_next_page']
+            has_next_page = pagination_metadata["has_next_page"]
 
             if has_next_page is False:
                 break
@@ -397,32 +373,32 @@ class Api(object):
 
     def get_user(self, user_id) -> (Response, dict):
         params = {}
-        r = self._session.get(settings.AIRBNB_API_ENDPOINT + f'/v2/users/{user_id}', params=params)
+        r = self._session.get(settings.AIRBNB_API_ENDPOINT + f"/v2/users/{user_id}", params=params)
         r.raise_for_status()
         self.response = r
 
         return r, r.json()
 
-    def number_of_listings(self, store_federated_search_session_id: bool = False, **kwargs) -> int:
-        """ Return the number_results of this query.
+    def bbox_metadata_search(self, store_federated_search_session_id: bool = False, **kwargs) -> Tuple[Response, Dict]:
+        """Return the number_results of this query.
 
         :param store_federated_search_session_id:
             Save the federated search id. Default is False, as this number is considered indicative.
         """
 
-        kwargs['metadata_only'] = True
-        res = self.get_homes(**kwargs)
+        kwargs["metadata_only"] = True
+        response, payload = self.get_homes(**kwargs)
         if store_federated_search_session_id:
-            self.federated_search_session_id = self.response.json()['metadata']['federated_search_session_id']
-        target = res['explore_tabs'][0]['home_tab_metadata']['listings_count']
+            self.federated_search_session_id = self.response.json()["metadata"]["federated_search_session_id"]
 
-        return int(target)
+        return response, payload
 
     def get_booking_details(
-            self,
-            listing_id: int,
-            calendar: dict = None,
-            start_search_from: Type[datetime.date] = None) -> (Response, dict):
+        self,
+        listing_id: int,
+        calendar: dict = None,
+        start_search_from: Type[datetime.date] = None,
+    ) -> (Response, dict):
         """
 
         :param listing_id: Listing Id
@@ -453,31 +429,31 @@ class Api(object):
             number_of_children="0",
             number_of_infants="0",
             search_id="d5292adc-8660-75f2-b984-7a0cfc0dd6d5",
-            show_smart_promotion='0'
+            show_smart_promotion="0",
         )
 
         def find_checkin_checkout(listing_calendar: dict):
-            cal_parser = json_parse('calendar_months[*].days[*]')
+            cal_parser = json_parse("calendar_months[*].days[*]")
             stays = 0
             min_nights = 0
             check_in = None
             check_out = None
             elem = cal_parser.find(listing_calendar)
             for entry in elem:
-                date = datetime.strptime(entry.value['date'], "%Y-%m-%d")
+                date = datetime.strptime(entry.value["date"], "%Y-%m-%d")
                 if date <= datetime.utcnow():
                     continue
 
                 stays += 1
-                if entry.value['available_for_checkin']:
+                if entry.value["available_for_checkin"]:
                     if check_in is None:
                         check_in = date
-                        min_nights = entry.value['min_nights']
+                        min_nights = entry.value["min_nights"]
                         stays = 1
                         continue
 
                     if check_in is not None:
-                        if check_in.strftime("%Y-%m-%d") == entry.value['date']:
+                        if check_in.strftime("%Y-%m-%d") == entry.value["date"]:
                             continue
                         if stays >= min_nights:
                             check_out = date
@@ -487,27 +463,21 @@ class Api(object):
 
             if check_in is None or check_out is None:
                 bstr = json.dumps(listing_calendar, sort_keys=True).encode()
-                raise NoBookingDates(f'calendar md5_hexdigest: {md5(bstr).hexdigest()}')
+                raise NoBookingDatesError(f"calendar md5_hexdigest: {md5(bstr).hexdigest()}")
 
             return check_in.strftime("%Y-%m-%d"), check_out.strftime("%Y-%m-%d")
 
         if calendar is None:
             calendar = self.get_calendar(listing_id)
         checkin, checkout = find_checkin_checkout(calendar)
-        params.update(
-            check_in=checkin,
-            check_out=checkout
+        params.update(check_in=checkin, check_out=checkout)
+        r = self._session.get(
+            settings.AIRBNB_API_ENDPOINT + f"/v2/pdp_listing_booking_details",
+            params=params,
         )
-        r = self._session.get(settings.AIRBNB_API_ENDPOINT + f'/v2/pdp_listing_booking_details', params=params)
         r.raise_for_status()
 
         return r, r.json()
 
 
-airbnb_client = Api(
-    proxy=settings.AIRBNB_PROXY
-)
-
-__all__ = [
-    airbnb_client
-]
+__all__ = [AirbnbApi]

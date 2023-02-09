@@ -5,8 +5,6 @@ from pathlib import Path
 
 from dotenv import find_dotenv, load_dotenv
 
-
-
 logger = getLogger(__name__)
 
 
@@ -41,7 +39,7 @@ def config_env_for_app():
 
     # TEST mode load .env.test
     elif test_mode:
-        if load_dotenv(find_dotenv('.env.local'), override=True):
+        if load_dotenv(find_dotenv('.env.test'), override=True):
             logger.info('Loaded .env.test file')
             load_env = True
         else:
@@ -75,7 +73,8 @@ def config_env_for_app():
         message = f"No proxy is set. Not using a proxy could lead Airbnb QoS to be activated."
         warnings.warn(message)
     else:
-        print(f'proxy set: {os.getenv("AIRBNB_PROXY")}')
+        print(f'proxy set: {os.getenv("AIRBNB_PROXY")} dsf')
+
 
 config_env_for_app()
 # from .celery import app

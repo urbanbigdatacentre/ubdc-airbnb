@@ -3,24 +3,22 @@ from typing import List, Optional, Sequence, Union
 from celery import group, shared_task
 from celery.result import GroupResult
 from celery.utils.log import get_task_logger
-from dateutil.relativedelta import relativedelta
-from django.db.models import F, BigIntegerField, Q, Subquery, OuterRef
-from django.db.models.fields.json import KeyTextTransform
-from django.db.models.functions import Cast
-from django.utils.timezone import now
+from django.db.models import F
 
 from ubdc_airbnb.errors import UBDCError
-from ubdc_airbnb.models import AOIShape, AirBnBListing, UBDCGroupTask, UBDCTask
+from ubdc_airbnb.models import AOIShape, AirBnBListing, UBDCGroupTask
 from ubdc_airbnb.tasks import task_update_or_add_reviews_at_listing
-from ubdc_airbnb.utils.time import seconds_later_from_now
+from ubdc_airbnb.utils.spatial import get_listings_qs_for_aoi
+from ubdc_airbnb.utils.tasks import get_engaged_listing_ids_for
 
 logger = get_task_logger(__name__)
 
 
 @shared_task
-def op_update_comment_at_listings(listing_id: Union[int, Sequence[int]], force_check=False) -> GroupResult:
-    """  Submit jobs for fetching the reviews from listing_ids
-    """
+def op_update_comment_at_listings(
+    listing_id: Union[int, Sequence[int]], force_check=False
+) -> GroupResult:
+    """Submit jobs for fetching the reviews from listing_ids"""
 
     if isinstance(listing_id, Sequence):
         listing_ids = listing_id
@@ -29,7 +27,9 @@ def op_update_comment_at_listings(listing_id: Union[int, Sequence[int]], force_c
 
     tasks_list = []
     for idx in listing_ids:
-        task = task_update_or_add_reviews_at_listing.s(listing_id=idx, force_check=force_check)
+        task = task_update_or_add_reviews_at_listing.s(
+            listing_id=idx, force_check=force_check
+        )
         tasks_list.append(task)
 
     job = group(tasks_list)
@@ -38,14 +38,16 @@ def op_update_comment_at_listings(listing_id: Union[int, Sequence[int]], force_c
 
     group_task.op_name = task_update_or_add_reviews_at_listing.name
     group_task.op_initiator = op_update_comment_at_listings.name
-    group_task.op_kwargs = {'listing_id': listing_ids}
+    group_task.op_kwargs = {"listing_id": listing_ids}
     group_task.save()
 
     return group_result
 
 
 @shared_task
-def op_update_reviews_aoi(id_shape: Union[int, Sequence[int]], force_check=False) -> List[str]:
+def op_update_reviews_aoi(
+    id_shape: Union[int, Sequence[int]], force_check=False
+) -> List[str]:
     """
     :param id_shape: single or sequence of ints representing pks of id_shapes
     :param force_check: check all comment history, defaults to False
@@ -63,7 +65,7 @@ def op_update_reviews_aoi(id_shape: Union[int, Sequence[int]], force_check=False
         listings = aoi_shape.listings
 
         listing_ids = [x.listing_id for x in listings]
-        kwargs = {'listing_id': listing_ids, 'force_check': force_check}
+        kwargs = {"listing_id": listing_ids, "force_check": force_check}
         task = op_update_comment_at_listings.s(**kwargs)
         job_list.append(task)
 
@@ -73,7 +75,7 @@ def op_update_reviews_aoi(id_shape: Union[int, Sequence[int]], force_check=False
     group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
     group_task.op_name = op_update_comment_at_listings.name
     group_task.op_initiator = op_update_reviews_aoi.name
-    group_task.op_kwargs = {'id_shape': id_shape, 'force_check': force_check}
+    group_task.op_kwargs = {"id_shape": id_shape, "force_check": force_check}
     group_task.save()
 
     return group_result.id
@@ -82,8 +84,12 @@ def op_update_reviews_aoi(id_shape: Union[int, Sequence[int]], force_check=False
 # CELERY BEAT
 # There are ~250k listings in UK. Could burn through bandwidth really fast, as it will fetch user details as well
 @shared_task
-def op_update_reviews_periodical(how_many: int = 50, age_hours: int = 3 * 7 * 24, priority: int = 4,
-                                 use_aoi: bool = True) -> Optional[str]:
+def op_update_reviews_periodical(
+    how_many: int = 50,
+    age_hours: int = 3 * 7 * 24,
+    priority: int = 4,
+    use_aoi: bool = True,
+) -> Optional[str]:
     """
     An 'initiator' task that will select at the most 'how_many' (default 50) listings had not had their reviews
     harvested for more than 'age_days' (default 21) days.
@@ -102,46 +108,42 @@ def op_update_reviews_periodical(how_many: int = 50, age_hours: int = 3 * 7 * 24
     """
 
     if how_many < 0:
-        raise UBDCError('The variable how_many must be larger than 0')
+        raise UBDCError("The variable how_many must be larger than 0")
     if age_hours < 0:
-        raise UBDCError('The variable age_days must be larger than 0')
+        raise UBDCError("The variable age_days must be larger than 0")
     if not (0 < priority < 10 + 1):
-        raise UBDCError('The variable priority must be between 1 than 10')
-
-    expire_23hour_later = seconds_later_from_now()
+        raise UBDCError("The variable priority must be between 1 than 10")
 
     if use_aoi:
-        qs_aoi = AOIShape.objects.filter(collect_reviews=True, geom_3857__intersects=OuterRef('geom_3857'))[:1]
-        qs_listings = AirBnBListing.objects.filter(
-            geom_3857__intersects=Subquery(qs_aoi.values('geom_3857')))
+        qs_listings = get_listings_qs_for_aoi(purpose="reviews")
         logger.info(f"Found {qs_listings.count()} listings")
     else:
         qs_listings = AirBnBListing.objects.all()
 
-    start_day_today = now().replace(hour=0, minute=0, second=0, microsecond=0)
-    submitted_listing_ids = (UBDCTask.objects
-                             .filter(datetime_submitted__gte=start_day_today - relativedelta(days=1))
-                             .filter(task_name=task_update_or_add_reviews_at_listing.name)
-                             .filter(status=UBDCTask.TaskTypeChoices.SUBMITTED)
-                             .filter(task_kwargs__has_key='listing_id')
-                             .annotate(listing_ids=Cast(KeyTextTransform('listing_id', 'task_kwargs'), BigIntegerField())))
-
-    qs_listings = (qs_listings.filter(
-        Q(reviews_updated_at__lt=start_day_today - relativedelta(hours=age_hours)) |
-        Q(reviews_updated_at__isnull=True))
-                   .exclude(listing_id__in=Subquery(submitted_listing_ids.values_list('listing_ids', flat=True)))
-                   .order_by(F('calendar_updated_at').asc(nulls_first=True)))
+    engaged_listings = get_engaged_listing_ids_for(purpose="reviews")
+    qs_listing_ids = qs_listings.exclude(listing_id__in=engaged_listings)
+    qs_listings = (
+        AirBnBListing.objects.filter(listing_id__in=qs_listing_ids).order_by(
+            F("listing_updated_at").asc(nulls_first=True)
+        )
+    )[:how_many]
+    logger.info(f"After final sorting found {qs_listings.count()} listings")
 
     if qs_listings.exists():
-        listing_ids = list(qs_listings.values_list('listing_id', flat=True)[0:how_many])
-        job = group(task_update_or_add_reviews_at_listing.s(listing_id=listing_id) for listing_id in listing_ids)
-        group_result: GroupResult = job.apply_async(priority=priority, expires=expire_23hour_later)
+        listing_ids = list(qs_listings.values_list("listing_id", flat=True))
+        job = group(
+            task_update_or_add_reviews_at_listing.s(listing_id=listing_id)
+            for listing_id in listing_ids
+        )
+        group_result: GroupResult = job.apply_async(priority=priority)
 
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
         group_task.op_name = task_update_or_add_reviews_at_listing.name
         group_task.op_initiator = op_update_reviews_periodical.name
-        group_task.op_kwargs = {'listing_id': listing_ids}
+        group_task.op_kwargs = {"listing_id": listing_ids}
         group_task.save()
 
         return group_result.id
+
+    logger.info(f"No listings for listing_details have been found!")
     return None

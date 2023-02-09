@@ -1,11 +1,14 @@
 from django.utils import timezone
 
-from django.utils import timezone
-
+from ubdc_airbnb.models import (
+    AirBnBResponse,
+    AOIShape,
+    AirBnBListing,
+    AirBnBResponseTypes,
+)
+from ubdc_airbnb.tasks import task_add_listing_detail
 from . import UBDCBaseTestWorker
 from . import get_fixture
-from ubdc_airbnb.models import AirBnBResponse, AOIShape, AirBnBListing, AirBnBResponseTypes
-from ubdc_airbnb.tasks import task_add_listing_detail
 
 
 class TestReviewsOps(UBDCBaseTestWorker):
@@ -33,6 +36,7 @@ class TestReviewsOps(UBDCBaseTestWorker):
 
         listing = AirBnBListing.objects.get(listing_id=listing_id)
         latest_listing_detail: AirBnBResponse = listing.responses.filter(
-            _type=AirBnBResponseTypes.listingDetail).latest('timestamp')
+            _type=AirBnBResponseTypes.listingDetail
+        ).latest("timestamp")
 
         self.assertEqual(latest_listing_detail.listing_id, self.listing_200)

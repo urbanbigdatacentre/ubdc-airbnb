@@ -12,18 +12,17 @@ logger = get_task_logger(__name__)
 
 @signals.before_task_publish.connect
 def ubdc_handles_task_publish(sender: str = None, headers=None, body=None, **kwargs):
-    """ Essential procedures after a task was published on the broker.
-    This function is connected to the  after_task_publish signal """
+    """Essential procedures after a task was published on the broker.
+    This function is connected to the  after_task_publish signal"""
 
     # filter messages (=function names)  that don't start with ubdc or core
-    if not (sender.startswith('ubdc_airbnb') or
-            sender.startswith('ubdc_airbnb')):
+    if not (sender.startswith("ubdc_airbnb") or sender.startswith("app")):
         return
     info = headers
 
-    task_id = info['id']
-    group_task_id = info.get('group', None)
-    root_id = None if task_id == info.get('root_id') else info.get('root_id', task_id)
+    task_id = info["id"]
+    group_task_id = info.get("group", None)
+    root_id = None if task_id == info.get("root_id") else info.get("root_id", task_id)
     if group_task_id:
         group_task_obj, created = UBDCGroupTask.objects.get_or_create(group_task_id=group_task_id, root_id=root_id)
 
@@ -37,13 +36,14 @@ def ubdc_handles_task_publish(sender: str = None, headers=None, body=None, **kwa
 
     if created:
         _data = dict()
-        _data.update(task_name=info['task'],
-                     task_args=info['argsrepr'],
-                     task_kwargs=body[1],
-                     parent_id=info['parent_id'],
-                     root_id=info['root_id'],
-                     group_task=group_task_obj
-                     )
+        _data.update(
+            task_name=info["task"],
+            task_args=info["argsrepr"],
+            task_kwargs=body[1],
+            parent_id=info["parent_id"],
+            root_id=info["root_id"],
+            group_task=group_task_obj,
+        )
         for k, v in _data.items():
             setattr(task_obj, k, v)
         task_obj.save()
@@ -62,7 +62,7 @@ def ubdc_handles_task_revoke(sender, expired: bool, request: Context, terminated
     root_id: str = request.root_id
     group_id: str = request.group
 
-    if not (task_name.startswith('ubdc_airbnb') or task_name.startswith('ubdc_airbnb')):
+    if not (task_name.startswith("ubdc_airbnb") or task_name.startswith("app")):
         return
 
     this_task = UBDCTask.objects.get(task_id=task_id)
@@ -70,4 +70,4 @@ def ubdc_handles_task_revoke(sender, expired: bool, request: Context, terminated
     this_task.datetime_finished = datetime.now()
     this_task.save()
 
-    logger.info(f'Task: {task_id} have been successfully revoked')
+    logger.info(f"Task: {task_id} have been successfully revoked")

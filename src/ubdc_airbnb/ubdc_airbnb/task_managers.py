@@ -6,12 +6,17 @@ from django.utils import timezone
 from dotenv import load_dotenv
 from requests.exceptions import ProxyError
 
-from ubdc_airbnb.errors import UBDCRetriableError
+from ubdc_airbnb.errors import UBDCRetriableError, UBDCResourceIsNotAvailable
 from ubdc_airbnb.models import UBDCTask
 
 load_dotenv()
 
-logger = get_task_logger(__name__)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from logging import Logger
+
+logger: "Logger" = get_task_logger(__name__)
 
 
 def delta_time(hours=24):
@@ -28,7 +33,7 @@ class BaseTaskWithRetry(Task):
     retry_backoff_max = 30  # * 60  # 30 min
     retry_jitter = True
     # it's overridden by  CELERY_TASK_DEFAULT_RATE_LIMIT
-    rate_limit = '10/m'
+    rate_limit = "10/m"
     acks_late = True
     worker_prefetch_multiplier = 1
 
@@ -43,9 +48,9 @@ class BaseTaskWithRetry(Task):
         # so it should be an entry with that task_id.
         # Exception is it's 'eager' which then the task is applied locally
 
-        if not self.request.is_eager and (self.name.startswith('ubdc_airbnb') or self.name.startswith('ubdc_airbnb')):
+        if not self.request.is_eager and (self.name.startswith("ubdc_airbnb") or self.name.startswith("ubdc_airbnb")):
 
-            ubdc_task_entry_qs = UBDCTask.objects.select_related('group_task').filter(task_id=task_id)
+            ubdc_task_entry_qs = UBDCTask.objects.select_related("group_task").filter(task_id=task_id)
 
             if ubdc_task_entry_qs.exists():
                 ubdc_task_entry = ubdc_task_entry_qs.first()
@@ -61,6 +66,10 @@ class BaseTaskWithRetry(Task):
 
         return self.run(*args, **kwargs)
 
+    def before_start(self, task_id, args, kwargs):
+        "Run by the worker before the task starts executing., The return value of this handler is ignored."
+        return
+
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
         """Handler called after the task returns."""
         # try:
@@ -75,13 +84,16 @@ class BaseTaskWithRetry(Task):
         return
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        """ This is run by the worker when the task fails."""
+        """This is run by the worker when the task fails."""
         try:
             ubdc_taskentry = UBDCTask.objects.get(task_id=task_id)
         except UBDCTask.DoesNotExist:
+            logger.warning(f"Task {task_id} was not found on database")
             return
         ubdc_taskentry.datetime_finished = timezone.now()
         ubdc_taskentry.status = ubdc_taskentry.TaskTypeChoices.FAILURE
+        if isinstance(exc, UBDCResourceIsNotAvailable):
+            ubdc_taskentry.status = ubdc_taskentry.TaskTypeChoices.SUCCESS
         ubdc_taskentry.save()
 
     def on_success(self, retval, task_id, args, kwargs):
@@ -93,8 +105,9 @@ class BaseTaskWithRetry(Task):
 
         ubdc_task_entry.datetime_finished = timezone.now()
         try:
-            ubdc_task_entry.time_to_complete = \
-                (ubdc_task_entry.datetime_finished - ubdc_task_entry.datetime_started).__str__()
+            ubdc_task_entry.time_to_complete = (
+                ubdc_task_entry.datetime_finished - ubdc_task_entry.datetime_started
+            ).__str__()
         except:
             ubdc_task_entry.time_to_complete = None
 
