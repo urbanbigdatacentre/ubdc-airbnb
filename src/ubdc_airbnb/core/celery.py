@@ -59,7 +59,7 @@ app.conf.beat_schedule = {
     },
     "op_update_calendar_periodical": {
         "task": "ubdc_airbnb.operations.calendars.op_update_calendar_periodical",
-        "schedule": crontab(minute=0, hour="*/1"),  # At minute 0 past every 4th hour.
+        "schedule": crontab(minute=0, hour="8-22/1"),  # At minute 0 past every 4th hour.
         "kwargs": {"priority": 5, "use_aoi": True},
         "options": {"priority": 5},
     },
