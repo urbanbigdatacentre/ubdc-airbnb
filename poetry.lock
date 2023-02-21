@@ -987,6 +987,22 @@ spelling = ["pyenchant (>=3.2,<4.0)"]
 testutils = ["gitpython (>3)"]
 
 [[package]]
+name = "pylint-celery"
+version = "0.3"
+description = "pylint-celery is a Pylint plugin to aid Pylint in recognising and understandingerrors caused when using the Celery library"
+category = "dev"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pylint-celery-0.3.tar.gz", hash = "sha256:41e32094e7408d15c044178ea828dd524beedbdbe6f83f712c5e35bde1de4beb"},
+]
+
+[package.dependencies]
+astroid = ">=1.0"
+pylint = ">=1.0"
+pylint-plugin-utils = ">=0.2.1"
+
+[[package]]
 name = "pylint-django"
 version = "2.5.3"
 description = "A Pylint plugin to help Pylint understand the Django web framework"
@@ -1258,6 +1274,21 @@ files = [
 ]
 
 [[package]]
+name = "toml-sort"
+version = "0.22.3"
+description = "Toml sorting library"
+category = "dev"
+optional = false
+python-versions = ">=3.7,<4.0"
+files = [
+    {file = "toml_sort-0.22.3-py3-none-any.whl", hash = "sha256:a60afbdf8b938a6db0715fc5f74f4807e1648a4a9ad1631ee1c8a9ba67a65cef"},
+    {file = "toml_sort-0.22.3.tar.gz", hash = "sha256:1f5ab268cbb8ecb231c2f30b05efea38a1b41ec2e911204a8bf2148d89ff7866"},
+]
+
+[package.dependencies]
+tomlkit = ">=0.11.2"
+
+[[package]]
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
@@ -1435,4 +1466,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "08902b40dc24660b999785f4a34c4531b45ce8292a1ba5ab988a5c9cab5e1f1a"
+content-hash = "ad672a17b3dd809534f9ed384f17f6dde9caf239edd2e3fe282bf0714bed145a"

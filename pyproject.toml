@@ -1,3 +1,22 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+
+[tool.poe.tasks]
+lint = {cmd = "pylint src"}
+format = {cmd = "black src"}
+sort-pyproject = {cmd = "toml-sort pyproject.toml"}
+
+[tool.poe.tasks._get_git_hash]
+cmd = "git rev-parse --short HEAD"
+
+[tool.poe.tasks.build-image]
+cmd = "docker build . -t ubdc/ubdc-airbnb:${GIT_HASH}"
+uses = {GIT_HASH = "_get_git_hash"}
+
 [tool.poetry]
 name = "ubdc-airbnb"
 version = "0.1.0"
@@ -5,15 +24,15 @@ description = ""
 authors = ["nikos ves <nick.ves@glasgow.ac.uk>"]
 readme = "README.md"
 packages = [
-    { include = "ubdc_airbnb", from = 'src/ubdc_airbnb'},
-    { include = "core", from = 'src/ubdc_airbnb'}
+  {include = "ubdc_airbnb", from = 'src/ubdc_airbnb'},
+  {include = "core", from = 'src/ubdc_airbnb'}
 ]
 
 [tool.poetry.dependencies]
 python = "^3.9"
 django = "^4"
 celery = '^5'
-kombu = { version = "v5.3.0b2", allow-prereleases = true }
+kombu = {version = "v5.3.0b2", allow-prereleases = true}
 django-celery-beat = "~2.4.0"
 django-celery-results = "~2.4.0"
 jsonpath-ng = "^1.5.3"
@@ -22,7 +41,6 @@ psycopg2-binary = "^2"
 mercantile = "^1.2.1"
 python-dotenv = "^0.21.0"
 requests = "^2.28.1"
-
 
 [tool.poetry.group.dev.dependencies]
 factory-boy = "^3.2.1"
@@ -38,16 +56,21 @@ poethepoet = "^0.18.1"
 black = "^23.1.0"
 mypy = "^1.0.1"
 pylint-django = "^2.5.3"
+pylint-celery = "^0.3"
+toml-sort = "^0.22.3"
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.pylint.MAIN]
+load-plugins = ['pylint_django', 'pylint_celery']
+
+[tool.pylint.messages_control]
+disable = 'C,R,logging-fstring-interpolation'
 
 [tool.pytest.ini_options]
-env = [
-    "DJANGO_ENV=TEST"
-]
-addopts = [
-    "--import-mode=importlib",
-]
+env = ["DJANGO_ENV=TEST"]
+addopts = ["--import-mode=importlib"]
 DJANGO_SETTINGS_MODULE = "core.settings"
+
+
+[tool.tomlsort]
+in_place = true
+check = true
