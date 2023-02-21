@@ -15,9 +15,7 @@ logger = get_task_logger(__name__)
 
 
 @shared_task
-def op_update_comment_at_listings(
-    listing_id: Union[int, Sequence[int]], force_check=False
-) -> GroupResult:
+def op_update_comment_at_listings(listing_id: Union[int, Sequence[int]], force_check=False) -> GroupResult:
     """Submit jobs for fetching the reviews from listing_ids"""
 
     if isinstance(listing_id, Sequence):
@@ -27,9 +25,7 @@ def op_update_comment_at_listings(
 
     tasks_list = []
     for idx in listing_ids:
-        task = task_update_or_add_reviews_at_listing.s(
-            listing_id=idx, force_check=force_check
-        )
+        task = task_update_or_add_reviews_at_listing.s(listing_id=idx, force_check=force_check)
         tasks_list.append(task)
 
     job = group(tasks_list)
@@ -45,9 +41,7 @@ def op_update_comment_at_listings(
 
 
 @shared_task
-def op_update_reviews_aoi(
-    id_shape: Union[int, Sequence[int]], force_check=False
-) -> List[str]:
+def op_update_reviews_aoi(id_shape: Union[int, Sequence[int]], force_check=False) -> List[str]:
     """
     :param id_shape: single or sequence of ints representing pks of id_shapes
     :param force_check: check all comment history, defaults to False
@@ -131,10 +125,7 @@ def op_update_reviews_periodical(
 
     if qs_listings.exists():
         listing_ids = list(qs_listings.values_list("listing_id", flat=True))
-        job = group(
-            task_update_or_add_reviews_at_listing.s(listing_id=listing_id)
-            for listing_id in listing_ids
-        )
+        job = group(task_update_or_add_reviews_at_listing.s(listing_id=listing_id) for listing_id in listing_ids)
         group_result: GroupResult = job.apply_async(priority=priority)
 
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)

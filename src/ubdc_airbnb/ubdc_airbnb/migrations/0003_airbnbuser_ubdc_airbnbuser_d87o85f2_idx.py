@@ -4,14 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('app', '0002_alter_airbnblisting_geom_3857'),
+        ("app", "0002_alter_airbnblisting_geom_3857"),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='airbnbuser',
-            index=models.Index(condition=models.Q(('first_name', 'UBDC-PLACEHOLDER')), fields=['first_name'], name='ubdc_airbnbuser_D87O85F2_idx'),
+            model_name="airbnbuser",
+            index=models.Index(
+                condition=models.Q(("first_name", "UBDC-PLACEHOLDER")),
+                fields=["first_name"],
+                name="ubdc_airbnbuser_D87O85F2_idx",
+            ),
         ),
     ]

@@ -339,7 +339,6 @@ class AirbnbApi(object):
         north=None,
         per=50,
     ) -> Iterator[Tuple[int, Iterator[Mapping[int, int]]]]:
-
         # do I need to use the same ip?
         page = 0
         while True:

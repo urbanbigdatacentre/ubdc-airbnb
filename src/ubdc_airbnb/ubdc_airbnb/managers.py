@@ -68,7 +68,6 @@ class AirBnBResponseManager(models.Manager):
         task_id: str = None,
         listing_id: int = None,
     ):
-
         from ubdc_airbnb.models import UBDCTask
 
         if _type is None:
@@ -213,7 +212,6 @@ class UserManager(models.Manager):
 
 
 class UBDCGridManager(models.Manager):
-
     # def get_queryset(self):
     #     """ Returns the default QS infused with "number_of_listings" annotation, """
     #
@@ -236,7 +234,6 @@ class UBDCGridManager(models.Manager):
         save=False,
         allow_overlap_with_currents=True,
     ) -> "app_models.UBDCGrid":
-
         # cast from tile->qk to facilitate the allow_overlap_with_currents
         # routine in  create_from_tile.
         # TODO:NOTE: bad practice, maybe refactor?

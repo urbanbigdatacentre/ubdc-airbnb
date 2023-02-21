@@ -35,9 +35,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "timestamp",
-                    models.DateTimeField(
-                        auto_now_add=True, help_text="Datetime of entry"
-                    ),
+                    models.DateTimeField(auto_now_add=True, help_text="Datetime of entry"),
                 ),
                 (
                     "listing_updated_at",
@@ -116,9 +114,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "status_code",
-                    models.IntegerField(
-                        db_index=True, help_text="Status code of the response"
-                    ),
+                    models.IntegerField(db_index=True, help_text="Status code of the response"),
                 ),
                 ("payload", models.JSONField(default=dict)),
                 ("request_headers", models.JSONField(default=dict)),
@@ -126,9 +122,7 @@ class Migration(migrations.Migration):
                 ("query_params", models.JSONField(default=dict)),
                 (
                     "seconds_to_complete",
-                    models.IntegerField(
-                        help_text="Time in seconds for the response to come back."
-                    ),
+                    models.IntegerField(help_text="Time in seconds for the response to come back."),
                 ),
                 (
                     "timestamp",
@@ -174,9 +168,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "timestamp",
-                    models.DateTimeField(
-                        auto_now_add=True, verbose_name="Date of entry"
-                    ),
+                    models.DateTimeField(auto_now_add=True, verbose_name="Date of entry"),
                 ),
                 (
                     "scan_for_new_listings",
@@ -209,9 +201,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "quadkey",
-                    models.TextField(
-                        blank=True, db_index=True, editable=False, unique=True
-                    ),
+                    models.TextField(blank=True, db_index=True, editable=False, unique=True),
                 ),
                 ("tile_x", models.IntegerField()),
                 ("tile_y", models.IntegerField()),
@@ -378,9 +368,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "user_id",
-                    models.BigIntegerField(
-                        blank=True, help_text="Airbnb User id", unique=True
-                    ),
+                    models.BigIntegerField(blank=True, help_text="Airbnb User id", unique=True),
                 ),
                 ("first_name", models.TextField(default="")),
                 ("about", models.TextField(default="")),
@@ -401,21 +389,15 @@ class Migration(migrations.Migration):
                 ("picture_url", models.TextField()),
                 (
                     "is_superhost",
-                    models.BooleanField(
-                        default=False, help_text="if the user is super host"
-                    ),
+                    models.BooleanField(default=False, help_text="if the user is super host"),
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        blank=True, help_text="profile created at airbnb", null=True
-                    ),
+                    models.DateTimeField(blank=True, help_text="profile created at airbnb", null=True),
                 ),
                 (
                     "timestamp",
-                    models.DateTimeField(
-                        auto_now_add=True, verbose_name="Date of row creation."
-                    ),
+                    models.DateTimeField(auto_now_add=True, verbose_name="Date of row creation."),
                 ),
                 (
                     "last_updated",
@@ -423,9 +405,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "listings",
-                    models.ManyToManyField(
-                        related_name="users", to="app.airbnblisting"
-                    ),
+                    models.ManyToManyField(related_name="users", to="app.airbnblisting"),
                 ),
                 ("responses", models.ManyToManyField(to="app.airbnbresponse")),
             ],
@@ -449,9 +429,7 @@ class Migration(migrations.Migration):
                 ("created_at", models.DateTimeField(help_text="as reported by AirBNB")),
                 (
                     "timestamp",
-                    models.DateTimeField(
-                        auto_now_add=True, verbose_name="Date of row creation."
-                    ),
+                    models.DateTimeField(auto_now_add=True, verbose_name="Date of row creation."),
                 ),
                 ("review_text", models.TextField()),
                 ("language", models.CharField(default="", max_length=10)),

@@ -69,7 +69,6 @@ class Command(BaseCommand):
         parser.add_argument("--only-iso", type=str, help="import only this ISO")
 
     def handle(self, *args, **kwargs):
-
         only_iso: str = kwargs["only_iso"]
         only_download: bool = kwargs["only_download"]
 
@@ -105,7 +104,6 @@ class Command(BaseCommand):
             with click.progressbar(g.layer, label="Processing Features") as bar:
                 f: Feature
                 for f in bar:
-
                     GID_0 = f["GID_0"].value
                     NAME_0 = f["NAME_0"].value
                     bar.label = f"Processing Features: {GID_0}"

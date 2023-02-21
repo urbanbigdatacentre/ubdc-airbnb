@@ -326,7 +326,6 @@ def task_discover_listings_at_grid(self, quadkey: str, stale_tolerance_days: int
         listing_id: str
         point: Point
         for listing_id, point in listings.items():
-
             # pnt_new_location_4326 = make_point(x=x, y=y, srid=4326)
             point_3857 = reproject(point, to_srid=3857)  # to measure any Δ distance in m
 

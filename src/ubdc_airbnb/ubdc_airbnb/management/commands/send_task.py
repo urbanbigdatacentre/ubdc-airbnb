@@ -35,40 +35,20 @@ class Command(BaseCommand):
         )
         subparsers.add_parser("get-calendar")
 
-        discover_listings_cron: ArgumentParser = subparsers.add_parser(
-            "discover-listings-cron"
-        )
-        discover_listings_cron.add_argument(
-            "--how-many", dest="how_many", default=100, type=int
-        )
+        discover_listings_cron: ArgumentParser = subparsers.add_parser("discover-listings-cron")
+        discover_listings_cron.add_argument("--how-many", dest="how_many", default=100, type=int)
 
-        discover_listings: ArgumentParser = subparsers.add_parser(
-            "discover-listings"
-        )
-        discover_listings_arg_group = discover_listings.add_mutually_exclusive_group(
-            required=True
-        )
+        discover_listings: ArgumentParser = subparsers.add_parser("discover-listings")
+        discover_listings_arg_group = discover_listings.add_mutually_exclusive_group(required=True)
         discover_listings_arg_group.add_argument("--grid", dest="target")
 
-        update_grids_cron: ArgumentParser = subparsers.add_parser(
-            "update-grids-cron"
-        )
-        update_grids_cron.add_argument(
-            "--how-many", dest="how_many", default=100, type=int
-        )
-        update_listings_details_cron: ArgumentParser = subparsers.add_parser(
-            "update-listing-details-cron"
-        )
+        update_grids_cron: ArgumentParser = subparsers.add_parser("update-grids-cron")
+        update_grids_cron.add_argument("--how-many", dest="how_many", default=100, type=int)
+        update_listings_details_cron: ArgumentParser = subparsers.add_parser("update-listing-details-cron")
 
-        update_listings_details_cron.add_argument(
-            "--how-many", dest="how_many", default=5000, type=int
-        )
-        get_calendars_cron: ArgumentParser = subparsers.add_parser(
-            "get-calendars-cron"
-        )
-        get_calendars_cron.add_argument(
-            "--how-many", dest="how_many", default=5000, type=int
-        )
+        update_listings_details_cron.add_argument("--how-many", dest="how_many", default=5000, type=int)
+        get_calendars_cron: ArgumentParser = subparsers.add_parser("get-calendars-cron")
+        get_calendars_cron.add_argument("--how-many", dest="how_many", default=5000, type=int)
         get_calendar: ArgumentParser = subparsers.add_parser("get-calendar")
         get_calendar.add_argument(
             "--listing",
@@ -76,12 +56,8 @@ class Command(BaseCommand):
             help="listing_id to fetch the calendar for.",
             dest="listing_id",
         )
-        get_comments_cron: ArgumentParser = subparsers.add_parser(
-            "get-reviews-cron"
-        )
-        get_comments_cron.add_argument(
-            "--how-many", dest="how_many", default=5000, type=int
-        )
+        get_comments_cron: ArgumentParser = subparsers.add_parser("get-reviews-cron")
+        get_comments_cron.add_argument("--how-many", dest="how_many", default=5000, type=int)
 
     def handle(self, *args, **options):
         match options.get("command"):

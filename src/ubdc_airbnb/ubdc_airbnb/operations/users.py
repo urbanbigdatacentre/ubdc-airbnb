@@ -3,7 +3,8 @@ from typing import List, Optional, Sequence, Union, TYPE_CHECKING
 from celery import group, shared_task
 
 from celery.result import GroupResult
-from ubdc_airbnb.tasks import  task_update_user_details
+from ubdc_airbnb.tasks import task_update_user_details
+
 
 @shared_task
 def op_get_users_details(user_id: Union[int, Sequence[int]]) -> str:
@@ -12,6 +13,5 @@ def op_get_users_details(user_id: Union[int, Sequence[int]]) -> str:
         _user_ids = user_id
     else:
         _user_ids = (user_id,)
-
 
     job = group()

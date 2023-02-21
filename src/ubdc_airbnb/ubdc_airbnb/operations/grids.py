@@ -15,9 +15,7 @@ from ubdc_airbnb.utils.time import seconds_later_from_now
 
 
 @shared_task
-def op_estimate_listings_or_divide_at_grid(
-    quadkey: Union[str, List[str]], less_than=50, priority=4
-) -> str:
+def op_estimate_listings_or_divide_at_grid(quadkey: Union[str, List[str]], less_than=50, priority=4) -> str:
     """Queries AirBNB end point and asks how many listings exist in that grid. if more than 'less_than' then divide.
     Warning. Generates tasks.
 
@@ -37,10 +35,7 @@ def op_estimate_listings_or_divide_at_grid(
     else:
         _quadkeys = quadkey
 
-    job = group(
-        task_estimate_listings_or_divide.s(quadkey=qk, less_than=less_than)
-        for qk in _quadkeys
-    )
+    job = group(task_estimate_listings_or_divide.s(quadkey=qk, less_than=less_than) for qk in _quadkeys)
     group_result: GroupResult = job.apply_async(priority=priority)
     group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
 
@@ -67,9 +62,7 @@ def op_estimate_listings_or_divide_at_aoi(aoi_id: int, less_than=50) -> str:
     grids = UBDCGrid.objects.filter(geom_3857__intersects=aoi_shape.geom_3857)
     quadkeys = list(grids.values_list("quadkey", flat=True))
 
-    task = op_estimate_listings_or_divide_at_grid.s(
-        quadkey=quadkeys, less_than=less_than
-    )
+    task = op_estimate_listings_or_divide_at_grid.s(quadkey=quadkeys, less_than=less_than)
     task_result: AsyncResult = task.apply_async()
 
     return task_result.id
@@ -140,14 +133,9 @@ def op_estimate_listings_or_divide_periodical(
         quadkeys_qs = UBDCGrid.objects.all()
 
     quadkeys_qs = (
-        quadkeys_qs.exclude(
-            quadkey__in=Subquery(future_qk.values_list("quadkey", flat=True))
-        )
+        quadkeys_qs.exclude(quadkey__in=Subquery(future_qk.values_list("quadkey", flat=True)))
         .filter(
-            Q(
-                datetime_last_estimated_listings_scan__lte=start_day_today
-                - relativedelta(hours=age_hours)
-            )
+            Q(datetime_last_estimated_listings_scan__lte=start_day_today - relativedelta(hours=age_hours))
             | Q(datetime_last_estimated_listings_scan__isnull=True)
         )
         .order_by(F("datetime_last_estimated_listings_scan").asc(nulls_first=True))
@@ -156,12 +144,7 @@ def op_estimate_listings_or_divide_periodical(
     if quadkeys_qs.exists():
         quadkeys = list(quadkeys_qs.values_list("quadkey", flat=True)[0:how_many])
         job = group(
-            *(
-                task_estimate_listings_or_divide.s(
-                    quadkey=quadkey, less_than=max_listings
-                )
-                for quadkey in quadkeys
-            ),
+            *(task_estimate_listings_or_divide.s(quadkey=quadkey, less_than=max_listings) for quadkey in quadkeys),
             priority=priority
         )
         group_result: GroupResult = job.apply_async(priority=priority)

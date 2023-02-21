@@ -12,6 +12,7 @@ logger: Logger = get_task_logger(__name__)
 
 # TODO:Refactor convert the following to match/switch
 
+
 # inspired from:
 # https://github.com/DHI-GRAS/terracotta/blob/5ceb6ad217d6eae705b3bc6e1358aeb3f565e38c/terracotta/server/flask_api.py#L43
 def convert_exceptions(fun: Callable):

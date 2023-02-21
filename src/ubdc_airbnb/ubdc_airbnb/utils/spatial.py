@@ -20,23 +20,19 @@ class ST_Union(Aggregate):
     arity = 1
 
 
-def get_grids_for(purpose: Literal["discover_listings"]) -> 'QuerySet[UBDCGrid]':
+def get_grids_for(purpose: Literal["discover_listings"]) -> "QuerySet[UBDCGrid]":
     from ubdc_airbnb.models import AOIShape
     from ubdc_airbnb.models import UBDCGrid
 
     match purpose:
         case "discover_listings":
-            list_aoi = AOIShape.objects.filter(collect_listing_details=True).values(
-                "collect_listing_details"
-            )
+            list_aoi = AOIShape.objects.filter(collect_listing_details=True).values("collect_listing_details")
         case _:
             raise NotImplementedError()
 
     aoi_area_union = list_aoi.annotate(union=ST_Union("geom_3857"))
     qs_grids = (
-        UBDCGrid.objects.filter(
-            geom_3857__intersects=Subquery(aoi_area_union.values("union"))
-        )
+        UBDCGrid.objects.filter(geom_3857__intersects=Subquery(aoi_area_union.values("union")))
         .order_by("quadkey")
         .values("quadkey")
     )
@@ -44,9 +40,7 @@ def get_grids_for(purpose: Literal["discover_listings"]) -> 'QuerySet[UBDCGrid]'
     return qs_grids.distinct("quadkey")
 
 
-def get_listings_qs_for_aoi(
-        purpose: Literal["calendar", "reviews", "listing_details"]
-) -> 'QuerySet["AirBnBListing"]':
+def get_listings_qs_for_aoi(purpose: Literal["calendar", "reviews", "listing_details"]) -> 'QuerySet["AirBnBListing"]':
     """Returns a QS with all the listings ids within an enabled AOI"""
 
     from ubdc_airbnb.models import AOIShape
@@ -54,24 +48,18 @@ def get_listings_qs_for_aoi(
 
     match purpose:
         case "listing_details":
-            list_aoi = AOIShape.objects.filter(collect_listing_details=True).values(
-                "collect_listing_details"
-            )
+            list_aoi = AOIShape.objects.filter(collect_listing_details=True).values("collect_listing_details")
         case "calendar":
-            list_aoi = AOIShape.objects.filter(collect_calendars=True).values(
-                "collect_calendars"
-            )
+            list_aoi = AOIShape.objects.filter(collect_calendars=True).values("collect_calendars")
         case "reviews":
-            list_aoi = AOIShape.objects.filter(collect_reviews=True).values(
-                "collect_reviews"
-            )
+            list_aoi = AOIShape.objects.filter(collect_reviews=True).values("collect_reviews")
         case _:
             raise ValueError("invalid argument")
 
     aoi_area_union = list_aoi.annotate(union=ST_Union("geom_3857"))
-    qs_listings = AirBnBListing.objects.filter(
-        geom_3857__intersects=Subquery(aoi_area_union.values("union"))
-    ).values("listing_id")
+    qs_listings = AirBnBListing.objects.filter(geom_3857__intersects=Subquery(aoi_area_union.values("union"))).values(
+        "listing_id"
+    )
 
     qs_listings = qs_listings.order_by("listing_id").distinct("listing_id")
     return qs_listings
@@ -102,9 +90,9 @@ def listing_locations_from_response(response: dict) -> Dict[str, GEOSPoint]:
 
 
 def postgis_distance_a_to_b(
-        point_a: Union[str, GEOSPoint, Annotated[Sequence[float], 2]],
-        point_b: Union[str, GEOSPoint, Annotated[Sequence[float], 2]],
-        srid=3857,
+    point_a: Union[str, GEOSPoint, Annotated[Sequence[float], 2]],
+    point_b: Union[str, GEOSPoint, Annotated[Sequence[float], 2]],
+    srid=3857,
 ):
     """TODO: DOC"""
     if isinstance(point_a, abc.Sequence) and not isinstance(point_a, str):
@@ -144,9 +132,7 @@ def make_point(x: float, y: float, srid: int = 4326) -> GEOSPoint:
     return GEOSPoint(x, y, srid=srid)
 
 
-def reproject(
-        geom: GEOSGeometry, to_srid: int = 3857, from_srid: int = None
-) -> GEOSGeometry:
+def reproject(geom: GEOSGeometry, to_srid: int = 3857, from_srid: int = None) -> GEOSGeometry:
     from ubdc_airbnb.errors import UBDCCoordinateError
 
     """ReProjects to new SRID (default epsg=3857). Returns new geometry."""
@@ -157,17 +143,13 @@ def reproject(
             geom = GEOSGeometry(geom.wkt)
 
     if geom.srid is None and from_srid is None:
-        raise UBDCCoordinateError(
-            "Source Coordinate System was not specified nor was embedded."
-        )
+        raise UBDCCoordinateError("Source Coordinate System was not specified nor was embedded.")
 
     if geom.srid is None:
         geom.srid = 4326
 
     if geom.srid and from_srid:
-        warnings.warn(
-            f"Warning: Overriding the natural srid {geom.srid} with {from_srid}"
-        )
+        warnings.warn(f"Warning: Overriding the natural srid {geom.srid} with {from_srid}")
         geom.srid = from_srid
 
     return geom.transform(to_srid, clone=True)

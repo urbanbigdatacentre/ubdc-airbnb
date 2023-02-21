@@ -3,9 +3,7 @@ from jsonpath_ng import parse
 
 # noinspection PyPep8Naming
 class airbnb_response_parser:
-    __profile_pics_parser__ = parse(
-        r"$.user.[picture_url,picture_url_large,picture_url,thumbnail_url]"
-    )
+    __profile_pics_parser__ = parse(r"$.user.[picture_url,picture_url_large,picture_url,thumbnail_url]")
     __listings_count__ = parse(r"$..listings_count")
 
     @classmethod

@@ -49,7 +49,6 @@ class BaseTaskWithRetry(Task):
         # Exception is it's 'eager' which then the task is applied locally
 
         if not self.request.is_eager and (self.name.startswith("ubdc_airbnb") or self.name.startswith("ubdc_airbnb")):
-
             ubdc_task_entry_qs = UBDCTask.objects.select_related("group_task").filter(task_id=task_id)
 
             if ubdc_task_entry_qs.exists():
