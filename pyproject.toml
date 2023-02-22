@@ -17,6 +17,11 @@ cmd = "git rev-parse --short HEAD"
 cmd = "docker build . -t ubdc/ubdc-airbnb:${GIT_HASH}"
 uses = {GIT_HASH = "_get_git_hash"}
 
+[tool.poe.tasks.generate-docker-compose]
+script = "devtasks.docker:generate_docker_compose"
+print_result = true
+uses = {GITHUB_SHA = "_get_git_hash"}
+
 [tool.poetry]
 name = "ubdc-airbnb"
 version = "0.1.0"
@@ -70,7 +75,5 @@ env = ["DJANGO_ENV=TEST"]
 addopts = ["--import-mode=importlib"]
 DJANGO_SETTINGS_MODULE = "core.settings"
 
-
 [tool.tomlsort]
 in_place = true
-check = true
