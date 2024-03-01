@@ -40,7 +40,7 @@ def op_estimate_listings_or_divide_at_grid(
         _quadkeys = quadkey
 
     job = group(task_estimate_listings_or_divide.s(quadkey=qk, less_than=less_than) for qk in _quadkeys)
-    group_result: GroupResult = job.apply_async(priority=priority)
+    group_result: AsyncResult[GroupResult] = job.apply_async(priority=priority)
     group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
 
     group_task.op_name = op_estimate_listings_or_divide_at_grid.name

@@ -2,7 +2,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Collection, List, Optional, Sequence, Union
 
 from celery import group, shared_task
-from celery.result import AsyncResult, GroupResult
+from celery.result import AsyncResult, GroupResult, ResultSet
 from celery.utils.log import get_task_logger
 from django.db.models import F
 from django.utils.timezone import now
@@ -39,8 +39,8 @@ def op_add_listing_details_for_listing_ids(
         _listing_ids = map(int, listing_id)
 
     job = group(task_add_listing_detail.s(listing_id=listing_id) for listing_id in _listing_ids)
-    group_result: AsyncResult[GroupResult] = job.apply_async()
-    group_result.save()
+    group_result = job.apply_async()
+    group_result.save()  # type: ignore # TODO: fix typing
 
     group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
     group_task.op_initiator = op_add_listing_details_for_listing_ids.name
@@ -86,7 +86,7 @@ def op_add_listing_details_at_grid(
 
 @shared_task
 def op_add_listing_details_at_aoi(
-    id_shape: Union[int, List[int]],
+    id_shapes: Union[int, List[int]],
 ) -> Optional[str]:
     """Fetch and store into the database LISTING DETAILS for the LISTING_IDs found in the quad-grids
     intersecting with AOI ID_SHAPEs.
@@ -100,11 +100,10 @@ def op_add_listing_details_at_aoi(
     :returns str(UUID) of the group task containing the sub tasks
     """
 
-    if hasattr(id_shape, "__iter__"):
-        id_shapes = id_shape
-    else:
-        # if not a list
-        id_shapes = (id_shape,)
+    if isinstance(id_shapes, int):
+        id_shapes = [
+            id_shapes,
+        ]
 
     quadkeys = set()
     for _id in id_shapes:
@@ -119,7 +118,7 @@ def op_add_listing_details_at_aoi(
         kwargs = {"quadkey": quadkeys}
         job = group(op_add_listing_details_at_grid.s(quadkey=quadkey) for quadkey in quadkeys)
         group_result: AsyncResult[GroupResult] = job.apply_async()
-        group_result.save()
+        group_result.save()  # type: ignore
 
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
 
@@ -190,7 +189,7 @@ def op_update_listing_details_periodical(
     if qs_listings.exists():
         listing_ids = list(qs_listings.values_list("listing_id", flat=True))
         job = group(task_add_listing_detail.s(listing_id=listing_id) for listing_id in listing_ids)
-        group_result: GroupResult = job.apply_async(priority=priority)
+        group_result: AsyncResult[GroupResult] = job.apply_async(priority=priority)
 
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
         group_task.op_initiator = op_update_listing_details_periodical.name
