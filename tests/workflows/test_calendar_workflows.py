@@ -49,7 +49,7 @@ def test_get_calendar_for_listing_id(
         assert ubdc_task is not None  #
         listing_id_str = str(ar.listing_id)
         if listing_id_str == "800":
-            assert ubdc_task.retries == 1
+            assert ubdc_task.retries == 2
         else:
             assert ubdc_task.retries == 0
 

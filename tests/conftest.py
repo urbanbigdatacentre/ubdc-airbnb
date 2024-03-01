@@ -79,10 +79,10 @@ def mock_airbnb_client(session_mocker):
         times_called: int = mref.call_count  # type: ignore
 
         # listing_ids starting with 8:
-        # first call always returns 503
+        # every odd call returns 503
+        # every even call returns 200
         if str(listing_id).startswith("8"):
-
-            if times_called < 2:
+            if times_called % 2 == 1:
                 # 503
                 status_code = 503
                 headers.update({"X-Crawlera-Error": "banned"})
