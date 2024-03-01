@@ -44,7 +44,13 @@ manage)
   ;;
 start-worker)
   echo "!!!Starting Worker!!!"
-  celery -A core.celery:app worker -l info --concurrency=1
+  if [[ -z "$2" ]]; then
+    echo "Starting Worker at default queue"
+    celery -A core.celery:app worker -l info --concurrency=1
+  else
+    echo "Starting Worker at queue $2"
+    celery -A core.celery:app worker -l info --concurrency=1 -Q $2
+  fi
   ;;
 start-beat)
   echo "Starting Beat"

@@ -8,3 +8,4 @@ class UbdcAirbnbConfig(AppConfig):
 
     def ready(self):
         from ubdc_airbnb import signals  # noqa
+        from ubdc_airbnb import operations, tasks

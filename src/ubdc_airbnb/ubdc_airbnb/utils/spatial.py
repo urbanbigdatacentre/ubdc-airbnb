@@ -1,16 +1,18 @@
 import warnings
 from collections import abc
-from typing import Literal, Dict, Union, Sequence, Annotated, TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated, Dict, Literal, Sequence, Union
 
-from django.contrib.gis.geos import Point as GEOSPoint, GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import Point as GEOSPoint
 from django.db import connection
 from django.db.models import Aggregate, Subquery
 from jsonpath_ng import parse
 from more_itertools import sliced
 
 if TYPE_CHECKING:
-    from ubdc_airbnb.models import AirBnBListing, UBDCGrid
     from django.db.models import QuerySet
+
+    from ubdc_airbnb.models import AirBnBListing, UBDCGrid
 
 
 class ST_Union(Aggregate):
@@ -20,9 +22,10 @@ class ST_Union(Aggregate):
     arity = 1
 
 
-def get_grids_for(purpose: Literal["discover_listings"]) -> "QuerySet[UBDCGrid]":
-    from ubdc_airbnb.models import AOIShape
-    from ubdc_airbnb.models import UBDCGrid
+def get_grids_for(
+    purpose: Literal["discover_listings"],
+) -> "QuerySet[UBDCGrid]":
+    from ubdc_airbnb.models import AOIShape, UBDCGrid
 
     match purpose:
         case "discover_listings":
@@ -43,8 +46,7 @@ def get_grids_for(purpose: Literal["discover_listings"]) -> "QuerySet[UBDCGrid]"
 def get_listings_qs_for_aoi(purpose: Literal["calendar", "reviews", "listing_details"]) -> 'QuerySet["AirBnBListing"]':
     """Returns a QS with all the listings ids within an enabled AOI"""
 
-    from ubdc_airbnb.models import AOIShape
-    from ubdc_airbnb.models import AirBnBListing
+    from ubdc_airbnb.models import AirBnBListing, AOIShape
 
     match purpose:
         case "listing_details":
@@ -57,15 +59,11 @@ def get_listings_qs_for_aoi(purpose: Literal["calendar", "reviews", "listing_det
             raise ValueError("invalid argument")
 
     aoi_area_union = list_aoi.annotate(union=ST_Union("geom_3857"))
-    qs_listings = AirBnBListing.objects.filter(geom_3857__intersects=Subquery(aoi_area_union.values("union"))).values(
-        "listing_id"
-    )
+    qs_listings = AirBnBListing.objects.filter(geom_3857__intersects=Subquery(aoi_area_union.values("union")))
 
     qs_listings = qs_listings.order_by("listing_id").distinct("listing_id")
+
     return qs_listings
-
-
-__all__ = [get_listings_qs_for_aoi]
 
 
 def listing_locations_from_response(response: dict) -> Dict[str, GEOSPoint]:

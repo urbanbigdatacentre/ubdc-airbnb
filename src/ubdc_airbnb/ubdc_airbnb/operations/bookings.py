@@ -1,23 +1,25 @@
 from typing import Union
 
 from celery import chain, group, shared_task
-from celery.result import GroupResult, AsyncResult
+from celery.result import AsyncResult, GroupResult
 from celery.utils.log import get_task_logger
 from dateutil.relativedelta import relativedelta
-from django.db.models import Subquery, Q, F, OuterRef, Count
+from django.db.models import Count, F, OuterRef, Q, Subquery
 from django.utils import timezone
 
-from ubdc_airbnb.models import AOIShape, UBDCGroupTask, AirBnBListing
-from ubdc_airbnb.tasks import task_update_calendar, task_get_booking_detail
-from ubdc_airbnb.utils.time import seconds_later_from_now
+from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGroupTask
+from ubdc_airbnb.tasks import task_get_booking_detail, task_update_calendar
+from ubdc_airbnb.utils.time import seconds_from_now
 
 logger = get_task_logger(__name__)
 
 
 @shared_task
-def op_get_booking_detail_for_listing_id(listing_id: Union[str, int]) -> AsyncResult:
+def op_get_booking_detail_for_listing_id(
+    listing_id: Union[str, int],
+) -> str:
     """
-    Get booking_details for a number of listings_ids. Cost is 2 API calls per action.
+    Get booking_details for a  listings_id. Costs is 2 API calls per action.
     Task will harvest a new calendar
     """
     listing_id = int(listing_id)
@@ -36,10 +38,16 @@ def op_get_booking_detail_for_listing_id(listing_id: Union[str, int]) -> AsyncRe
 
 
 @shared_task
-def op_get_booking_detail_periodical(how_many: int = 500, age_hours: int = 23, priority: int = 5, use_aoi=True):
+def op_get_booking_detail_periodical(
+    how_many: int = 500,
+    age_hours: int = 23,
+    priority: int = 5,
+    use_aoi=True,
+):
     how_many = int(how_many)
     age_hours = int(age_hours)
-    expire_23hour_later = seconds_later_from_now()
+
+    expire_23hour_later = seconds_from_now()
 
     start_day_today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
     if use_aoi:
@@ -65,10 +73,11 @@ def op_get_booking_detail_periodical(how_many: int = 500, age_hours: int = 23, p
         listing_ids = list(qs_listings.values_list("listing_id", flat=True))
 
         job = group(op_get_booking_detail_for_listing_id.s(listing_id=listing_id) for listing_id in listing_ids)
-        group_result: GroupResult = job.apply_async(
+        group_result: AsyncResult[GroupResult] = job.apply_async(
             priority=priority,
-            # expires=expire_23hour_later
+            expires=expire_23hour_later,
         )
+        group_result.save()  # type: ignore # typing issue?
 
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
         group_task.op_name = task_update_calendar.name
@@ -79,4 +88,7 @@ def op_get_booking_detail_periodical(how_many: int = 500, age_hours: int = 23, p
         return group_result.id
 
 
-__all__ = ["op_get_booking_detail_for_listing_id", "op_get_booking_detail_periodical"]
+__all__ = [
+    "op_get_booking_detail_for_listing_id",
+    "op_get_booking_detail_periodical",
+]

@@ -8,6 +8,7 @@ from django.db import transaction
 
 from ubdc_airbnb.models import AOIShape
 from ubdc_airbnb.utils.grids import generate_initial_grid
+
 from . import _GeoFileHandler
 
 

@@ -1,22 +1,15 @@
 from datetime import timedelta
 
 from celery import Task
+from celery.exceptions import TaskRevokedError
 from celery.utils.log import get_task_logger
 from django.utils import timezone
-from dotenv import load_dotenv
 from requests.exceptions import ProxyError
 
-from ubdc_airbnb.errors import UBDCRetriableError, UBDCResourceIsNotAvailable
+from ubdc_airbnb.errors import UBDCResourceIsNotAvailable, UBDCRetriableError
 from ubdc_airbnb.models import UBDCTask
 
-load_dotenv()
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from logging import Logger
-
-logger: "Logger" = get_task_logger(__name__)
+logger = get_task_logger(__name__)
 
 
 def delta_time(hours=24):
@@ -28,12 +21,10 @@ def delta_time(hours=24):
 # no need to re-implement it
 class BaseTaskWithRetry(Task):
     autoretry_for = (UBDCRetriableError, ProxyError)
-    # retry_kwargs = {'max_retries': 2}
-    # retry_backoff = 1  # * 60  # 1 min
-    retry_backoff_max = 30  # * 60  # 30 min
-    retry_jitter = True
-    # it's overridden by  CELERY_TASK_DEFAULT_RATE_LIMIT
-    rate_limit = "10/m"
+    retry_kwargs = {"max_retries": 3}
+    retry_backoff = True
+    retry_backoff_max = 30  # seconds
+    retry_jitter = False
     acks_late = True
     worker_prefetch_multiplier = 1
 
@@ -44,17 +35,20 @@ class BaseTaskWithRetry(Task):
             return self.run(*args, **kwargs)
 
         # RACE CONDITIONS:
-        # Before each task is send to the broker for consumption, meta are written into the database,
-        # so it should be an entry with that task_id.
-        # Exception is it's 'eager' which then the task is applied locally
+        # Before each task is send to the broker for consumption, meta are written into the database.
+        # There should be an entry with that task_id.
+
+        # An Exception could be risen if the tasak is 'eager' in  which case then the task is applied locally
 
         if not self.request.is_eager and (self.name.startswith("ubdc_airbnb") or self.name.startswith("ubdc_airbnb")):
             ubdc_task_entry_qs = UBDCTask.objects.select_related("group_task").filter(task_id=task_id)
 
-            if ubdc_task_entry_qs.exists():
-                ubdc_task_entry = ubdc_task_entry_qs.first()
+            ubdc_task_entry = ubdc_task_entry_qs.first()
+            if ubdc_task_entry:
                 dt_now = timezone.now()
-                ubdc_task_entry.datetime_started = dt_now
+                if ubdc_task_entry.datetime_started is None:
+                    ubdc_task_entry.datetime_started = dt_now
+
                 ubdc_task_entry.status = ubdc_task_entry.TaskTypeChoices.STARTED
 
                 group_task = ubdc_task_entry.group_task
@@ -71,15 +65,6 @@ class BaseTaskWithRetry(Task):
 
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
         """Handler called after the task returns."""
-        # try:
-        #     ubdc_task_entry = UBDCTask.objects.select_related('group_task').get(task_id=task_id)
-        #
-        #     group_task = ubdc_task_entry.group_task
-        #     if group_task and group_task.all_finished:
-        #         group_task.datetime_finished = timezone.now()
-        #         group_task.save()
-        #
-        # except UBDCTask.DoesNotExist:
         return
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
@@ -92,7 +77,10 @@ class BaseTaskWithRetry(Task):
         ubdc_taskentry.datetime_finished = timezone.now()
         ubdc_taskentry.status = ubdc_taskentry.TaskTypeChoices.FAILURE
         if isinstance(exc, UBDCResourceIsNotAvailable):
+            # The resource is not available, so we have succefully probe it
             ubdc_taskentry.status = ubdc_taskentry.TaskTypeChoices.SUCCESS
+        if isinstance(exc, TaskRevokedError):
+            ubdc_taskentry.status = ubdc_taskentry.TaskTypeChoices.REVOKED
         ubdc_taskentry.save()
 
     def on_success(self, retval, task_id, args, kwargs):
@@ -104,11 +92,12 @@ class BaseTaskWithRetry(Task):
 
         ubdc_task_entry.datetime_finished = timezone.now()
         try:
-            ubdc_task_entry.time_to_complete = (
-                ubdc_task_entry.datetime_finished - ubdc_task_entry.datetime_started
-            ).__str__()
+            started = ubdc_task_entry.datetime_started or timezone.now()
+            finished = ubdc_task_entry.datetime_finished
+            dt = finished - started
+            ubdc_task_entry.time_to_complete = str(dt)
         except:
-            ubdc_task_entry.time_to_complete = None
+            ubdc_task_entry.time_to_complete = ""
 
         ubdc_task_entry.status = ubdc_task_entry.TaskTypeChoices.SUCCESS
         ubdc_task_entry.save()

@@ -5,22 +5,24 @@ build-backend = "poetry.core.masonry.api"
 [tool.black]
 line-length = 120
 
+[tool.isort]
+profile = "black"
+
 [tool.poe.tasks]
-lint = {cmd = "pylint src"}
-format = {cmd = "black src"}
-sort-pyproject = {cmd = "toml-sort pyproject.toml"}
+lint = { cmd = "pylint src" }
+format = { cmd = "black src" }
 
 [tool.poe.tasks._get_git_hash]
 cmd = "git rev-parse --short HEAD"
 
 [tool.poe.tasks.build-image]
 cmd = "docker build . -t ubdc/ubdc-airbnb:${GIT_HASH}"
-uses = {GIT_HASH = "_get_git_hash"}
+uses = { GIT_HASH = "_get_git_hash" }
 
 [tool.poe.tasks.generate-docker-compose]
 script = "devtasks.docker:generate_docker_compose"
 print_result = true
-uses = {GITHUB_SHA = "_get_git_hash"}
+uses = { GITHUB_SHA = "_get_git_hash" }
 
 [tool.poetry]
 name = "ubdc-airbnb"
@@ -29,51 +31,54 @@ description = ""
 authors = ["nikos ves <nick.ves@glasgow.ac.uk>"]
 readme = "README.md"
 packages = [
-  {include = "ubdc_airbnb", from = 'src/ubdc_airbnb'},
-  {include = "core", from = 'src/ubdc_airbnb'}
+  { include = "ubdc_airbnb", from = 'src/ubdc_airbnb' },
+  { include = "core", from = 'src/ubdc_airbnb' },
 ]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 django = "^4"
-celery = '^5'
-kombu = {version = "v5.3.0b2", allow-prereleases = true}
-django-celery-beat = "~2.4.0"
-django-celery-results = "~2.4.0"
+celery = "^5.3.6"
+kombu = { version = ">v5.3.0b2" }
+django-celery-beat = "^2.5.0"
+django-celery-results = "^2.5.1"
 jsonpath-ng = "^1.5.3"
 more-itertools = "^9.0.0"
-psycopg2-binary = "^2"
 mercantile = "^1.2.1"
-python-dotenv = "^0.21.0"
 requests = "^2.28.1"
+psycopg = "^3.1.18"
 
 [tool.poetry.group.dev.dependencies]
 factory-boy = "^3.2.1"
 pytest = "^7.2.1"
 pytest-django = "^4.5.2"
-requests-mock = "^1.10.0"
 pytest-env = "^0.8.1"
-faker = "^16.6.1"
 pytest-celery = "^0.0.0"
 responses = "^0.22.0"
 pylint = "^2.16.1"
 poethepoet = "^0.18.1"
-black = "^23.1.0"
-mypy = "^1.0.1"
 pylint-django = "^2.5.3"
 pylint-celery = "^0.3"
-toml-sort = "^0.22.3"
+celery-types = "^0.22.0"
+django-types = "^0.19.1"
+pytest-mock = "^3.12.0"
+faker = "^23.2.1"
 
-[tool.pylint.MAIN]
-load-plugins = ['pylint_django', 'pylint_celery']
 
 [tool.pylint.messages_control]
 disable = 'C,R,logging-fstring-interpolation'
 
 [tool.pytest.ini_options]
-env = ["DJANGO_ENV=TEST"]
-addopts = ["--import-mode=importlib"]
 DJANGO_SETTINGS_MODULE = "core.settings"
-
-[tool.tomlsort]
-in_place = true
+env = [
+  "DATABASE_DBNAME=postgres",
+  "DATABASE_HOST=db",
+  "DATABASE_PASSWORD=postgres",
+  "DATABASE_PORT=5432",
+  "DATABASE_USERNAME=postgres",
+  "RABBITMQ_HOST=rabbit",
+  "RABBITMQ_PASSWORD=rabbitmq",
+  "RABBITMQ_PORT=5672",
+  "RABBITMQ_USERNAME=rabbitmq",
+  "RABBITMQ_VHOST=/",
+]

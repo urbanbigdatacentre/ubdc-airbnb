@@ -5,7 +5,7 @@ from django.contrib.gis.gdal.datasource import DataSource
 from django.contrib.gis.gdal.layer import Layer
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
 
-from ubdc_airbnb.models import AOIShape, AirBnBListing
+from ubdc_airbnb.models import AirBnBListing, AOIShape
 
 
 class _GeoFileHandler(object):

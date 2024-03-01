@@ -1,16 +1,18 @@
-from typing import List, Optional, Sequence, Union, TYPE_CHECKING
+from datetime import timedelta
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from celery import group, shared_task
-from celery.result import GroupResult
+from celery.result import AsyncResult, GroupResult
 from celery.utils.log import get_task_logger
 from django.db.models import F, Q
 from django.utils.timezone import now
 
 from ubdc_airbnb.errors import UBDCError
-from ubdc_airbnb.models import AOIShape, UBDCGroupTask, AirBnBListing
+from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGroupTask
 from ubdc_airbnb.tasks import task_update_calendar
 from ubdc_airbnb.utils.spatial import get_listings_qs_for_aoi
-from ubdc_airbnb.utils.tasks import get_engaged_listing_ids_for
+from ubdc_airbnb.utils.tasks import get_submitted_listing_ids_for
+from ubdc_airbnb.utils.time import end_of_day, seconds_from_now
 
 logger = get_task_logger(__name__)
 
@@ -22,16 +24,19 @@ if TYPE_CHECKING:
 def op_update_calendars_for_listing_ids(
     listing_id: Union[int, Sequence[int]],
 ) -> str:
-    """TODO: DOC"""
+    """Returns the group id"""
+
+    end_of_today = end_of_day()
 
     if isinstance(listing_id, Sequence):
         _listing_ids = listing_id
     else:
         _listing_ids = (listing_id,)
 
-    job = group(task_update_calendar.s(listing_id=listing_id) for listing_id in _listing_ids)
+    job = group(task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today) for listing_id in _listing_ids)
 
-    group_result: GroupResult = job.apply_async()
+    group_result: AsyncResult[GroupResult] = job.apply_async()
+    group_result.save()  # type: ignore # typing issue?
     group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
     group_task.op_name = task_update_calendar.name
     group_task.op_kwargs = {"listing_id": _listing_ids}
@@ -41,7 +46,9 @@ def op_update_calendars_for_listing_ids(
 
 
 @shared_task
-def op_update_calendar_at_aoi(id_shape: Union[int, Sequence[int]]) -> Optional[str]:
+def op_update_calendar_at_aoi(
+    id_shape: Union[int, Sequence[int]],
+) -> str | None:
     """Fetch and add the calendars for the listings_ids in these AOIs to the database.
     :param id_shape: pk of ::AOIShape::
     :type id_shape: int or List[int]
@@ -63,7 +70,8 @@ def op_update_calendar_at_aoi(id_shape: Union[int, Sequence[int]]) -> Optional[s
         listing_ids = qs_listings.values_list("listing_id", flat=True)
         job = group(task_update_calendar.s(listing_id=listing_id) for listing_id in listing_ids)
 
-        group_result: GroupResult = job.apply_async()
+        group_result: AsyncResult[GroupResult] = job.apply_async()
+        group_result.save()  # type: ignore # typing issue?
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
         group_task.op_initiator = op_update_calendar_at_aoi.name
         group_task.op_name = task_update_calendar.name
@@ -73,20 +81,18 @@ def op_update_calendar_at_aoi(id_shape: Union[int, Sequence[int]]) -> Optional[s
         return group_result.id
 
 
-# with 75 active workers we have a capacity of ~17k request/hour. The task will run every 4 hours.
+# 75 active workers consume about ~17k request/hour.
+# this is the main beat task. It will run once per day at 2 am.
+# confiture it at ubdc_airbnb.core.celery
 @shared_task
-def op_update_calendar_periodical(
-    how_many: int = 17_000 * 2.5,
-    priority: int = 5,
-    use_aoi: bool = True,
-) -> Optional[str]:
-    how_many = int(how_many)
-    priority = int(priority)
+def op_update_calendar_periodical(use_aoi=True, **kwargs) -> list[str]:
+    """
+    It will generate tasks to collect all listing calendars all the activated AOIs by default.
 
-    if how_many < 0:
-        raise UBDCError("The variable how_many must be larger than 0")
-    if not (0 < priority <= 10):
-        raise UBDCError("The variable priority must be between 1 and 10")
+    Tasks are marked to expire 10 mins before the end of today.
+    """
+    end_of_today = end_of_day()
+    group_result_ids: list[str] = []
 
     logger.info(f"Using AOI: {use_aoi}")
     if use_aoi:
@@ -94,40 +100,30 @@ def op_update_calendar_periodical(
     else:
         qs_listings: "QuerySet" = AirBnBListing.objects.all()
 
-    logger.info(f"Listings that eligible to process: \t{qs_listings.count()}")
-
-    # select only the listings who have not been queried 8 o'clock today or are null
-    timestamp_threshold = now().replace(hour=8, minute=0, second=0, microsecond=0)
-    qs_listings.filter(Q(calendar_updated_at__lte=timestamp_threshold) | Q(calendar_updated_at__isnull=True))
-    logger.info(f"Listings that have not been  processed today: \t{qs_listings.count()}")
-
-    # Find the listing that have not been acted in the last 24 hours
-    engaged_listings = get_engaged_listing_ids_for(purpose="calendars")
-    logger.info(f"Listings that have been submitted by previous run: \t{engaged_listings.count()}")
-    qs_listing_ids = qs_listings.exclude(listing_id__in=engaged_listings)
-    logger.info(f"Listings after excluding these:  {qs_listing_ids.count()}")
-
-    qs_listings = (
-        AirBnBListing.objects.filter(listing_id__in=qs_listing_ids).order_by(
-            F("calendar_updated_at").asc(nulls_first=True)
-        )
-    )[:how_many]
-
-    logger.info(f"NUmber of listings that will act (limited on the upper limit): \t{qs_listings.count()}")
+    # process them by 10000;
     if qs_listings.exists():
-        listing_ids = list(qs_listings.values_list("listing_id", flat=True))
-        job = group(task_update_calendar.s(listing_id=listing_id) for listing_id in listing_ids)
-        group_result: GroupResult = job.apply_async(priority=priority)
+        _listing_ids = []
+        for idx, listing in enumerate(qs_listings.iterator(chunk_size=10000)):
+            _listing_ids.append(listing.listing_id)
+            if idx % 10000 == 0 and idx > 0:
+                logger.info(f"Submiting job for {idx} listings")
+                job = group(
+                    task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today)
+                    for listing_id in _listing_ids
+                )
+                group_result: AsyncResult[GroupResult] = job.apply_async()
+                group_result_id = group_result.id
+                group_result.save()  # type: ignore # typing issue?
+                group_task = UBDCGroupTask.objects.get(group_task_id=group_result_id)
+                group_task.op_name = task_update_calendar.name
+                group_task.op_initiator = op_update_calendar_periodical.name
+                group_task.op_kwargs = {"listing_id": _listing_ids}
+                group_task.save()
+                logger.info(f"Submited as job {group_result_id}")
+                group_result_ids.append(group_result_id)
+                _listing_ids.clear()
 
-        group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
-        group_task.op_name = task_update_calendar.name
-        group_task.op_initiator = op_update_calendar_periodical.name
-        group_task.op_kwargs = {"listing_id": listing_ids}
-        group_task.save()
-
-        return group_result.id
-    logger.info(f"No listings for listing_details have been found!")
-    return None
+    return group_result_ids
 
 
 __all__ = [

@@ -6,10 +6,10 @@ from celery.utils.log import get_task_logger
 from django.db.models import F
 
 from ubdc_airbnb.errors import UBDCError
-from ubdc_airbnb.models import AOIShape, AirBnBListing, UBDCGroupTask
+from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGroupTask
 from ubdc_airbnb.tasks import task_update_or_add_reviews_at_listing
 from ubdc_airbnb.utils.spatial import get_listings_qs_for_aoi
-from ubdc_airbnb.utils.tasks import get_engaged_listing_ids_for
+from ubdc_airbnb.utils.tasks import get_submitted_listing_ids_for
 
 logger = get_task_logger(__name__)
 
@@ -114,7 +114,7 @@ def op_update_reviews_periodical(
     else:
         qs_listings = AirBnBListing.objects.all()
 
-    engaged_listings = get_engaged_listing_ids_for(purpose="reviews")
+    engaged_listings = get_submitted_listing_ids_for(purpose="reviews")
     qs_listing_ids = qs_listings.exclude(listing_id__in=engaged_listings)
     qs_listings = (
         AirBnBListing.objects.filter(listing_id__in=qs_listing_ids).order_by(

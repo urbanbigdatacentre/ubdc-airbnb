@@ -14,8 +14,9 @@ from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 
 from ubdc_airbnb.models import WorldShape
-from . import _GeoFileHandler
+
 from ...utils.spatial import reproject
+from . import _GeoFileHandler
 
 logger = logging.getLogger(__name__)
 

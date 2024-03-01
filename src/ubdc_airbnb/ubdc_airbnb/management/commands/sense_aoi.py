@@ -4,7 +4,7 @@ from celery import group
 from django.core.management import BaseCommand
 from django.db.models import QuerySet
 
-from ubdc_airbnb.models import UBDCGrid, AOIShape, UBDCGroupTask
+from ubdc_airbnb.models import AOIShape, UBDCGrid, UBDCGroupTask
 from ubdc_airbnb.tasks import task_estimate_listings_or_divide
 
 
@@ -17,7 +17,7 @@ def check_positive(value) -> int:
 
 
 class Command(BaseCommand):
-    help = """Queries the approximate number of listings in the grids intersecting the provided AOI. Needs an active 
+    help = """Queries the approximate number of listings in the grids intersecting the provided AOI. Needs an active
     worker. """
 
     def add_arguments(self, parser: ArgumentParser):

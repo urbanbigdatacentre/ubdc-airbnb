@@ -4,9 +4,11 @@ from django.core.management import BaseCommand
 
 from ubdc_airbnb.management.commands import int_to_listing
 from ubdc_airbnb.models import AirBnBListing
-from ubdc_airbnb.tasks import task_add_listing_detail
-from ubdc_airbnb.tasks import task_update_calendar
-from ubdc_airbnb.tasks import task_update_or_add_reviews_at_listing
+from ubdc_airbnb.tasks import (
+    task_add_listing_detail,
+    task_update_calendar,
+    task_update_or_add_reviews_at_listing,
+)
 
 
 class Command(BaseCommand):

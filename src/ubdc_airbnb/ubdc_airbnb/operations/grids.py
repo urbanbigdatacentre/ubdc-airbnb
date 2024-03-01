@@ -3,7 +3,7 @@ from typing import List, Optional, Sequence, Union
 from celery import group, shared_task
 from celery.result import AsyncResult, GroupResult
 from dateutil.relativedelta import relativedelta
-from django.db.models import F, Q, Subquery, TextField, OuterRef, BooleanField
+from django.db.models import BooleanField, F, OuterRef, Q, Subquery, TextField
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.utils import timezone
@@ -11,11 +11,15 @@ from django.utils import timezone
 from ubdc_airbnb.errors import UBDCError
 from ubdc_airbnb.models import AOIShape, UBDCGrid, UBDCGroupTask, UBDCTask
 from ubdc_airbnb.tasks import task_estimate_listings_or_divide
-from ubdc_airbnb.utils.time import seconds_later_from_now
+from ubdc_airbnb.utils.time import seconds_from_now
 
 
 @shared_task
-def op_estimate_listings_or_divide_at_grid(quadkey: Union[str, List[str]], less_than=50, priority=4) -> str:
+def op_estimate_listings_or_divide_at_grid(
+    quadkey: Union[str, List[str]],
+    less_than=50,
+    priority=4,
+) -> str:
     """Queries AirBNB end point and asks how many listings exist in that grid. if more than 'less_than' then divide.
     Warning. Generates tasks.
 
@@ -47,7 +51,10 @@ def op_estimate_listings_or_divide_at_grid(quadkey: Union[str, List[str]], less_
 
 
 @shared_task
-def op_estimate_listings_or_divide_at_aoi(aoi_id: int, less_than=50) -> str:
+def op_estimate_listings_or_divide_at_aoi(
+    aoi_id: int,
+    less_than=50,
+) -> str:
     """**Note: Only one aoi_id. Queries grids using AirBNB end point to identify how many listings exist in that grid.
     If more than 'less_than' listings return for that grid then we divide (using a task).
 
@@ -104,9 +111,11 @@ def op_estimate_listings_or_divide_periodical(
         raise UBDCError("The variable how_many must be larger than 0")
     if age_hours < 0:
         raise UBDCError("The variable age_days must be larger than 0 or -1")
+    # TODO: Deprecate priority
     if not (0 < priority < 10 + 1):
         raise UBDCError("The variable priority must be between 1 than 10")
 
+    expires = seconds_from_now(60 * 60 * 23)  # 23 hours
     start_day_today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
     future_qk = (
         UBDCTask.objects.filter(
@@ -144,10 +153,13 @@ def op_estimate_listings_or_divide_periodical(
     if quadkeys_qs.exists():
         quadkeys = list(quadkeys_qs.values_list("quadkey", flat=True)[0:how_many])
         job = group(
-            *(task_estimate_listings_or_divide.s(quadkey=quadkey, less_than=max_listings) for quadkey in quadkeys),
-            priority=priority
+            task_estimate_listings_or_divide.s(quadkey=quadkey, less_than=max_listings)
+            .set(priority=priority)  # TODO: Deprecate priority
+            .set(expires=expires)
+            for quadkey in quadkeys
         )
-        group_result: GroupResult = job.apply_async(priority=priority)
+        group_result: AsyncResult[GroupResult] = job.apply_async(priority=priority)
+        group_result.save()
 
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
         group_task.op_name = task_estimate_listings_or_divide.name

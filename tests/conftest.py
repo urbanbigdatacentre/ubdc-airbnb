@@ -1,101 +1,333 @@
-import logging
-import queue
-import types
+from datetime import timezone
+from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
-from celery.contrib.testing.worker import start_worker
+from faker import Faker
+
+if TYPE_CHECKING:
+    from typing import Annotated
+
+    from django.db.models.query import QuerySet
+
+    from ubdc_airbnb.models import AirBnBListing
 
 
-def pytest_configure():
-    from celery.fixups.django import DjangoWorkerFixup
-    # DjangoWorkerFixup.on_worker_process_init = lambda x: None
-    # DjangoWorkerFixup.close_database = lambda x: None
+fake = Faker()
 
-    DjangoWorkerFixup.install = lambda x: None
+UTC = timezone.utc
+
+
+@pytest.fixture(scope="session")
+def mock_airbnb_client(session_mocker):
+    # from ubdc_airbnb.airbnb_interface import airbnb_api
+    from collections import Counter
+
+    from requests import Request, Response
+    from requests.exceptions import HTTPError
+
+    class MockResponse:
+        def __init__(self, status_code, json_data, listing_id, headers, **kwargs):
+            self.status_code = status_code
+            self.json_data: dict = json_data
+            self.listing_id: int = listing_id
+            self.headers = headers
+
+        def raise_for_status(self):
+            if self.status_code != 200:
+                raise HTTPError(f"Mock-Exception code: {self.status_code}")
+
+        def json(self):
+            return self.json_data
+
+        @property
+        def text(self):
+            return str(self.json_data)
+
+        @property
+        def url(self):
+            return f"http://test.com/?listing_id={self.listing_id}&param=2"
+
+        @property
+        def elapsed(self):
+            return fake.time_delta()
+
+        @property
+        def request(self):
+            return Mock(spec=Request, headers={"Test": "Test"})
+
+    class MockRequest:
+        # TODO: populate?
+        pass
+
+    def calendar_side_effect(
+        listing_id,
+        status_code=200,
+        json_data={},
+        headers={},
+        **kwargs,
+    ):
+
+        import inspect
+
+        # how any times this function has been called?
+        # Ask the parent mock object.
+        # Obviouslly, this is a hack and depents that this function is called from a mock object
+        # get a ref to parent mock object
+        mref = inspect.currentframe().f_back.f_locals.get("self")  # type: ignore
+        # get the call count
+        times_called: int = mref.call_count  # type: ignore
+
+        # listing_ids starting with 8:
+        # first call always returns 503
+        if str(listing_id).startswith("8"):
+
+            if times_called < 2:
+                # 503
+                status_code = 503
+                headers.update({"X-Crawlera-Error": "banned"})
+                response = MockResponse(
+                    status_code=status_code,
+                    json_data={"test": "test"},
+                    listing_id=listing_id,
+                    headers=headers,
+                    kwargs=kwargs,
+                )
+                e = HTTPError("Mock-Exception code: 503")
+                e.response = response
+                raise e
+            else:
+                rv = MockResponse(
+                    status_code=200,
+                    json_data={"test": "test"},
+                    listing_id=listing_id,
+                    headers=headers,
+                    kwargs=kwargs,
+                )
+                return rv, rv.json()
+        else:
+            rv = MockResponse(
+                status_code=status_code,
+                json_data={"test": "test"},
+                listing_id=listing_id,
+                headers=headers,
+                kwargs=kwargs,
+            )
+
+            return rv, rv.json()
+
+    from ubdc_airbnb.airbnb_interface.airbnb_api import AirbnbApi
+
+    m = session_mocker.patch.object(
+        AirbnbApi,
+        "get_calendar",
+        side_effect=calendar_side_effect,
+    )
+
+    m.__name__ = "mock_get_calendar"
+
+    return m
+
+
+@pytest.fixture(scope="session")
+def celery_enable_logging():
+    return True
+
+
+@pytest.fixture(scope="session")
+def celery_parameters():
+    from celery import Celery
+
+    from ubdc_airbnb.task_managers import BaseTaskWithRetry
+
+    return {
+        "broker": "memory://",
+        "backend": "django-db",
+        "task_cls": BaseTaskWithRetry,
+        "worker_cancel_long_running_tasks_on_connection_loss": True,
+    }
 
 
 @pytest.fixture(scope="session")
 def django_db_setup(django_db_setup, django_db_blocker):
+    from django.contrib.gis.db.models import Union
+    from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
+    from django.db.models import TextField
+    from django.db.models.functions import Cast
+
+    from ubdc_airbnb.models import AirBnBListing, AOIShape
+
     def create_aoi():
-        from ubdc_airbnb.models import AOIShape
-        from django.contrib.gis.geos import GEOSGeometry
+
+        # fmt: off
+        recent_listings_aoi = (
+            AirBnBListing
+             .objects
+             .annotate(as_str=Cast("listing_id", TextField()))
+            .filter(as_str__startswith=7)
+            .aggregate(geom=Union("geom_3857"))
+        )['geom'].convex_hull
+        stale_listings_aoi = (
+            AirBnBListing
+             .objects
+             .annotate(as_str=Cast("listing_id", TextField()))
+            .filter(as_str__startswith=8)
+            .aggregate(geom=Union("geom_3857"))
+        )['geom'].convex_hull
+
+        new_listings_aoi = (
+            AirBnBListing
+             .objects
+             .annotate(as_str=Cast("listing_id", TextField()))
+            .filter(as_str__startswith=9)
+            .aggregate(geom=Union("geom_3857"))
+        )['geom'].convex_hull
+        # fmt: on
 
         geometries = [
-            """{ "type": "MultiPolygon", "coordinates": [[[[-4.5, 55.973 ], [ -4.5, 55.718 ], [ -3.882, 55.718 ], [ -3.882, 55.973 ], [-4.5, 55.973]]]]}""",
-            """{ "type": "MultiPolygon", "coordinates": [[[[ -3.235, 55.952 ], [ -3.235, 55.924 ], [ -3.152, 55.924 ], [ -3.152, 55.952 ], [ -3.235, 55.952 ]]]]}""",
+            recent_listings_aoi,
+            stale_listings_aoi,
+            new_listings_aoi,
         ]
-
-        for idx, g in enumerate(geometries, 1):
-            geom = GEOSGeometry(g)
-            geom.srid = 4326
-            geom.transform(3857)
+        for idx, geom in enumerate(geometries, 1):
             AOIShape.objects.create(
                 name=f"test-area-{idx}",
-                geom_3857=geom,
-                collect_bookings=idx % 2,
+                geom_3857=MultiPolygon(geom, srid=3857),
+                collect_bookings=True,
                 collect_reviews=False,
-                collect_calendars=idx % 2,
-                collect_listing_details=idx % 2,
-                scan_for_new_listings=idx % 2,
+                collect_calendars=True,
+                collect_listing_details=True,
+                scan_for_new_listings=True,
             )
 
     def create_listings():
-        from ubdc_airbnb.models import AirBnBListing
         from django.contrib.gis.geos import GEOSGeometry
+
+        from ubdc_airbnb.models import AirBnBListing
 
         geometries = [
             """{"coordinates": [-4.240,55.855],"type": "Point"}}""",
             """ {"coordinates": [-4.031,55.339],"type": "Point"}}""",
         ]
-        for idx, g in enumerate(geometries):
-            geom = GEOSGeometry(g)
+
+        NEW_LISTINGS = 10
+        for idx in range(NEW_LISTINGS):
+            PREFIX = "999999"
+            lat, lon = fake.local_latlng(country_code="GB", coords_only=True)
+            WKText = f'{{"coordinates": [{lon},{lat}],"type": "Point"}}}}'
+            geom = GEOSGeometry(WKText)
             geom.srid = 4326
             geom.transform(3857)
-            p = AirBnBListing.objects.create(listing_id=99999 + idx, geom_3857=geom)
+            AirBnBListing.objects.create(
+                listing_updated_at=None,
+                calendar_updated_at=None,
+                booking_quote_updated_at=None,
+                reviews_updated_at=None,
+                listing_id=int(PREFIX + str(idx)),
+                geom_3857=geom,
+            )
+
+        STALE_LISTINGS = 10
+        for idx in range(STALE_LISTINGS):
+            PREFIX = "899999"
+            lat, lon = fake.local_latlng(country_code="GB", coords_only=True)
+            WKText = f'{{"coordinates": [{lon},{lat}],"type": "Point"}}}}'
+            geom = GEOSGeometry(WKText)
+            geom.srid = 4326
+            geom.transform(3857)
+            AirBnBListing.objects.create(
+                listing_updated_at=fake.date_time_between(
+                    start_date="-1y",
+                    end_date="-1w",
+                    tzinfo=UTC,
+                ),
+                calendar_updated_at=fake.date_time_between(
+                    start_date="-1y",
+                    end_date="-1w",
+                    tzinfo=UTC,
+                ),
+                booking_quote_updated_at=fake.date_time_between(
+                    start_date="-1y",
+                    end_date="-1w",
+                    tzinfo=UTC,
+                ),
+                reviews_updated_at=fake.date_time_between(
+                    start_date="-1y",
+                    end_date="-1w",
+                    tzinfo=UTC,
+                ),
+                listing_id=int(PREFIX + str(idx)),
+                geom_3857=geom,
+            )
+
+        RECENT_LISTINGS = 10
+        for idx in range(STALE_LISTINGS):
+            PREFIX = "799999"
+            lat, lon = fake.local_latlng(country_code="GB", coords_only=True)
+            WKText = f'{{"coordinates": [{lon},{lat}],"type": "Point"}}}}'
+            geom = GEOSGeometry(WKText)
+            geom.srid = 4326
+            geom.transform(3857)
+            AirBnBListing.objects.create(
+                listing_updated_at=fake.date_time_between(
+                    start_date="-1d",
+                    tzinfo=UTC,
+                ),
+                calendar_updated_at=fake.date_time_between(
+                    start_date="-1d",
+                    tzinfo=UTC,
+                ),
+                booking_quote_updated_at=fake.date_time_between(
+                    start_date="-1d",
+                    tzinfo=UTC,
+                ),
+                reviews_updated_at=fake.date_time_between(
+                    start_date="-1d",
+                    tzinfo=UTC,
+                ),
+                listing_id=int(PREFIX + str(idx)),
+                geom_3857=geom,
+            )
 
     with django_db_blocker.unblock():
-        create_aoi()
         create_listings()
+        create_aoi()
+        assert AirBnBListing.objects.count() == 30
+        assert AOIShape.objects.count() == 3
 
     return
 
+
 @pytest.fixture()
-def listing_model(db):
+def listings_model(db):
+    # TODO: fix the typing
     from django.apps import apps as django_apps
 
-    return django_apps.get_model("app.AirBnBListing")
+    model = django_apps.get_model("app.AirBnBListing")
+    return model
 
-@pytest.fixture(scope='session')
+
+@pytest.fixture(scope="session")
+def celery_worker_parameters():
+    return {
+        "worker_cancel_long_running_tasks_on_connection_loss": True,
+        "concurrency": 1,
+        "perform_ping_check": True,
+    }
+
+
+@pytest.fixture(scope="session")
 def celery_worker_pool():
-    return 'prefork'
+    return "threads"
+
+
+@pytest.fixture(scope="session")
+def celery_includes():
+    return [
+        "ubdc_airbnb.tasks",
+    ]
+
 
 @pytest.fixture(scope="function")
 def celery_app(celery_app):
-    # use our own celery app, which should be configured using the .env.test settings
-    from core.celery import app as celery_app
-    from celery.utils import text
-
-    # with django_db_blocker.unblock():
     yield celery_app
-
-    queues = celery_app.amqp.queues.keys()
-    qnum = len(queues)
-    if queues:
-        queues_headline = text.pluralize(qnum, "queue")
-
-        def _purge(conn, queue):
-            try:
-                return conn.default_channel.queue_purge(queue) or 0
-            except conn.channel_errors:
-                return 0
-
-        with celery_app.connection_for_write() as conn:
-            messages = sum(_purge(conn, queue) for queue in queues)
-            if messages:
-                messages_headline = text.pluralize(messages, "message")
-                print(
-                    f"Purged {messages} {messages_headline} from "
-                    f"{qnum} known task {queues_headline}."
-                )
-            else:
-                print(f"No messages purged from {qnum} {queues_headline}.")

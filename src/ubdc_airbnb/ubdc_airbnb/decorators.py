@@ -5,7 +5,7 @@ from typing import Any, Callable
 from celery.utils.log import get_task_logger
 from requests.exceptions import HTTPError, ProxyError
 
-from ubdc_airbnb.errors import UBDCRetriableError, UBDCError
+from ubdc_airbnb.errors import UBDCError, UBDCRetriableError
 
 logger: Logger = get_task_logger(__name__)
 
@@ -25,7 +25,6 @@ def convert_exceptions(fun: Callable):
             return fun(*args, **kwargs)
         except HTTPError as exc:
             status_code = exc.response.status_code
-
             message = (
                 f"HTTPError: {status_code} when trying to contact Airbnb Resource at {exc.response.url}. "
                 f"Params were: \nFunName: {fun.__name__} ,  \nargs: {args}, \nkwargs: {kwargs}.\n"

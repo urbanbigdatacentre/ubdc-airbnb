@@ -1,4 +1,5 @@
 from django.core.management import BaseCommand
+
 from ubdc_airbnb.tasks import task_tidy_grids
 
 

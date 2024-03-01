@@ -12,9 +12,14 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
 
-def get_engaged_listing_ids_for(
-    purpose: Literal["reviews", "listing_details", "calendars"], exclude_submitted=False
-) -> "QuerySet":
+def get_submitted_listing_ids_for(
+    purpose: Literal[
+        "reviews",
+        "listing_details",
+        "calendars",
+    ],
+    exclude_submitted=False,
+) -> "QuerySet[UBDCTask]":
     """Get a Queryset with all the listing_ids that were used in a task in the last 24hours"""
     match purpose:
         case "reviews":
@@ -30,18 +35,22 @@ def get_engaged_listing_ids_for(
     timestamp_threshold = now() - timedelta(days=1)
 
     qs = (
-        (
-            UBDCTask.objects.filter(datetime_submitted__gte=timestamp_threshold)
-            .filter(task_kwargs__has_key="listing_id")
-            .filter(task_name=task_name)
-            # extract the listing_id from the task_kwargs param
-            .annotate(listing_id=Cast(KeyTextTransform("listing_id", "task_kwargs"), BigIntegerField()))
+        UBDCTask.objects.filter(datetime_submitted__gte=timestamp_threshold)
+        .filter(task_kwargs__has_key="listing_id")
+        .filter(task_name=task_name)
+        # extract the listing_id from the task_kwargs param
+        .annotate(
+            listing_id=Cast(
+                KeyTextTransform("listing_id", "task_kwargs"),
+                BigIntegerField(),
+            )
         )
-        .order_by("listing_id")
-        .distinct("listing_id")
-        .values("listing_id")
     )
+
     # default
     if exclude_submitted:
         return qs.exclude(status=UBDCTask.TaskTypeChoices.SUBMITTED)
+
+    qs = qs.order_by("listing_id").distinct("listing_id")
+
     return qs

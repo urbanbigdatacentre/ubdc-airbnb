@@ -5,9 +5,9 @@ from pprint import pprint
 from django.core.management.base import BaseCommand
 
 from ubdc_airbnb.models import (
+    AirBnBListing,
     AirBnBResponse,
     AirBnBResponseTypes,
-    AirBnBListing,
     AirBnBUser,
 )
 
@@ -91,8 +91,8 @@ class Command(BaseCommand):
 
             if options.get("command") == "booking-quote":
                 from ubdc_airbnb.tasks import (
-                    task_update_calendar,
                     task_get_booking_detail,
+                    task_update_calendar,
                 )
 
                 listing_id = options.get("listing_id")

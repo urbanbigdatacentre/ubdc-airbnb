@@ -1,9 +1,10 @@
 from functools import partial
 from json import JSONDecodeError
-from typing import List, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Union
 
 import mercantile
 from celery.utils.log import get_task_logger
+from django.conf import settings
 from django.contrib.gis.geos.polygon import Polygon as GEOSPolygon
 from django.db import models
 from django.utils.timesince import timesince
@@ -11,52 +12,71 @@ from more_itertools import collapse
 from requests import HTTPError
 from requests.exceptions import ProxyError
 
-from ubdc_airbnb.airbnb_interface import airbnb_client
-from ubdc_airbnb.convenience import (
-    query_params_from_url,
-)
-from ubdc_airbnb.errors import UBDCRetriableError, UBDCError
+from ubdc_airbnb.convenience import query_params_from_url
+from ubdc_airbnb.errors import UBDCError, UBDCRetriableError
 from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
-from ubdc_airbnb.utils.spatial import postgis_distance_a_to_b, make_point, reproject
+from ubdc_airbnb.utils.spatial import make_point, postgis_distance_a_to_b, reproject
 
 logger = get_task_logger(__name__)
 
 
 if TYPE_CHECKING:
-    from ubdc_airbnb import models as app_models
     from requests import Response
+
+    from ubdc_airbnb import models as app_models
 
 
 class AirBnBResponseManager(models.Manager):
-    def response_and_create(self, method_name: str, _type: str, task_id: str = None, **kwargs):
-        """Could raise exception."""
-        method = getattr(airbnb_client, method_name)
+
+    def response_and_create(
+        self,
+        method_name: str,  # TODO: replace with Literal[type]
+        _type: str,
+        task_id: str,
+        **kwargs,
+    ):
+        """Make a request to the airbnb API and create an AirBnBResponse object from the response.
+
+        If an exception is raised during the request, it is caught and the response is saved in the database.
+        The exception is then re-raised."""
+
+        # Could raise exception.
+        client = settings.AIRBNB_CLIENT
+
+        method = getattr(client, method_name)
 
         if method is None:
             raise Exception(f"{method_name} is not a valid method.")
 
-        # 'method' will raise_for_status()
         try:
             response, payload = method(**kwargs)
         except (HTTPError, ProxyError) as exc:
-            response: "Response" = exc.response
+            response = exc.response
+            assert response is not None
             # crawlera handling
             # https://docs.zyte.com/smart-proxy-manager/errors.html
             if response.status_code == 503:
-                if response.headers["X-Crawlera-Error"] == "banned":
+                if response.headers.get("X-Crawlera-Error") == "banned":
                     raise UBDCRetriableError(f"crawlera-error: {response.text}")
+        # else:
+        #     pass
 
-        finally:
-            logger.info(f"method:{method.__name__} params:{kwargs}")
+        # finally:
+        #     logger.info(f"method:{method.__name__} params:{kwargs}")
 
         # if response is not None:
         listing_id = kwargs.get("listing_id", None)
-        obj = self.create_from_response(response=response, _type=_type, task_id=task_id, listing_id=listing_id)
+        obj = self.create_from_response(
+            response=response,
+            _type=_type,
+            task_id=task_id,
+            listing_id=listing_id,
+        )
 
         try:
             response.raise_for_status()
         except (HTTPError, ProxyError) as exc:
-            exc.ubdc_response = obj
+            setattr(exc, "ubdc_response", obj)
             raise exc
 
         return obj
@@ -65,31 +85,37 @@ class AirBnBResponseManager(models.Manager):
         self,
         response: "Response",
         _type: str,
-        task_id: str = None,
-        listing_id: int = None,
+        task_id: str,
+        listing_id: int | None = None,
     ):
         from ubdc_airbnb.models import UBDCTask
 
         if _type is None:
             # TODO: Heuristics?
-            _type = None
+            _type = ""
 
-        if _type not in ["USR", "SHM", "SRH"] and listing_id is None:
-            raise AttributeError("Listing_id is not set for a request that should have one")
+        if (
+            _type
+            not in [
+                "USR",
+                "SHM",
+                "SRH",
+            ]
+            and listing_id is None
+        ):
+            raise AttributeError(f"The listing_id is required for the specified _type: {_type}")
 
         try:
             payload = response.json()
-
         except JSONDecodeError as e:
-            logger.info(
-                "Error when trying to decode the response payload:\n"
-                f"\tResponse status_code:{response.status_code}.\n"
-                f"\tResponse Content: {response.content}. "
-            )
-            raise UBDCError(f"Response text was not Json. It was '{response.content}'") from e
+            logger.info(f"Could not decode the payload. Response status_code:{response.status_code}.")
+            if response.status_code == 429:
+                # 429 Too Many Requests: we are being rate limited
+                raise UBDCRetriableError("429 error, retrying") from e
+            raise UBDCError(f"Response text was not Json. It was: {response.content}") from e
 
         except AttributeError as e:
-            # there are cases where the body comes back empty?.
+            # there are cases where the body comes back empty.
             logger.info("Error: Body could not be serialised (empty?)")
             raise UBDCRetriableError("Attribute error, retrying") from e
 
@@ -127,7 +153,11 @@ class AirBnBListingManager(models.Manager):
 
         return obj
 
-    def from_endpoint_explore_tabs(self, response: dict, save: bool = True) -> List["app_models.AirBnBListing"]:
+    def from_endpoint_explore_tabs(
+        self,
+        response: dict,
+        save: bool = True,
+    ) -> List["app_models.AirBnBListing"]:
         """TODO: DOC"""
         if save:
             op = self.create
@@ -171,12 +201,10 @@ class AirBnBListingManager(models.Manager):
 class UserManager(models.Manager):
     def create_from_response(
         self,
-        ubdc_response: "app_models.AirBnBResponse" = None,
-        user_id: int = None,
+        ubdc_response: "app_models.AirBnBResponse",
+        user_id: int,
     ) -> "app_models.AirBnBUser":
         """Create an AirBnBUser from an airbnb response or a placeholder AirbnbUser from just hte user_id"""
-
-        #  If airbnb_response = None, make DUMMY entry
 
         if user_id is None and ubdc_response is None:
             raise ValueError("Both user_id and airbnb_response are None")
@@ -212,18 +240,6 @@ class UserManager(models.Manager):
 
 
 class UBDCGridManager(models.Manager):
-    # def get_queryset(self):
-    #     """ Returns the default QS infused with "number_of_listings" annotation, """
-    #
-    #     qs = super().get_queryset()
-    #     # Right, first we filter the Listings, by 'this' geometry, refered by the OuterRef,
-    #     # then we annotate each row with a arbitrary lbl, to group by later.
-    #     # then we Count by that lbl, and exporting just that value to make django happy.
-    #     sub = app_models.AirBnBListing.objects.filter(geom_3857__within=OuterRef('geom_3857')). \
-    #         annotate(lbl=Value('fukU', output_field=CharField())).values('lbl').order_by(). \
-    #         annotate(c=Count('lbl')).values('c')
-    #
-    #     return qs.annotate(number_of_listings=Subquery(sub, output_field=CharField()))
 
     def has_quadkey(self, quadkey) -> bool:
         return self.filter(quadkey=quadkey).exists()
@@ -233,7 +249,7 @@ class UBDCGridManager(models.Manager):
         quadkey: Union[str, mercantile.Tile],
         save=False,
         allow_overlap_with_currents=True,
-    ) -> "app_models.UBDCGrid":
+    ):
         # cast from tile->qk to facilitate the allow_overlap_with_currents
         # routine in  create_from_tile.
         # TODO:NOTE: bad practice, maybe refactor?

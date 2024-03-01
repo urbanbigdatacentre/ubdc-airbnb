@@ -1,18 +1,17 @@
 from argparse import ArgumentParser, ArgumentTypeError
 
+from core.celery import app as celery_app
 from django.core.management.base import BaseCommand
 
-from core.celery import app as celery_app
 from ubdc_airbnb.operations import (
     op_discover_new_listings_periodical,
     op_estimate_listings_or_divide_periodical,
-    op_update_listing_details_periodical,
-    op_update_calendar_periodical,
-    op_update_reviews_periodical,
     op_get_booking_detail_periodical,
+    op_update_calendar_periodical,
+    op_update_listing_details_periodical,
+    op_update_reviews_periodical,
 )
-from ubdc_airbnb.tasks import task_discover_listings_at_grid
-from ubdc_airbnb.tasks import task_update_calendar
+from ubdc_airbnb.tasks import task_discover_listings_at_grid, task_update_calendar
 
 
 def check_positive(value) -> int:
@@ -33,7 +32,6 @@ class Command(BaseCommand):
             help="send a task",
             dest="command",
         )
-        subparsers.add_parser("get-calendar")
 
         discover_listings_cron: ArgumentParser = subparsers.add_parser("discover-listings-cron")
         discover_listings_cron.add_argument("--how-many", dest="how_many", default=100, type=int)

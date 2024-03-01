@@ -1,50 +1,38 @@
 import os
 from typing import Any, Optional
-from django.conf import settings
 
 import django
 from celery import Celery, Task
 from celery.schedules import crontab
 from celery.utils.log import get_task_logger
+from django.conf import settings
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 django.setup()
 
-# localhost host,
-#    default port,
-#   user name guest,
-#   password guest and
-# virtual host “/”
+# Tasks with be routed according to the following.
+# All other tasks will be routed to the default queue.
+task_routes = {
+    "ubdc_airbnb.tasks.task_update_calendar": {"queue": "calendar"},
+}
+
 
 app = Celery(
-    "airbnb_app",
+    main="airbnb_app",
     task_cls="ubdc_airbnb.task_managers:BaseTaskWithRetry",
     broker=settings.CELERY_BROKER_URI,
-    result_backend=settings.RESULT_BACKEND,
+    backend=settings.RESULT_BACKEND,
     result_extended=True,
 )
 app.config_from_object(settings, namespace="CELERY", force=True)
-app.autodiscover_tasks(force=True)
-app.autodiscover_tasks(related_name="operations", force=True)
+# app.autodiscover_tasks(force=True)
+# app.autodiscover_tasks(related_name="operations", force=True)
+app.conf.task_routes = task_routes
+app.conf.broker_connection_retry_on_startup = False
 
-task_registry_copy = app.tasks.copy()
-for k in task_registry_copy.keys():
-    new_key = k.replace("ubdc_airbnb", "app")
-    app.tasks[new_key] = app.tasks[k]
 
 app.conf.beat_schedule = {
-    # 'add-every-monday-morning': {
-    #     'task': 'ubdc_airbnb.celery.debug_task_wait',
-    #     'schedule': crontab(),  # every minute
-    #     'kwargs': {
-    #         'value': 'DING!',
-    #         "wait": 1
-    #     },
-    #     'options': {
-    #         'expires': 10,
-    #         'priority': 1
-    #     }
-    # },
+    # TODO: Remove priority from all tasks
     "op_update_listing_details_periodical": {
         "task": "ubdc_airbnb.operations.listing_details.op_update_listing_details_periodical",
         "schedule": crontab(minute=0, hour="*/2"),  # At minute 0 past every 4th hour.
@@ -61,7 +49,6 @@ app.conf.beat_schedule = {
         "task": "ubdc_airbnb.operations.calendars.op_update_calendar_periodical",
         "schedule": crontab(minute=0, hour="8-22/1"),  # At minute 0 past every 4th hour.
         "kwargs": {"priority": 5, "use_aoi": True},
-        "options": {"priority": 5},
     },
     "op_estimate_listings_or_divide_periodical": {
         "task": "ubdc_airbnb.operations.grids.op_estimate_listings_or_divide_periodical",
@@ -92,17 +79,12 @@ app.conf.beat_schedule = {
 @app.task(bind=True)
 def debug_task_wait(self: Task, value=None, wait: int = 0) -> Optional[Any]:
     logger = get_task_logger(__name__)
-    logger.info(
-        f"\n"
-        f"\tTask ID {self.request.id} was received.\n"
-        f"\tThe name of this task is {self.name}\n"
-        f"\tI will wait for {wait} seconds before returning with value: {value}."
-        f"\n"
-    )
+    logger.info(f"I will wait for {wait} seconds before returning with value: {value}.")
     if wait > 0:
         import time
 
-        print("I WORK")
+        logger.info("I WORK")
         time.sleep(wait)
+        logger.info("I AM DONE")
 
     return value

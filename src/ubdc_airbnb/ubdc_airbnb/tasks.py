@@ -1,17 +1,17 @@
 from collections import Counter
 from datetime import timedelta
 from random import random
-from typing import Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
 
 import mercantile
-from celery import Task
-from celery import group, shared_task
+from celery import Task, group, shared_task
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.contrib.gis.db.models import Extent
-from django.contrib.gis.geos import Point, Polygon as GEOSPolygon
+from django.contrib.gis.geos import Point
+from django.contrib.gis.geos import Polygon as GEOSPolygon
 from django.db import transaction
-from django.db.models import Max, Min, Sum, Count
+from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Length, Substr
 from django.utils import timezone
 from django.utils.timesince import timesince
@@ -19,17 +19,16 @@ from more_itertools import collapse
 from requests import HTTPError
 from requests.exceptions import ProxyError
 
-from ubdc_airbnb.airbnb_interface import airbnb_client
 from ubdc_airbnb.decorators import convert_exceptions
 from ubdc_airbnb.errors import UBDCError, UBDCRetriableError
 from ubdc_airbnb.models import (
     AirBnBListing,
-    UBDCGrid,
-    UBDCGroupTask,
     AirBnBResponse,
     AirBnBResponseTypes,
-    AirBnBUser,
     AirBnBReview,
+    AirBnBUser,
+    UBDCGrid,
+    UBDCGroupTask,
 )
 
 # from ubdc_airbnb.utils.users import ubdc_response_for_airbnb_user
@@ -39,6 +38,8 @@ from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
 from ubdc_airbnb.utils.spatial import listing_locations_from_response, reproject
 
 logger = get_task_logger(__name__)
+airbnb_client = settings.AIRBNB_CLIENT
+
 
 if TYPE_CHECKING:
     from celery.result import GroupResult
@@ -189,7 +190,11 @@ def task_update_or_add_reviews_at_listing(
 
 @shared_task(bind=True)
 @convert_exceptions
-def task_update_calendar(self: BaseTaskWithRetry, listing_id: int, months: int = 12) -> int:  # noqa
+def task_update_calendar(
+    self: BaseTaskWithRetry,
+    listing_id: int,
+    months: int = 12,
+) -> int:
     """Get a calendar for this listing_id and stores it in the database. Returns the listing_id
 
     :param listing_id: listing_id
@@ -198,6 +203,7 @@ def task_update_calendar(self: BaseTaskWithRetry, listing_id: int, months: int =
     """
 
     listing_entry, created = AirBnBListing.objects.get_or_create(listing_id=listing_id)
+    logger.info(f"Listing: {listing_id} created: {created}")
     try:
         ubdc_response = AirBnBResponse.objects.response_and_create(
             method_name="get_calendar",
@@ -209,10 +215,21 @@ def task_update_calendar(self: BaseTaskWithRetry, listing_id: int, months: int =
         if ubdc_response:
             listing_entry.responses.add(ubdc_response)
 
-    except (HTTPError, ProxyError) as exc:
-        ubdc_response = exc.ubdc_response
-        logger.info(f"Http/Proxy error {ubdc_response.payload}")
+    except ProxyError as exc:
         raise exc
+
+    except HTTPError as exc:
+        status_code = exc.response.status_code
+        ubdc_response = exc.ubdc_response
+        match status_code:
+            case 403:
+                # 403 Resource Unavailable
+                # The task is successful, but the resource is not available
+                logger.info(f"resource-unavailable: Listing_id: {listing_id}")
+                pass
+            case _:
+                logger.info(f"Http/Proxy error: {ubdc_response.payload}")
+                raise exc
 
     # https://docs.python.org/3/reference/compound_stmts.html#finally-clause
     finally:
@@ -231,7 +248,7 @@ def task_get_booking_detail(self: Task, listing_id: int) -> int:
     """
 
     listing, created = AirBnBListing.objects.get_or_create(listing_id=listing_id)
-    calendar: AirBnBResponse = (
+    calendar: AirBnBResponse | None = (
         AirBnBResponse.objects.filter(listing_id=listing_id, _type=AirBnBResponseTypes.calendar)
         .order_by("timestamp")
         .first()
@@ -689,7 +706,7 @@ def task_tidy_grids(less_than: int = 50):
 
 @shared_task(bind=True)
 def task_debug_add_w_delay(self: Task, x: int, y: int):
-    """A sample task, that everything works"""
+    """A sample task, shows that everything works"""
     import time
 
     logger.info(f"Greetings from task {self.request.id}, using {type(self)} task")

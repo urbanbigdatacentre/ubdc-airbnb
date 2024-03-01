@@ -29,7 +29,7 @@ For each of these listing a task will be created with priority 'priority' (defau
 These tasks will take care of adding any new users into the database.  
 The tasks are hard-coded to expire, if not completed, in 23 hours after they been published.
 
-- use_aoi: bool   
+- use_aoi: bool  
   If true, the listings will be selected only from the aoi_shapes that have been designated to this task, default true
 - how_many:  integer Maximum number of listings to act, defaults to 5000
 - age_hours: How many HOURS before from the last update, before the it will be considered stale. int > 0, defaults two

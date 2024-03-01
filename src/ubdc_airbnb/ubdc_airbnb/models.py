@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Tuple, List, Union
+from typing import TYPE_CHECKING, List, Tuple, Union
 
 import celery.states as c_states
 import mercantile
@@ -15,15 +15,16 @@ from django_celery_results.models import TaskResult as celery_Task
 from more_itertools import flatten
 
 from ubdc_airbnb.errors import UBDCError
-from ubdc_airbnb.managers import UserManager, UBDCGridManager, AirBnBResponseManager
+from ubdc_airbnb.managers import AirBnBResponseManager, UBDCGridManager, UserManager
 
 
 class WorldShape(models.Model):
-    iso3_alpha: str = models.CharField(max_length=3, db_index=True)
-    name_0: str = models.CharField(max_length=255, db_index=True)
-    md5_checksum: str = models.CharField(max_length=255, editable=False, unique=True)
 
-    geom_3857: Polygon = models.PolygonField(srid=3857)  # lets all play at www.epsg.io/3857
+    iso3_alpha = models.CharField(max_length=3, db_index=True)
+    name_0 = models.CharField(max_length=255, db_index=True)
+    md5_checksum = models.CharField(max_length=255, editable=False, unique=True)
+
+    geom_3857 = models.PolygonField(srid=3857)  # lets all play at www.epsg.io/3857
 
     def __repr__(self):
         return f"Id: {self.id}/Alpha: {self.iso3_alpha}"
@@ -110,7 +111,12 @@ class UBDCGrid(models.Model):
             raise ValueError("QuadKey is not set.")
         return mercantile.quadkey_to_tile(self.quadkey)
 
-    def children(self, intersect_with: Union[int, str] = None, zoom=None, use_landmask=True) -> List[mercantile.Tile]:
+    def children(
+        self,
+        intersect_with: Union[int, str] | None = None,
+        zoom=None,
+        use_landmask=True,
+    ) -> List[mercantile.Tile]:
         """Find the children for this Grid.
 
         :param intersect_with: Optionally (recommended) use a *AOISHAPE id* to filter out disjointed children
@@ -174,25 +180,7 @@ class UBDCGrid(models.Model):
 
                     children = filter(filter_function_intersects_with_mask, children)
 
-        return children
-
-    def make_children(self, zoom=None, use_landmask=True) -> List["UBDCGrid"]:
-        # higher zoom is up
-        if zoom is None:
-            zoom = self.tile_z + 1
-
-        if zoom <= self.tile_z:
-            raise UBDCError()
-
-        children = self.children(zoom=zoom, use_landmask=use_landmask)
-        c_tiles = []
-        for m_tile in children:
-            c_tiles.append(UBDCGrid.objects.create_from_tile(m_tile))
-
-        UBDCGrid.objects.bulk_create(c_tiles)
-        self.delete()
-
-        return c_tiles
+        return list(children)
 
 
 class AirBnBResponseTypes(models.TextChoices):
@@ -208,10 +196,14 @@ class AirBnBResponseTypes(models.TextChoices):
 
 
 class AirBnBResponse(models.Model):
-    """A model to hold Airbnb responses.
-    If ubdc_task is Null, that means the data fetch was initiated manually"""
+    """A model to hold Airbnb responses."""
 
-    listing_id: str = models.BigIntegerField(null=True, db_index=True)
+    # convience if response is about a listing
+    listing_id = models.BigIntegerField(
+        null=True,
+        db_index=True,
+        help_text="Airbnb ListingID",
+    )
 
     _type = models.CharField(
         max_length=3,
@@ -221,26 +213,44 @@ class AirBnBResponse(models.Model):
         default=AirBnBResponseTypes.unknown,
         verbose_name="Response Type",
     )
-    status_code: int = models.IntegerField(db_index=True, help_text="Status code of the response")
-    payload: dict = models.JSONField(default=dict)
-    request_headers: dict = models.JSONField(default=dict)
-    url: str = models.TextField(null=False, blank=False)
-    query_params: dict = models.JSONField(default=dict)
-    seconds_to_complete: int = models.IntegerField(
+    status_code = models.IntegerField(
+        db_index=True,
+        help_text="Status code of the response",
+    )
+    payload = models.JSONField(
+        default=dict,
+        help_text="Response payload",
+    )
+    request_headers = models.JSONField(default=dict)
+    url = models.TextField(
+        null=False,
+        blank=False,
+    )
+    query_params = models.JSONField(default=dict)
+    seconds_to_complete = models.IntegerField(
         null=False,
         blank=False,
         help_text="Time in seconds for the response to come back.",
     )
 
-    timestamp: datetime = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Date of row creation.")
+    timestamp = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        verbose_name="Date of row creation.",
+    )
 
     # many 2 one
-    ubdc_task = models.ForeignKey("UBDCTask", null=True, on_delete=models.DO_NOTHING, to_field="task_id")
+    ubdc_task = models.ForeignKey(
+        "UBDCTask",
+        null=True,
+        on_delete=models.DO_NOTHING,
+        to_field="task_id",
+    )
 
     objects = AirBnBResponseManager()
 
     def __str__(self):
-        return f"{self.id}/{self.get__type_display()}"
+        return f"{self.id}/{self.get__type_display()}"  # type: ignore # TODO: why is this an error?
 
     class Meta:
         ordering = [
@@ -249,20 +259,46 @@ class AirBnBResponse(models.Model):
 
 
 class AirBnBListing(models.Model):
-    listing_id = models.BigIntegerField(unique=True, null=False, help_text="(PK) Airbnb ListingID", primary_key=True)
+    listing_id = models.BigIntegerField(
+        unique=True,
+        null=False,
+        help_text="(PK) Airbnb ListingID",
+        primary_key=True,
+    )
     geom_3857 = models.PointField(
         null=True,
         srid=3857,
         help_text="Current Geom Point ('3857') of listing's location",
     )
-    timestamp = models.DateTimeField(auto_now_add=True, help_text="Datetime of entry")
-    listing_updated_at = models.DateTimeField(null=True, blank=True, help_text="Datetime of last listing update")
-    calendar_updated_at = models.DateTimeField(null=True, blank=True, help_text="Datetime of last calendar update")
-    booking_quote_updated_at = models.DateTimeField(
-        null=True, blank=True, help_text="Datetime of latest booking quote update"
+    timestamp = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Datetime of entry",
     )
-    reviews_updated_at = models.DateTimeField(null=True, blank=True, help_text="Datetime of last comment update")
-    notes = models.JSONField(default=dict, encoder=DjangoJSONEncoder, help_text="Notes about this listing")
+    listing_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Datetime of last listing update",
+    )
+    calendar_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Datetime of last calendar update",
+    )
+    booking_quote_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Datetime of latest booking quote update",
+    )
+    reviews_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Datetime of last comment update",
+    )
+    notes = models.JSONField(
+        default=dict,
+        encoder=DjangoJSONEncoder,
+        help_text="Notes about this listing",
+    )
 
     responses = models.ManyToManyField("AirBnBResponse")
 
@@ -271,7 +307,12 @@ class AirBnBListing(models.Model):
 
 # not using the username, so we won't get confused with functional user
 class AirBnBUser(models.Model):
-    user_id = models.BigIntegerField(unique=True, null=False, blank=True, help_text="Airbnb User id")
+    user_id = models.BigIntegerField(
+        unique=True,
+        null=False,
+        blank=True,
+        help_text="Airbnb User id",
+    )
     first_name = models.TextField(default="")
     about = models.TextField(default="")
     airbnb_listing_count = models.IntegerField(default=0, help_text="as reported by airbnb")
@@ -342,6 +383,7 @@ class AirBnBReview(models.Model):
     response = models.ForeignKey("AirBnBResponse", on_delete=models.SET_NULL, related_name="comments", null=True)
 
 
+# TODO: This is not needed anymore, as celery natively supports saving group tasks
 class UBDCGroupTask(models.Model):
     # Convenience model to retrieve tasks
 
@@ -417,18 +459,23 @@ class UBDCTask(models.Model):
 
     @property
     def async_result(self) -> AsyncResult:
-        return AsyncResult(self.task_id)
+        task_id = self.task_id
+        task_id = str(task_id)
+        return AsyncResult(task_id)
 
     def revoke_task(self) -> None:
         if self.status in c_states.READY_STATES:
-            print("Task already finished! Cannot revoke")
+            # TODO: replace print with logger statements
+            print("Cannot revoke: Task already finished.")
             return
 
         c_task = celery_Task.objects.filter(task_id=self.task_id)
         if c_task.exists():
+            # TODO: replace print with logger statements
             print("Task found at celery task registry")
             self.async_result.revoke()
         else:
+            # TODO: replace print with logger statements
             print("Task NOT found at celery task registry. Assuming tombstone-ed and marking as REVOKED")
             self.status = c_states.REVOKED
             self.save()

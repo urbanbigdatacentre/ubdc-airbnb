@@ -4,8 +4,8 @@ import django.contrib.gis.db.models.fields
 import django.contrib.postgres.fields
 import django.contrib.postgres.indexes
 import django.core.serializers.json
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

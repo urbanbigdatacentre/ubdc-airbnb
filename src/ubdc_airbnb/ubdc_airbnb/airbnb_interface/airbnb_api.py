@@ -3,7 +3,7 @@ import json
 from collections import namedtuple
 from datetime import datetime
 from hashlib import md5
-from typing import Dict, Iterator, Optional, Tuple, Mapping, Type
+from typing import Dict, Iterator, Mapping, Optional, Tuple, Type
 from uuid import uuid4
 
 import requests
@@ -14,17 +14,9 @@ from requests import Response
 
 from ubdc_airbnb.errors import MissingParameterError, NoBookingDatesError
 
-AIRBNB_API_KEY = settings.AIRBNB_PUBLIC_API_KEY
-AIRBNB_PROXY = settings.AIRBNB_PROXY
-
-if settings.AIRBNB_PROXY is None:
-    import warnings
-
-    message = f"No proxy is set. Not using a proxy will lead Airbnb QoS mechanisms to be activated."
-    warnings.warn(message)
-
 POINT = namedtuple("POINT", "x y")
 BBOX = namedtuple("BBOX", "upper_left lower_right")
+AIRBNB_PUBLIC_API_KEY = "d306zoyjsyarp7ifhu67rjxn52tv0t20"
 
 
 def attach_response_obj(r: requests.Response, this_object: "AirbnbApi", *args, **kwargs):
@@ -54,10 +46,10 @@ class AirbnbApi(object):
 
     def __init__(
         self,
-        api_key: str = None,
-        proxy: str = None,
-        extra_headers: Dict[str, str] = None,
-        randomize: bool = None,
+        api_key: str | None = None,
+        proxy: str | None = None,
+        extra_headers: Dict[str, str] | None = None,
+        randomize: bool = True,
     ):
         """
 
@@ -104,10 +96,14 @@ class AirbnbApi(object):
         if api_key:
             self.airbnb_api_key = api_key
         else:
-            self.airbnb_api_key = AIRBNB_API_KEY
+            self.airbnb_api_key = AIRBNB_PUBLIC_API_KEY
 
         if proxy:
-            self._session.proxies = {"http": proxy, "https": proxy}
+            print(f"Using proxy: {proxy}")
+            self._session.proxies = {
+                "http": proxy,
+                "https": proxy,
+            }
         if extra_headers:
             self._session.headers.update(extra_headers)
 
@@ -190,9 +186,15 @@ class AirbnbApi(object):
         self._udid = value
         self._session.headers["airbnb-device-id"] = self._udid
 
-    def get_calendar(self, listing_id, starting_month=None, starting_year=None, calendar_months=12) -> (Response, dict):
+    def get_calendar(
+        self,
+        listing_id,
+        starting_month=None,
+        starting_year=None,
+        calendar_months=12,
+    ) -> tuple[Response, dict]:
         """
-        Get availability calendar for a given listing
+        Get availability calendar for a given listing. Returns the response and the json payload.
         """
 
         if not starting_month:
@@ -312,7 +314,10 @@ class AirbnbApi(object):
 
         return r, r.json()
 
-    def get_listing_details(self, listing_id: int) -> (Response, dict):
+    def get_listing_details(
+        self,
+        listing_id: int,
+    ):
         params = {
             "adults": "0",
             "_format": "for_native",
@@ -370,7 +375,7 @@ class AirbnbApi(object):
         # clear federated_search_session_id
         self.federated_search_session_id = None
 
-    def get_user(self, user_id) -> (Response, dict):
+    def get_user(self, user_id):
         params = {}
         r = self._session.get(settings.AIRBNB_API_ENDPOINT + f"/v2/users/{user_id}", params=params)
         r.raise_for_status()
@@ -397,7 +402,7 @@ class AirbnbApi(object):
         listing_id: int,
         calendar: dict = None,
         start_search_from: Type[datetime.date] = None,
-    ) -> (Response, dict):
+    ):
         """
 
         :param listing_id: Listing Id
@@ -479,4 +484,6 @@ class AirbnbApi(object):
         return r, r.json()
 
 
-__all__ = [AirbnbApi]
+__all__ = [
+    "AirbnbApi",
+]

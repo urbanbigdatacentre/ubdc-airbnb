@@ -1,16 +1,16 @@
 from typing import List, Sequence, Union
 
 from celery import group, shared_task
-from celery.result import GroupResult, AsyncResult
+from celery.result import AsyncResult, GroupResult
 from celery.utils.log import get_task_logger
 from dateutil.relativedelta import relativedelta
-from django.db.models import TextField, F
+from django.db.models import F, TextField
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 from django.utils.timezone import now
 
 from ubdc_airbnb.errors import UBDCError
-from ubdc_airbnb.models import UBDCGroupTask, UBDCTask, UBDCGrid, AOIShape
+from ubdc_airbnb.models import AOIShape, UBDCGrid, UBDCGroupTask, UBDCTask
 from ubdc_airbnb.tasks import task_discover_listings_at_grid
 from ubdc_airbnb.utils.spatial import get_grids_for
 
@@ -18,7 +18,9 @@ logger = get_task_logger(__name__)
 
 
 @shared_task
-def op_discover_new_listings_at_grid(quadkey: Union[str, List[str]]) -> str:
+def op_discover_new_listings_at_grid(
+    quadkey: Union[str, List[str]],
+) -> str:
     """Add the calendars for the listings_id that are in this AOI to the database
 
     :param quadkey: Quadkey or quadkeys to search
@@ -49,7 +51,7 @@ def op_discover_new_listings_periodical(
     age_hours: int = 7 * 24,
     use_aoi: bool = True,
     priority=4,
-) -> str:
+) -> str | None:
     """
     An 'initiator' task that will select at the most 'how_many' grids (default 500) that overlap
     with enabled AOIs and where scanned  more than 'age_days' (default 7) age. If how_many = None, it will default to the number of grids
@@ -73,6 +75,7 @@ def op_discover_new_listings_periodical(
         raise UBDCError("The variable how_many must be larger than 0")
     if age_hours < 0:
         raise UBDCError("The variable age_days must be larger than 0")
+    # TODO: Deprecate priority
     if not (0 < priority < 10 + 1):
         raise UBDCError("The variable priority must be between 1 than 10")
 
@@ -119,21 +122,21 @@ def op_discover_new_listings_periodical(
             )
             for qk in quadkeys
         )
-        group_result: GroupResult = job.apply_async(
-            priority=priority,
-        )
-
+        group_result: GroupResult = job.apply_async(priority=priority)
+        group_result.save()
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
         group_task.op_name = op_discover_new_listings_periodical.name
         group_task.op_kwargs = {"quadkey": quadkeys}
         group_task.save()
 
         return group_result.id
-    return "nothing"
+    return
 
 
 @shared_task
-def op_discover_new_listings_at_aoi(id_shape: Union[int, List[int]]) -> str:
+def op_discover_new_listings_at_aoi(
+    id_shape: Union[int, List[int]],
+) -> str | None:
     """Add the calendars for the listings_id that are in this AOI to the database
     :param id_shape: pk of ::AOIShape::
     """

@@ -2,11 +2,12 @@
 FROM osgeo/gdal@sha256:452da485c574fe040a5748b73932d3ec7334913197744b550d13ce80493ef3c4 as runner
 ENV PYTHONUNBUFFERED=1 \
     REQUESTS_CA_BUNDLE="/etc/ssl/certs/ca-certificates.crt" \
-    POETRY_VERSION=1.3.2 \
+    POETRY_VERSION=1.7.1 \
     POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=false \
     POETRY_CACHE_DIR='/var/cache/pypoetry' \
     POETRY_HOME='/usr/local'
+
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 
 RUN apt-get update \
@@ -16,7 +17,7 @@ RUN apt-get update \
 
 RUN curl -sSL https://install.python-poetry.org | python3 -
 
-WORKDIR tmp
+WORKDIR /tmp
 COPY ./poetry.lock ./pyproject.toml /tmp/
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root
@@ -30,6 +31,5 @@ COPY ./docker-entrypoint.sh /app/docker-entrypoint.sh
 WORKDIR /app
 RUN chmod +x 'docker-entrypoint.sh'
 ENV PYTHONPATH="/app"
-#ENV DJANGO_SETTINGS_MODULE="core.settings"
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["manage"]
