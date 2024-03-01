@@ -12,8 +12,10 @@ AIRBNB_APP_VERSION = os.getenv("APP_VERSION", "-")
 AIRBNB_API_ENDPOINT = os.getenv("AIRBNB_API_ENDPOINT", "https://www.airbnb.co.uk/api")
 AIRBNB_PUBLIC_API_KEY = os.getenv("AIRBNB_PUBLIC_API_KEY", "d306zoyjsyarp7ifhu67rjxn52tv0t20")
 AIRBNB_LISTINGS_MOVED_MIN_DISTANCE = os.getenv("AIRBNB_LISTINGS_MOVED_MIN_DISTANCE", 150)
-AIRBNB_PROXY = "http://8e8eaee704534e969276679126b188ba:@proxy.crawlera.com:8011"
-if AIRBNB_PROXY is None:
+ZYTE_API_KEY = os.getenv("ZYTE_API_KEY")
+if ZYTE_API_KEY:
+    AIRBNB_PROXY = f"http://{ZYTE_API_KEY}:@proxy.crawlera.com:8011"
+else:
     message = f"No proxy is set. Not using a proxy could lead Airbnb QoS to be activated."
     warnings.warn(message)
 
