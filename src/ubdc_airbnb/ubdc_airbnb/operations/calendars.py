@@ -83,8 +83,8 @@ def op_update_calendar_at_aoi(
 
 # 75 active workers consume about ~17k request/hour.
 # this is the main beat task. It will run once per day at 2 am.
-# confiture it at ubdc_airbnb.core.celery
-@shared_task
+# configure it at ubdc_airbnb.core.celery
+@shared_task(acks_late=False)
 def op_update_calendar_periodical(use_aoi=True, **kwargs) -> list[str]:
     """
     It will generate tasks to collect all listing calendars all the activated AOIs by default.
