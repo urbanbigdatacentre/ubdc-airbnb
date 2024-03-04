@@ -16,6 +16,7 @@ ZYTE_API_KEY = os.getenv("ZYTE_API_KEY")
 if ZYTE_API_KEY:
     AIRBNB_PROXY = f"http://{ZYTE_API_KEY}:@proxy.crawlera.com:8011"
 else:
+    AIRBNB_PROXY = None
     message = f"No proxy is set. Not using a proxy could lead Airbnb QoS to be activated."
     warnings.warn(message)
 

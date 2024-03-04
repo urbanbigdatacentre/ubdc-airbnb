@@ -27,7 +27,6 @@ ADD https://docs.zyte.com/_static/zyte-smartproxy-ca.crt /usr/local/share/ca-cer
 RUN update-ca-certificates
 
 COPY ./src/ubdc_airbnb /app
-COPY ./docker-entrypoint.sh /app/docker-entrypoint.sh
 WORKDIR /app
 RUN chmod +x 'docker-entrypoint.sh'
 ENV PYTHONPATH="/app"

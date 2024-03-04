@@ -70,9 +70,9 @@ class UBDCGrid(models.Model):
     geom_3857 = models.PolygonField(srid=3857, null=False)
 
     quadkey = models.TextField(null=False, unique=True, blank=True, editable=False, db_index=True)
-    tile_x = models.IntegerField(null=False)
-    tile_y = models.IntegerField(null=False)
-    tile_z = models.IntegerField(null=False)
+    tile_x = models.BigIntegerField(null=False)
+    tile_y = models.BigIntegerField(null=False)
+    tile_z = models.BigIntegerField(null=False)
     x_distance_m = models.FloatField()
     y_distance_m = models.FloatField()
 
