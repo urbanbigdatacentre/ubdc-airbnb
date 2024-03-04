@@ -88,8 +88,7 @@ def op_update_calendar_at_aoi(
 def op_update_calendar_periodical(use_aoi=True, **kwargs) -> list[str]:
     """
     It will generate tasks to collect all listing calendars all the activated AOIs by default.
-
-    Tasks are marked to expire 10 mins before the end of today.
+    Tasks are marked to expire at the end of today.
     """
     end_of_today = end_of_day()
     group_result_ids: list[str] = []
