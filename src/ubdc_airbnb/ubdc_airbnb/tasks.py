@@ -469,11 +469,13 @@ def task_estimate_listings_or_divide(self: BaseTaskWithRetry, quadkey: str, less
         north=bbox.north,
     )
     estimated_listings = airbnb_response_parser.listing_count(ubdc_response.payload)
+    price_histogram_sum = airbnb_response_parser.price_histogram_sum(ubdc_response.payload)
+    price_histogram_sum_bool = price_histogram_sum > 0
     grid.datetime_last_estimated_listings_scan = timezone.now()
 
-    if estimated_listings > less_than:
+    if price_histogram_sum_bool and estimated_listings > less_than:
         logger.info(
-            f"Grid {grid.quadkey} has {estimated_listings}. More than {less_than} listings that specified. Dividing!"
+            f"Grid {grid.quadkey} has {estimated_listings} estimated listings. threshold is {less_than}. Dividing!"
         )
 
         children = list(grid.children())
@@ -493,7 +495,8 @@ def task_estimate_listings_or_divide(self: BaseTaskWithRetry, quadkey: str, less
         return group_result.id
 
     else:
-        grid.estimated_listings = estimated_listings
+        if price_histogram_sum_bool:
+            grid.estimated_listings = estimated_listings
         grid.save()
         logger.info(f"Grid {grid.quadkey} -> {grid.estimated_listings}")
 
