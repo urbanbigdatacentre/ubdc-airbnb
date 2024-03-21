@@ -35,37 +35,23 @@ app.conf.beat_schedule = {
     # TODO: Remove priority from all tasks
     "op_update_listing_details_periodical": {
         "task": "ubdc_airbnb.operations.listing_details.op_update_listing_details_periodical",
-        "schedule": crontab(minute=0, hour="*/2"),  # At minute 0 past every 4th hour.
-        "kwargs": {"how_many": 5000, "age_hours": 14 * 24},
-        "options": {"priority": 4},
+        "schedule": crontab(minute=0, hour="0", day_of_month="*/12"),  # At 05:00 on every 12th day-of-month
     },
-    "op_update_reviews_periodical": {
-        "task": "ubdc_airbnb.operations.reviews.op_update_reviews_periodical",
-        "schedule": crontab(minute=0, hour="*/3"),  # At minute 0 past every 4th hour.
-        "kwargs": {"how_many": 1500, "age_hours": 14 * 24},
-        "options": {"priority": 4},
-    },
+    # "op_update_reviews_periodical": {
+    #     "task": "ubdc_airbnb.operations.reviews.op_update_reviews_periodical",
+    #     "schedule": crontab(minute=0, hour="*/3"),  # At minute 0 past every 4th hour.
+    #     "kwargs": {"how_many": 1500, "age_hours": 14 * 24},
+    #     "options": {"priority": 4},
+    # },
     "op_update_calendar_periodical": {
         "task": "ubdc_airbnb.operations.calendars.op_update_calendar_periodical",
         "schedule": crontab(minute=0, hour="2"),  # Every day at two in the morning.
         "kwargs": {"use_aoi": True},
     },
-    "op_estimate_listings_or_divide_periodical": {
-        "task": "ubdc_airbnb.operations.grids.op_estimate_listings_or_divide_periodical",
-        "schedule": crontab(minute=0, hour="*/2"),  # At minute 0 past every 4th hour.
-        "kwargs": {"how_many": 500, "age_hours": 14 * 24, "max_listings": 50},
-        "options": {"priority": 4},
-    },
     "op_discover_new_listings_periodical": {
         "task": "ubdc_airbnb.operations.discovery.op_discover_new_listings_periodical",
-        "schedule": crontab(minute=0, hour="*/2"),  # At minute 0 past every 4th hour.
-        "kwargs": {
-            "how_many": 500,
-            "age_hours": 7 * 24,
-            "use_aoi": True,
-            "priority": 4,
-        },
-        "options": {"priority": 4},
+        "schedule": crontab(minute=0, hour="*/5", day_of_month="*/5"),  # At 05:00 on every 5th day-of-month.
+        "kwargs": {},
     },
     "op_tidy_grids": {
         "task": "ubdc_airbnb.tasks.task_tidy_grids",

@@ -5,7 +5,11 @@ import mercantile
 from ubdc_airbnb.errors import UBDCError
 
 
-def generate_initial_grid(aoishape_id: int, profile: Optional[str] = "rural", zoom: Optional[int] = None) -> List[str]:
+def generate_initial_grid(
+    aoishape_id: int,
+    profile: str = "rural",
+    zoom: Optional[int] = None,
+) -> List[str]:
     """Generates an initial grid for a the aoishape (identified by it's ID) based either in a proposed
     zoom level or profile.
     These grids should be then further refined using the estimated_listings_or_divide

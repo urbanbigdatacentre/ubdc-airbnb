@@ -1,21 +1,25 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Tuple, Union
+from typing import TYPE_CHECKING, ClassVar, List, Tuple, Union
 
 import celery.states as c_states
 import mercantile
 from celery.result import AsyncResult
+from celery.utils.log import get_task_logger
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import GinIndex
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import QuerySet
+from django.utils import timezone
 from django.utils.functional import cached_property
 from django_celery_results.models import TaskResult as celery_Task
 from more_itertools import flatten
 
 from ubdc_airbnb.errors import UBDCError
 from ubdc_airbnb.managers import AirBnBResponseManager, UBDCGridManager, UserManager
+
+logger = get_task_logger(__name__)
 
 
 class WorldShape(models.Model):
@@ -27,7 +31,7 @@ class WorldShape(models.Model):
     geom_3857 = models.PolygonField(srid=3857)  # lets all play at www.epsg.io/3857
 
     def __repr__(self):
-        return f"Id: {self.id}/Alpha: {self.iso3_alpha}"
+        return f"Id: {self.pk}/Alpha: {self.iso3_alpha}"
 
 
 class AOIShape(models.Model):
@@ -82,14 +86,25 @@ class UBDCGrid(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
 
     # Functional
-    datetime_last_estimated_listings_scan = models.DateTimeField(db_index=True, null=True, blank=True)
-    datetime_last_listings_scan = models.DateTimeField(db_index=True, null=True, blank=True)
-    estimated_listings = models.IntegerField(verbose_name="Estimated Listings reported from AirBnB", default=-1)
+    datetime_last_estimated_listings_scan = models.DateTimeField(
+        db_index=True,
+        null=True,
+        blank=True,
+    )
+    datetime_last_listings_scan = models.DateTimeField(
+        db_index=True,
+        null=True,
+        blank=True,
+    )
+    estimated_listings = models.IntegerField(
+        verbose_name="Estimated Listings reported from AirBnB",
+        default=-1,
+    )
 
-    objects = UBDCGridManager()
+    objects: ClassVar[UBDCGridManager] = UBDCGridManager()
 
     def __str__(self):
-        return f"{self.__class__.__name__}: {self.id}/{self.quadkey}"
+        return f"{self.__class__.__name__}: {self.pk}/{self.quadkey}"
 
     @property
     def as_ewkt(self) -> str:
@@ -247,10 +262,10 @@ class AirBnBResponse(models.Model):
         to_field="task_id",
     )
 
-    objects = AirBnBResponseManager()
+    objects: ClassVar[AirBnBResponseManager] = AirBnBResponseManager()
 
     def __str__(self):
-        return f"{self.id}/{self.get__type_display()}"  # type: ignore # TODO: why is this an error?
+        return f"{self.pk}/{self.get__type_display()}"  # type: ignore # TODO: fix typing?
 
     class Meta:
         ordering = [
@@ -302,7 +317,7 @@ class AirBnBListing(models.Model):
 
     responses = models.ManyToManyField("AirBnBResponse")
 
-    objects = AirBnBResponseManager()
+    objects: ClassVar[AirBnBResponseManager] = AirBnBResponseManager()
 
 
 # not using the username, so we won't get confused with functional user
@@ -327,7 +342,7 @@ class AirBnBUser(models.Model):
     listings = models.ManyToManyField(AirBnBListing, related_name="users")
     responses = models.ManyToManyField("AirBnBResponse")
 
-    objects = UserManager()
+    objects: ClassVar[UserManager] = UserManager()
 
     @cached_property
     def listing_count(self) -> int:

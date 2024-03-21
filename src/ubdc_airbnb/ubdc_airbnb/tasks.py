@@ -29,6 +29,7 @@ from ubdc_airbnb.models import (
     AirBnBUser,
     UBDCGrid,
     UBDCGroupTask,
+    UBDCTask,
 )
 
 # from ubdc_airbnb.utils.users import ubdc_response_for_airbnb_user
@@ -36,6 +37,7 @@ from ubdc_airbnb.task_managers import BaseTaskWithRetry
 from ubdc_airbnb.utils.grids import bbox_from_quadkey
 from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
 from ubdc_airbnb.utils.spatial import listing_locations_from_response, reproject
+from ubdc_airbnb.workunits import bbox_has_next_page
 
 logger = get_task_logger(__name__)
 airbnb_client = settings.AIRBNB_CLIENT
@@ -278,89 +280,49 @@ def task_get_booking_detail(self: Task, listing_id: int) -> int:
 
 @shared_task(bind=True)
 @convert_exceptions
-def task_discover_listings_at_grid(self, quadkey: str, stale_tolerance_days: int = 14) -> str:
-    """Queries airbnb for listings in this grid.
-    :param self: missing
+def task_discover_listings_at_grid(
+    self,
+    quadkey: str,
+):
+    """Queries airbnb for listings in the given grid. Airbnb will return a maximum of 300 listings per request, so make sure that the grid is not too big. Preferably, lte 50 listings per grid.
     :param quadkey: quadkey
-    :param stale_tolerance_days:
-    :returns a ::Counter:: with the number of Listings in the GRID and Δ Listings since last run
     """
-    stale_tolerance_days = int(stale_tolerance_days)
-    if stale_tolerance_days < 0:
-        raise ValueError("stale_tolerance_days must be positive integer")
 
     task_id = self.request.id
 
-    _moved_explanation: Optional[str] = None
-
     try:
         tile = UBDCGrid.objects.get(quadkey=quadkey)
-        last_estimated_scan = tile.datetime_last_estimated_listings_scan
     except UBDCGrid.DoesNotExist as exc:
-        children = UBDCGrid.objects.filter(quadkey__startswith=quadkey, tile_z=len(quadkey) + 1)
-        if children.exists():
-            job = group(task_discover_listings_at_grid.s(quadkey=qk.quadkey) for qk in children)
-            group_result: "GroupResult" = job.apply_async()
-            return f"Tile {quadkey}, was not found, but it' children were. Submitted them for listings-scan."
-        raise UBDCError(f"Grid: {quadkey} does not exist.") from exc
-
-    if last_estimated_scan is None:
-        msg = f"Tile: {tile.quadkey} has not been estimated-scanned before. Submitting it for scan before retrying for extract the listings"
-        logger.info(msg)
-        job = task_estimate_listings_or_divide.s(quadkey=tile.quadkey) | task_discover_listings_at_grid.si(
-            quadkey=tile.quadkey
-        )
-        result = job.apply_async()
-        return quadkey
-
-    threshold = timezone.now() - timedelta(days=stale_tolerance_days)
-    is_fresh = last_estimated_scan > threshold
-    logger.info(
-        f"Grid: {quadkey} is {'stale' if not is_fresh else 'fresh'}. (Last estimated scan was: {timesince(last_estimated_scan)})"
-    )
-    if not is_fresh:
-        msg = f"Submitting a freshness-check"
-        logger.info(msg)
-        job = task_estimate_listings_or_divide.s(quadkey=quadkey) | task_discover_listings_at_grid.si(
-            quadkey=tile.quadkey
-        )
-        task = job.apply_async()
-        logger.info(f"Submitted Task: {task.id}")
-        return quadkey
+        logger.info(f"Grid {quadkey} does not exist. Aborting.")
+        return
 
     west, south, east, north = list(mercantile.bounds(mercantile.quadkey_to_tile(tile.quadkey)))
     data_pages_gen = airbnb_client.iterate_homes(west=west, south=south, east=east, north=north)
 
-    counter = Counter()
     for page, _ in data_pages_gen:
         airbnbapi_response = airbnb_client.response
+        logger.warning
         search_response_obj = AirBnBResponse.objects.create_from_response(
             airbnbapi_response, _type=AirBnBResponseTypes.search, task_id=task_id
         )
 
         listings = listing_locations_from_response(airbnbapi_response.json())
 
-        listing_id: str
-        point: Point
-        for listing_id, point in listings.items():
-            # pnt_new_location_4326 = make_point(x=x, y=y, srid=4326)
+        def add_listing_to_database(listing_id: str, point: Point):
+            # point is in EPSG: 4326
             point_3857 = reproject(point, to_srid=3857)  # to measure any Δ distance in m
-
             listing, created = AirBnBListing.objects.get_or_create(listing_id=listing_id)
             if created:
-                logger.info(f"New Listing ({listing_id}) found!")
+                # it's a new listing. So don't bother checking if it was moved.
                 listing.geom_3857 = point_3857
-                counter.update(
-                    ["created"],
-                )
             else:
-                logger.info(f"Existing Listing ({listing_id}): Initially found at {timesince(listing.timestamp)} ago.")
                 distance = point_3857.distance(listing.geom_3857)
-                # compare if the location was moved more than the threshold the one we know.
-                # if it has, update with the new location and make a note
 
+                # Check if the listing has been moved since last check more than the threshold
                 move_threshold = float(settings.AIRBNB_LISTINGS_MOVED_MIN_DISTANCE)
+
                 if distance > move_threshold:
+                    # if it has, update the listing and add a note
                     msg = f"Listing ({listing_id}) have been moved since last check more than the threshold ({distance} vs {move_threshold})."
                     logger.info(msg)
                     key = timezone.now().isoformat()
@@ -373,24 +335,27 @@ def task_discover_listings_at_grid(self, quadkey: str, stale_tolerance_days: int
                         }
                     }
                     listing.geom_3857 = point_3857
-
-            counter.update(
-                ["number_of_listings"],
-            )
             listing.save()
+
+        listing_id: str
+        point: Point
+        for listing_id, point in listings.items():
+            add_listing_to_database(listing_id, point)
 
         search_response_obj.grid = tile
         search_response_obj.save()
 
     tile.datetime_last_listings_scan = timezone.now()
     tile.save()
-    logger.info(str(dict(counter)))
-    return quadkey
+    return
 
 
 @shared_task(bind=True)
 @convert_exceptions
-def task_add_listing_detail(self, listing_id: Union[str, int]) -> int:
+def task_add_listing_detail(
+    self,
+    listing_id: Union[str, int],
+) -> int:
     """Adds the details for an existing AirBnBListing into the database. Returns updated listing_id"""
     task_id = self.request.id
     time_now = timezone.now()
@@ -441,64 +406,102 @@ def task_add_listing_detail(self, listing_id: Union[str, int]) -> int:
     return _listing_id
 
 
+@shared_task(bind=True)
+@convert_exceptions
+def task_register_listings_or_divide_at_aoi(self, aoi_pk: int):
+    from ubdc_airbnb.utils.spatial import get_quadkeys_of_aoi
+
+    quadkeys = get_quadkeys_of_aoi(aoi_pk)
+
+    logger.info(f"Found {len(quadkeys)} grids for AOI {aoi_pk}")
+    for quadkey in quadkeys:
+        task = task_register_listings_or_divide_at_qk.s(quadkey=quadkey)
+        result = task.apply_async()
+        logger.info(f"Task: {result.id} for {quadkey} submitted.")
+
+
 # noinspection PyIncorrectDocstring
 @shared_task(bind=True)
 @convert_exceptions
-def task_estimate_listings_or_divide(self: BaseTaskWithRetry, quadkey: str, less_than: int = 50) -> Optional[str]:
-    """This task will query airbnb to get a sense of how many listings it contains. If it has more than
-    *less_than* number (default 50) it will split this grid, and apply the same logic to each.
-    :param self: BaseTaskWithRetry
-    :type self: BaseTaskWithRetry
-    :param quadkey: quadkey
-    :param less_than: int, default 50
+def task_register_listings_or_divide_at_qk(
+    self: BaseTaskWithRetry,
+    quadkey: str,
+) -> Optional[str]:
+    """
+    This task will query airbnb and get how many listings are in this grid.
+    If the query comes back as paginated, it will split the grid into children and apply the same logic to each.
+    If its not paginated, it will store the listings_id for the grid and return the group_result id.
 
     :returns: GroupResult uuid
     :rtype: str
     """
+
+    # Easy to follow,
+    # check bbox, if it's paginated, divide and resubmit
+    # if not, store the listings
+    from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
+    from ubdc_airbnb.workunits import (
+        bbox_has_next_page,
+        register_listings_from_response,
+    )
+
     task_id = self.request.id
-    grid = UBDCGrid.objects.get(quadkey=quadkey)
+    grid: UBDCGrid = UBDCGrid.objects.get(quadkey=quadkey)
     bbox = bbox_from_quadkey(grid.quadkey)
 
-    ubdc_response: AirBnBResponse = AirBnBResponse.objects.response_and_create(
-        "bbox_metadata_search",
-        _type=AirBnBResponseTypes.searchMetaOnly,
-        task_id=task_id,
-        west=bbox.west,
-        east=bbox.east,
-        south=bbox.south,
-        north=bbox.north,
-    )
-    estimated_listings = airbnb_response_parser.listing_count(ubdc_response.payload)
-    price_histogram_sum = airbnb_response_parser.price_histogram_sum(ubdc_response.payload)
-    price_histogram_sum_bool = price_histogram_sum > 0
-    grid.datetime_last_estimated_listings_scan = timezone.now()
+    east = bbox.east
+    north = bbox.north
+    south = bbox.south
+    west = bbox.west
 
-    if price_histogram_sum_bool and estimated_listings > less_than:
-        logger.info(
-            f"Grid {grid.quadkey} has {estimated_listings} estimated listings. threshold is {less_than}. Dividing!"
-        )
+    has_next_page: bool = bbox_has_next_page(
+        east=east,
+        north=north,
+        south=south,
+        west=west,
+        task_id=task_id,
+    )
+
+    grid.datetime_last_estimated_listings_scan = timezone.now()
+    if has_next_page:
+        logger.info(f"Grid {grid.quadkey} has multiple pages of listings. Dividing!")
 
         children = list(grid.children())
-        new_grids = [UBDCGrid.objects.create_from_tile(tile, allow_overlap_with_currents=False) for tile in children]
+
+        new_grids = []
+        for tile in children:
+            new_grid = UBDCGrid.objects.create_from_tile(tile, allow_overlap_with_currents=False)
+            new_grids.append(new_grid)
+
         new_grids = list(collapse(new_grids))
         UBDCGrid.objects.bulk_create(new_grids)
-        grid.delete()
 
+        # The children are saved in the db, kill the parent
+        grid.delete()
         quadkeys = [new_grid.quadkey for new_grid in new_grids]
-        job = group(task_estimate_listings_or_divide.s(quadkey=qk, less_than=less_than) for qk in quadkeys)
+        job = group(task_register_listings_or_divide_at_qk.s(quadkey=qk) for qk in quadkeys)
         group_result = job.apply_async()
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
-        group_task.op_name = task_estimate_listings_or_divide.name
-        group_task.op_kwargs = {"quadkey": quadkeys, "less_than": less_than}
+        group_task.op_name = task_register_listings_or_divide_at_qk.name
+        group_task.op_kwargs = {"quadkey": quadkeys}
         group_task.save()
 
         return group_result.id
 
-    else:
-        if price_histogram_sum_bool:
-            grid.estimated_listings = estimated_listings
-        grid.save()
-        logger.info(f"Grid {grid.quadkey} -> {grid.estimated_listings}")
+    # if we are here, the grid is not paginated
+
+    # get the payload this task_id has generated
+    response: AirBnBResponse = AirBnBResponse.objects.get(ubdc_task_id=task_id)
+    payload = response.payload
+
+    listings = register_listings_from_response(payload)
+    estimated_listings = airbnb_response_parser.listing_count(payload)
+    logger.info(f"Grid {grid.quadkey} has {grid.estimated_listings} listings.")
+    grid.estimated_listings = estimated_listings
+    grid.save()
+
+    for listing in listings:
+        listing.responses.add(response)
 
 
 @shared_task(bind=True)
@@ -553,7 +556,12 @@ def task_update_user_details(self: BaseTaskWithRetry, user_id: int) -> int:
 
 @shared_task(bind=True)
 @convert_exceptions
-def task_get_or_create_user(self: BaseTaskWithRetry, user_id: int, defer: bool = True, priority=4) -> int:
+def task_get_or_create_user(
+    self: BaseTaskWithRetry,
+    user_id: int,
+    defer: bool = True,
+    priority=4,
+) -> int:
     """Try to fetch from the database the User or if not found Creates a New User.
 
     Returns AirBnBUser id
@@ -606,7 +614,10 @@ def task_get_or_create_user(self: BaseTaskWithRetry, user_id: int, defer: bool =
             logger.info(f"user_id: {user_id} is NOT ACCESSIBLE at this moment:", exc)
             raise exc
 
-        ubdc_airbnb_user = AirBnBUser.objects.create_from_response(ubdc_response=ubdc_response)
+        ubdc_airbnb_user = AirBnBUser.objects.create_from_response(
+            user_id=user_id,
+            ubdc_response=ubdc_response,
+        )
 
         return ubdc_airbnb_user.user_id
 
@@ -723,7 +734,7 @@ __all__ = [
     "task_debug_sometimes_fail",
     "task_debug_wait",
     "task_discover_listings_at_grid",
-    "task_estimate_listings_or_divide",
+    "task_register_listings_or_divide_at_qk",
     "task_get_booking_detail",
     "task_get_or_create_user",
     "task_update_calendar",

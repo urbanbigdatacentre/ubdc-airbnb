@@ -32,7 +32,7 @@ class AirBnBResponseManager(models.Manager):
         self,
         method_name: str,  # TODO: replace with Literal[type]
         _type: str,
-        task_id: str,
+        task_id: str | None = None,
         **kwargs,
     ):
         """Make a request to the airbnb API and create an AirBnBResponse object from the response.
@@ -58,14 +58,8 @@ class AirBnBResponseManager(models.Manager):
             if response.status_code == 503:
                 if response.headers.get("X-Crawlera-Error") == "banned":
                     raise UBDCRetriableError(f"crawlera-error: {response.text}")
-        # else:
-        #     pass
-
-        # finally:
-        #     logger.info(f"method:{method.__name__} params:{kwargs}")
-
-        # if response is not None:
         listing_id = kwargs.get("listing_id", None)
+
         obj = self.create_from_response(
             response=response,
             _type=_type,

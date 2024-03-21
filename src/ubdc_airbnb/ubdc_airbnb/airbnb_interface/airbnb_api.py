@@ -245,17 +245,17 @@ class AirbnbApi(object):
 
     def get_homes(
         self,
-        query: str = None,
-        west: float = None,
-        south: float = None,
-        east: float = None,
-        north: float = None,
+        query: str | None = None,
+        west: float | None = None,
+        south: float | None = None,
+        east: float | None = None,
+        north: float | None = None,
         checkin=None,
         checkout=None,
         items_offset=0,
-        items_per_grid=8,
+        items_per_grid=25,
         metadata_only=False,
-    ) -> (Response, dict):
+    ) -> tuple[Response, dict]:
         """
         TODO: Update Docstring
         """
@@ -309,7 +309,10 @@ class AirbnbApi(object):
             params["checkin"] = checkin
             params["checkout"] = checkout
 
-        r = self._session.get(settings.AIRBNB_API_ENDPOINT + "/v2/explore_tabs", params=params)
+        r = self._session.get(
+            settings.AIRBNB_API_ENDPOINT + "/v2/explore_tabs",
+            params=params,
+        )
         r.raise_for_status()
 
         return r, r.json()
@@ -383,7 +386,11 @@ class AirbnbApi(object):
 
         return r, r.json()
 
-    def bbox_metadata_search(self, store_federated_search_session_id: bool = False, **kwargs) -> Tuple[Response, Dict]:
+    def bbox_metadata_search(
+        self,
+        store_federated_search_session_id: bool = False,
+        **kwargs,
+    ) -> Tuple[Response, Dict]:
         """Return the number_results of this query.
 
         :param store_federated_search_session_id:

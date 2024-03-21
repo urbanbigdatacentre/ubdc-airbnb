@@ -1,9 +1,37 @@
-# from io import StringIO
+from io import StringIO
+
+import pytest
+from django.core.management import call_command
+from django.test import TestCase
+
 # from pathlib import Path
 # from unittest import skipIf
 
-# from django.core.management import call_command
-# # from django.test import TestCase
+
+@pytest.mark.django_db
+def test_create_grid_qk():
+    out = StringIO()
+    from ubdc_airbnb.models import UBDCGrid
+
+    qk = "0311332233311"
+    call_command("generate_grid", qk, "--input-type", "quadkey", stdout=out)
+    assert UBDCGrid.objects.count() == 1
+    grid: UBDCGrid = UBDCGrid.objects.get(quadkey=qk)
+    assert grid.tile_z == len(qk)
+    assert grid.quadkey == qk
+
+
+@pytest.mark.skip("WIP: The following is just a stab")
+@pytest.mark.django_db
+def test_create_grid_aoi():
+    out = StringIO()
+    from ubdc_airbnb.models import UBDCGrid
+
+    aoi_id = 1
+    call_command("generate_grid", aoi_id, stdout=out)
+    assert UBDCGrid.objects.count() > 1
+
+
 # from django.test import TransactionTestCase
 
 # from ubdc_airbnb.models import AOIShape, WorldShape

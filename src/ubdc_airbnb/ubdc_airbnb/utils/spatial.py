@@ -11,6 +11,7 @@ from more_itertools import sliced
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
+    from django.db.models.query import ValuesQuerySet
 
     from ubdc_airbnb.models import AirBnBListing, UBDCGrid
 
@@ -20,6 +21,20 @@ class ST_Union(Aggregate):
     function = "ST_UNION"
     allow_distinct = False
     arity = 1
+
+
+def get_quadkeys_of_aoi(aoi_pk: int) -> list[str]:
+    from ubdc_airbnb.models import AOIShape, UBDCGrid
+
+    aoi = AOIShape.objects.get(pk=aoi_pk)
+    qs_grids = (
+        UBDCGrid.objects.filter(geom_3857__intersects=aoi.geom_3857)
+        .order_by("quadkey")
+        .values("quadkey")
+        .distinct("quadkey")
+    )
+
+    return [grid["quadkey"] for grid in qs_grids]
 
 
 def get_grids_for(
@@ -73,8 +88,8 @@ def listing_locations_from_response(response: dict) -> Dict[str, GEOSPoint]:
     """
     result: Dict[str, GEOSPoint] = {}
 
-    for p_string in [r"$..listing[id,lat,lng]", r"$..pdp_listing_detail[id,lat,lng]"]:
-        parser = parse(p_string)
+    for pattern in [r"$..listing[id_str,lat,lng]"]:
+        parser = parse(pattern)
         hits = [m.value for m in parser.find(response)]
         if len(hits):
             _id: str

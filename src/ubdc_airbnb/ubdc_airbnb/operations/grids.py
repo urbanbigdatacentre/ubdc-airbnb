@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from ubdc_airbnb.errors import UBDCError
 from ubdc_airbnb.models import AOIShape, UBDCGrid, UBDCGroupTask, UBDCTask
-from ubdc_airbnb.tasks import task_estimate_listings_or_divide
+from ubdc_airbnb.tasks import task_register_listings_or_divide_at_qk
 from ubdc_airbnb.utils.time import seconds_from_now
 
 
@@ -39,7 +39,7 @@ def op_estimate_listings_or_divide_at_grid(
     else:
         _quadkeys = quadkey
 
-    job = group(task_estimate_listings_or_divide.s(quadkey=qk, less_than=less_than) for qk in _quadkeys)
+    job = group(task_register_listings_or_divide_at_qk.s(quadkey=qk, less_than=less_than) for qk in _quadkeys)
     group_result: AsyncResult[GroupResult] = job.apply_async(priority=priority)
     group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
 
@@ -121,7 +121,7 @@ def op_estimate_listings_or_divide_periodical(
         UBDCTask.objects.filter(
             datetime_submitted__gte=start_day_today - relativedelta(days=1)
         )  # datetime_submitted has index on it
-        .filter(task_name=task_estimate_listings_or_divide.name)
+        .filter(task_name=task_register_listings_or_divide_at_qk.name)
         .filter(status=UBDCTask.TaskTypeChoices.SUBMITTED)
         .filter(task_kwargs__has_key="quadkey")
         .annotate(quadkey=Cast(KeyTextTransform("quadkey", "task_kwargs"), TextField()))
@@ -153,7 +153,7 @@ def op_estimate_listings_or_divide_periodical(
     if quadkeys_qs.exists():
         quadkeys = list(quadkeys_qs.values_list("quadkey", flat=True)[0:how_many])
         job = group(
-            task_estimate_listings_or_divide.s(quadkey=quadkey, less_than=max_listings)
+            task_register_listings_or_divide_at_qk.s(quadkey=quadkey, less_than=max_listings)
             .set(priority=priority)  # TODO: Deprecate priority
             .set(expires=expires)
             for quadkey in quadkeys
@@ -162,7 +162,7 @@ def op_estimate_listings_or_divide_periodical(
         group_result.save()
 
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
-        group_task.op_name = task_estimate_listings_or_divide.name
+        group_task.op_name = task_register_listings_or_divide_at_qk.name
         group_task.op_initiator = op_estimate_listings_or_divide_periodical.name
         group_task.op_kwargs = {"quadkey": quadkeys}
         group_task.save()

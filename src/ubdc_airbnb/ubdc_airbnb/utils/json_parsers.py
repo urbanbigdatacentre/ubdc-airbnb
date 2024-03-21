@@ -6,6 +6,14 @@ class airbnb_response_parser:
     __profile_pics_parser__ = parse(r"$.user.[picture_url,picture_url_large,picture_url,thumbnail_url]")
     __listings_count__ = parse(r"$..listings_count")
     __price_histogram__ = parse(r"$..price_histogram.histogram")
+    __has_next_page__ = parse(r"$..pagination_metadata.has_next_page")
+
+    @classmethod
+    def has_next_page(cls, response: dict) -> bool:
+        matches = cls.__has_next_page__.find(response)
+        if len(matches) == 0:
+            raise Exception("No has_next_page found in response")
+        return matches[0].value
 
     @classmethod
     def price_histogram_sum(cls, response: dict):

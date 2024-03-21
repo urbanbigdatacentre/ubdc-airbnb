@@ -47,90 +47,36 @@ def op_discover_new_listings_at_grid(
 
 @shared_task
 def op_discover_new_listings_periodical(
-    how_many: int = 500,
-    age_hours: int = 7 * 24,
-    use_aoi: bool = True,
-    priority=4,
+    use_marked_aoi: bool = True,
 ) -> str | None:
     """
     An 'initiator' task that will select at the most 'how_many' grids (default 500) that overlap
-    with enabled AOIs and where scanned  more than 'age_days' (default 7) age. If how_many = None, it will default to the number of grids
+    with enabled AOIs.
 
-    For each of these grids a task will be created with priority 'priority' (default 4).
-    Any task generated from here is  hard-coded to expire, if not completed, in 23 hours after it was  published.
+    There's no expiration date for this task.
 
-    Return is a task_group_id UUID string that  these tasks will operate under.
-    In case there are no listings found None will be returned instead
+    Return is a task_group_id UUID string that these tasks will operate under.
 
     :param how_many:  Maximum number of listings to act, defaults to 500
-    :param use_aoi:   Only scan grids that are intersect with the the AOIs.
-    :param age_hours: How many DAYS before from the last update, before the it will be considered stale. int > 0, defaults to 14 (two weeks)
-    :param priority:  priority of the tasks generated. int from 1 to 10, 10 being maximum. defaults to 4
     :return: str(UUID)
     """
 
-    how_many = how_many or UBDCGrid.objects.count()
+    from ubdc_airbnb.tasks import task_register_listings_or_divide_at_aoi
 
-    if how_many < 0:
-        raise UBDCError("The variable how_many must be larger than 0")
-    if age_hours < 0:
-        raise UBDCError("The variable age_days must be larger than 0")
-    # TODO: Deprecate priority
-    if not (0 < priority < 10 + 1):
-        raise UBDCError("The variable priority must be between 1 than 10")
+    aoi = AOIShape.objects.all()
+    if use_marked_aoi:
+        aoi = aoi.filter(collect_listing_details=True)
 
-    how_many = int(how_many)
-    age_hours = int(age_hours)
-    priority = int(priority)
+    job = group(task_register_listings_or_divide_at_aoi.s(aoi_id=_aoi.pk) for _aoi in aoi)
+    group_result: AsyncResult[GroupResult] = job.apply_async()
+    group_result.save()
+    group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
 
-    start_day_today = now().replace(hour=0, minute=0, second=0, microsecond=0)
+    group_task.op_name = op_discover_new_listings_periodical.name
+    group_task.op_kwargs = {"use_marked_aoi": use_marked_aoi}
+    group_task.save()
 
-    q_quadkeys = UBDCGrid.objects.all()
-    logger.info(f"number of all Grids: {q_quadkeys.count()}")
-    if use_aoi:
-        q_quadkeys = get_grids_for("discover_listings")
-        logger.info(f"Using AOIs")
-        logger.info(f"Using {q_quadkeys.count()}")
-    threshold = start_day_today - relativedelta(days=1)
-    engaged_qk = (
-        UBDCTask.objects.filter(datetime_submitted__gte=threshold)
-        .filter(task_name=task_discover_listings_at_grid.name)
-        .filter(task_kwargs__has_key="quadkey")
-        .annotate(quadkey=Cast(KeyTextTransform("quadkey", "task_kwargs"), TextField()))
-        .order_by("quadkey")
-        .distinct("quadkey")
-        .values("quadkey")
-    )
-    qs_qk = q_quadkeys.exclude(quadkey__in=engaged_qk)
-    logger.info(f"QK: After Removing Excluded: {qs_qk.count()}")
-
-    threshold = (start_day_today - relativedelta(days=age_hours)).date()
-    qs_quadkeys = (
-        UBDCGrid.objects.filter(quadkey__in=qs_qk)
-        .filter(datetime_last_listings_scan__lte=threshold)
-        .order_by(F("datetime_last_listings_scan").asc(nulls_first=True))
-    )
-    logger.info(f"After excluded: {qs_quadkeys.count()}")
-    qs_quadkeys = qs_quadkeys[0:how_many]
-    logger.info(f"Final selection: {qs_quadkeys.count()}")
-
-    if qs_quadkeys.exists():
-        quadkeys = list(qs_quadkeys.values_list("quadkey", flat=True))
-        job = group(
-            task_discover_listings_at_grid.s(
-                quadkey=qk,
-            )
-            for qk in quadkeys
-        )
-        group_result: GroupResult = job.apply_async(priority=priority)
-        group_result.save()
-        group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
-        group_task.op_name = op_discover_new_listings_periodical.name
-        group_task.op_kwargs = {"quadkey": quadkeys}
-        group_task.save()
-
-        return group_result.id
-    return
+    return group_result.id
 
 
 @shared_task

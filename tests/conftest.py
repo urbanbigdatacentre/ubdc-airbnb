@@ -6,7 +6,7 @@ import pytest
 from faker import Faker
 
 if TYPE_CHECKING:
-    from typing import Annotated
+    from typing import Annotated, ClassVar
 
     from django.db.models.query import QuerySet
 
@@ -299,8 +299,24 @@ def django_db_setup(django_db_setup, django_db_blocker):
 
 
 @pytest.fixture()
+def responses_model(db):
+    from django.apps import apps as django_apps
+
+    model = django_apps.get_model("app.AirBnBResponse")
+    return model
+
+
+@pytest.fixture()
+def ubdcgrid_model(db):
+    from django.apps import apps as django_apps
+
+    model = django_apps.get_model("app.UBDCGrid")
+    assert model.objects.count() == 0
+    return model
+
+
+@pytest.fixture()
 def listings_model(db):
-    # TODO: fix the typing
     from django.apps import apps as django_apps
 
     model = django_apps.get_model("app.AirBnBListing")
