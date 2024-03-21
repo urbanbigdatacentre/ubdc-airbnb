@@ -50,8 +50,7 @@ def op_discover_new_listings_periodical(
     use_marked_aoi: bool = True,
 ) -> str | None:
     """
-    An 'initiator' task that will select at the most 'how_many' grids (default 500) that overlap
-    with enabled AOIs.
+    An 'initiator' task that will start the process of discovering new listings based on the grids that exist in the database. If the use_marked_aoi is set to True, then only the AOI marked for this operation will be used.
 
     There's no expiration date for this task.
 
@@ -67,7 +66,7 @@ def op_discover_new_listings_periodical(
     if use_marked_aoi:
         aoi = aoi.filter(collect_listing_details=True)
 
-    job = group(task_register_listings_or_divide_at_aoi.s(aoi_id=_aoi.pk) for _aoi in aoi)
+    job = group(task_register_listings_or_divide_at_aoi.s(aoi_pk=_aoi.pk) for _aoi in aoi)
     group_result: AsyncResult[GroupResult] = job.apply_async()
     group_result.save()
     group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
