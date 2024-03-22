@@ -16,6 +16,7 @@ from django.utils.functional import cached_property
 from django_celery_results.models import TaskResult as celery_Task
 from more_itertools import flatten
 
+from ubdc_airbnb import model_defaults
 from ubdc_airbnb.errors import UBDCError
 from ubdc_airbnb.managers import AirBnBResponseManager, UBDCGridManager, UserManager
 
@@ -36,16 +37,31 @@ class WorldShape(models.Model):
 
 class AOIShape(models.Model):
     geom_3857 = models.MultiPolygonField(srid=3857, help_text="Geometry column. Defined at EPSG:3857", editable=False)
-    name = models.TextField(default="", help_text="Name to display.")
+    name = models.TextField(
+        default=model_defaults.AIOSHAPE_NAME,
+        help_text="Name to display.",
+    )
     notes = models.JSONField(default=dict, encoder=DjangoJSONEncoder, help_text="Notes.")
     timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Date of entry")
 
     scan_for_new_listings = models.BooleanField(default=True, db_index=True)
 
-    collect_calendars = models.BooleanField(default=True, db_index=True)
-    collect_listing_details = models.BooleanField(default=True, db_index=True)
-    collect_reviews = models.BooleanField(default=True, db_index=True)
-    collect_bookings = models.BooleanField(default=True, db_index=True)
+    collect_calendars = models.BooleanField(
+        default=model_defaults.AOISHAPE_COLLECT_CALENDARS,
+        db_index=True,
+    )
+    collect_listing_details = models.BooleanField(
+        default=model_defaults.AOISHAPE_COLLECT_LISTING_DETAILS,
+        db_index=True,
+    )
+    collect_reviews = models.BooleanField(
+        default=model_defaults.AOISHAPE_COLLECT_REVIEWS,
+        db_index=True,
+    )
+    collect_bookings = models.BooleanField(
+        default=model_defaults.AOISHAPE_COLLECT_BOOKINGS,
+        db_index=True,
+    )
 
     @property
     def geom_4326(self):
@@ -73,7 +89,13 @@ class AOIShape(models.Model):
 class UBDCGrid(models.Model):
     geom_3857 = models.PolygonField(srid=3857, null=False)
 
-    quadkey = models.TextField(null=False, unique=True, blank=True, editable=False, db_index=True)
+    quadkey = models.TextField(
+        null=False,
+        unique=True,
+        blank=True,
+        editable=False,
+        db_index=True,
+    )
     tile_x = models.BigIntegerField(null=False)
     tile_y = models.BigIntegerField(null=False)
     tile_z = models.BigIntegerField(null=False)
@@ -320,7 +342,6 @@ class AirBnBListing(models.Model):
     objects: ClassVar[AirBnBResponseManager] = AirBnBResponseManager()
 
 
-# not using the username, so we won't get confused with functional user
 class AirBnBUser(models.Model):
     user_id = models.BigIntegerField(
         unique=True,
@@ -328,14 +349,30 @@ class AirBnBUser(models.Model):
         blank=True,
         help_text="Airbnb User id",
     )
-    first_name = models.TextField(default="")
-    about = models.TextField(default="")
-    airbnb_listing_count = models.IntegerField(default=0, help_text="as reported by airbnb")
+    first_name = models.TextField(
+        default=model_defaults.AIRBNBUSER_FIRST_NAME,
+        help_text="First name of the user",
+    )
+    about = models.TextField(
+        default=model_defaults.AIRBNBUSER_ABOUT,
+        help_text="Self description of the user",
+    )
+    airbnb_listing_count = models.IntegerField(
+        default=0,
+        help_text="as reported by airbnb",
+    )
     location = models.TextField()
     verifications = ArrayField(base_field=models.CharField(max_length=255), blank=True, null=True)
     picture_url = models.TextField()
-    is_superhost = models.BooleanField(help_text="if the user is super host", default=False)
-    created_at = models.DateTimeField(blank=True, null=True, help_text="profile created at airbnb")
+    is_superhost = models.BooleanField(
+        default=False,
+        help_text="if the user is super host",
+    )
+    created_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="profile created at airbnb",
+    )
     timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Date of row creation.")
     last_updated = models.DateTimeField(auto_now=True, verbose_name="Latest update.")
 
@@ -395,7 +432,12 @@ class AirBnBReview(models.Model):
         verbose_name="recipient (airbnb user id) of the comment/review",
         null=True,
     )
-    response = models.ForeignKey("AirBnBResponse", on_delete=models.SET_NULL, related_name="comments", null=True)
+    response = models.ForeignKey(
+        "AirBnBResponse",
+        on_delete=models.SET_NULL,
+        related_name="comments",
+        null=True,
+    )
 
 
 # TODO: This is not needed anymore, as celery natively supports saving group tasks
