@@ -1,6 +1,6 @@
 from functools import partial
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, Any, List, MutableMapping, Union
 
 import mercantile
 from celery.utils.log import get_task_logger
@@ -193,6 +193,30 @@ class AirBnBListingManager(models.Manager):
 
 
 class UserManager(models.Manager):
+
+    def get_or_create(
+        self,
+        defaults: MutableMapping[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> tuple["app_models.AirBnBUser", bool]:
+        "Gets the user or creates a placeholder user if it does not exist."
+
+        from ubdc_airbnb.model_defaults import (
+            AIRBNBUSER_FIRST_NAME,
+            AIRBNBUSER_LOCATION,
+        )
+
+        model_defaults = {
+            "first_name": AIRBNBUSER_FIRST_NAME,
+            "airbnb_listing_count": 0,
+            "verifications": [],
+            "picture_url": "",
+            "location": AIRBNBUSER_LOCATION,
+        }
+        defaults = {**model_defaults, **(defaults or {})}
+
+        return super().get_or_create(defaults=defaults, **kwargs)
+
     def create_from_response(
         self,
         ubdc_response: "app_models.AirBnBResponse",
