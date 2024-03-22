@@ -490,7 +490,7 @@ def task_register_listings_or_divide_at_qk(
 
     # if we are here, the grid is not paginated
 
-    # get the payload this task_id has generated
+    # Get the payload this task_id has generated; and process it.
     response: AirBnBResponse = AirBnBResponse.objects.get(ubdc_task_id=task_id)
     payload = response.payload
 
@@ -498,8 +498,11 @@ def task_register_listings_or_divide_at_qk(
     estimated_listings = airbnb_response_parser.listing_count(payload)
     logger.info(f"Grid {grid.quadkey} has {grid.estimated_listings} listings.")
     grid.estimated_listings = estimated_listings
+    grid.datetime_last_listings_scan = timezone.now()
     grid.save()
 
+    # associate the response with the grid.
+    # this maybe does not belong here?
     for listing in listings:
         listing.responses.add(response)
 
