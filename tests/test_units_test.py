@@ -186,6 +186,13 @@ from django.contrib.gis.geos import MultiPolygon, Polygon
             ),
             3,
         ),
+        (
+            MultiPolygon(
+                Polygon.from_bbox((-10, 10, 10, 20)),
+                Polygon.from_bbox((5, 5, 15, -5)),
+            ),
+            4,
+        ),
     ],
 )
 def test_cut_polygon_at_prime_lines(geom, expected):
@@ -197,6 +204,6 @@ def test_cut_polygon_at_prime_lines(geom, expected):
     for g in geometries:
         assert g.srid == 4326
         assert g.geom_type in ["Polygon", "MultiPolygon"]
-        assert g.valid
-        assert g.area > 0
-        assert g.intersects(geom)
+        assert g.valid, f"Invalid geometry: {g.ewkt}"
+        assert g.area > 0, f"Empty geometry: {g.ewkt}"
+        assert g.intersects(geom), f"Geometry does not intersect original: {g.ewkt}"
