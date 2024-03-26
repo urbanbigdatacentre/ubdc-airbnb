@@ -75,7 +75,7 @@ def test_price_histogram_sum():
     assert rv == expected
 
 
-def test_primary_host():
+def test_parser_get_primary_host():
     t = json.loads(
         r"""
         {
@@ -96,7 +96,7 @@ def test_primary_host():
     assert rv == expected
 
 
-def test_additional_hosts():
+def test_parser_get_additional_hosts():
     t = json.loads(
         """
         {"pdp_listing_detail":
@@ -123,7 +123,7 @@ def test_additional_hosts():
         e.get("id")
 
 
-def test_chain():
+def test_chain_host_parsers():
     t1 = json.loads(
         r"""
         {
@@ -156,7 +156,7 @@ def test_chain():
         }
         """
     )
-    pattern2
+    pattern = r"$..primary_host"
     pattern2 = r"$..additional_hosts[*]"
     a = airbnb_response_parser.generic(pattern, t1)
     b = airbnb_response_parser.generic(pattern2, t2)
@@ -166,3 +166,37 @@ def test_chain():
         l.extend(e)
 
     assert len(l)
+
+
+import pytest
+from django.contrib.gis.geos import MultiPolygon, Polygon
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "geom,expected",
+    [
+        # coords are ll, ur
+        (Polygon.from_bbox((-10, -10, 10, 10)), 4),
+        (Polygon.from_bbox((-10, 10, 10, 20)), 2),
+        (
+            MultiPolygon(
+                Polygon.from_bbox((-10, 5, -5, 10)),
+                Polygon.from_bbox((5, 5, 15, -5)),
+            ),
+            3,
+        ),
+    ],
+)
+def test_cut_polygon_at_prime_lines(geom, expected):
+    from ubdc_airbnb.utils.spatial import cut_polygon_at_prime_lines
+
+    geom.srid = 4326
+    geometries = cut_polygon_at_prime_lines(geom)
+    assert len(geometries) == expected
+    for g in geometries:
+        assert g.srid == 4326
+        assert g.geom_type in ["Polygon", "MultiPolygon"]
+        assert g.valid
+        assert g.area > 0
+        assert g.intersects(geom)

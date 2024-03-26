@@ -3,6 +3,7 @@ from collections import abc
 from typing import TYPE_CHECKING, Annotated, Dict, Literal, Sequence, Union
 
 from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import MultiPolygon as GEOSMultiPolygon
 from django.contrib.gis.geos import Point as GEOSPoint
 from django.db import connection
 from django.db.models import Aggregate, Subquery
@@ -11,9 +12,8 @@ from more_itertools import sliced
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
-    from django.db.models.query import ValuesQuerySet
 
-    from ubdc_airbnb.models import AirBnBListing, UBDCGrid
+    from ubdc_airbnb.models import AirBnBListing
 
 
 class ST_Union(Aggregate):
@@ -23,7 +23,62 @@ class ST_Union(Aggregate):
     arity = 1
 
 
+from typing import Annotated
+
+
+def cut_polygon_at_prime_lines(polygon: GEOSGeometry) -> list[GEOSGeometry]:
+    """Cut a polygon like geometry at the prime meridian or prime parallel and and returns a list of geometries."""
+    # TODO: #10 develop this function and add tests
+
+    assert polygon.srid == 4326, "This function only works with WGS84 geometries"
+
+    prime_meridian = GEOSGeometry("LINESTRING(0 -90, 0 90)", srid=4326)
+    prime_parallel = GEOSGeometry("LINESTRING(-180 0, 180 0)", srid=4326)
+
+    cross: GEOSMultiPolygon = prime_meridian.union(prime_parallel)
+
+    if polygon.geom_type == "GEOMETRYCOLLECTION ":
+        rv = [cut_polygon_at_prime_lines(geom) for geom in polygon]
+        from itertools import chain
+
+        return chain(rv)
+
+    if not polygon.intersects(cross):
+        return [polygon]
+
+    # delegeting this to the database, as there's no easy way to do this with
+    # provided geos binding django offeres
+    localised_cross = cross.intersection(polygon)
+    polygon_wkt = polygon.ewkt
+    cross_wkt = localised_cross.ewkt
+
+    gc: GEOSGeometry | None = None
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+                WITH
+                qq AS (
+                        SELECT st_geomfromewkt(%s) blade),
+                pp    AS (
+                        SELECT st_geomfromewkt(%s) geom
+                        )
+                SELECT ST_AsEWKT(st_split(geom, blade))
+                FROM
+                    qq, pp;""",
+            [cross_wkt, polygon_wkt],
+        )
+
+        row = cursor.fetchone()
+        wkt: str = row[0]
+        gc = GEOSGeometry.from_ewkt(wkt)
+        assert gc is not None
+
+    rv = list(gc)
+    return rv
+
+
 def get_quadkeys_of_aoi(aoi_pk: int) -> list[str]:
+    """Returns a list of quadkeys that intersect with a single AOI"""
     from ubdc_airbnb.models import AOIShape, UBDCGrid
 
     aoi = AOIShape.objects.get(pk=aoi_pk)
@@ -39,7 +94,8 @@ def get_quadkeys_of_aoi(aoi_pk: int) -> list[str]:
 
 def get_grids_for(
     purpose: Literal["discover_listings"],
-) -> "QuerySet[UBDCGrid]":
+) -> list[str]:
+    # TODO: #7 Create case test for this.
     from ubdc_airbnb.models import AOIShape, UBDCGrid
 
     match purpose:
@@ -52,10 +108,11 @@ def get_grids_for(
     qs_grids = (
         UBDCGrid.objects.filter(geom_3857__intersects=Subquery(aoi_area_union.values("union")))
         .order_by("quadkey")
-        .values("quadkey")
+        .distinct("quadkey")
+        .values_list("quadkey", flat=True)
     )
 
-    return qs_grids.distinct("quadkey")
+    return list(qs_grids)
 
 
 def get_listings_qs_for_aoi(purpose: Literal["calendar", "reviews", "listing_details"]) -> 'QuerySet["AirBnBListing"]':
@@ -102,12 +159,20 @@ def listing_locations_from_response(response: dict) -> Dict[str, GEOSPoint]:
     return result
 
 
+def distance_a_to_b(point_a, point_b, srid=3857):
+    # TODO: #8 Develop this stub function and add tests.
+    raise NotImplementedError("This function is a stub. Use postgis_distance_a_to_b instead.")
+
+
 def postgis_distance_a_to_b(
     point_a: Union[str, GEOSPoint, Annotated[Sequence[float], 2]],
     point_b: Union[str, GEOSPoint, Annotated[Sequence[float], 2]],
     srid=3857,
 ):
-    """TODO: DOC"""
+    """Returns the distance between two points in meters.
+    Function is a wrapper around the PostGIS ST_DISTANCE function."""
+    # TODO: #11 Fix types and add tests
+
     if isinstance(point_a, abc.Sequence) and not isinstance(point_a, str):
         point_a = GEOSPoint(*point_a)
     if isinstance(point_b, abc.Sequence) and not isinstance(point_b, str):
@@ -145,10 +210,16 @@ def make_point(x: float, y: float, srid: int = 4326) -> GEOSPoint:
     return GEOSPoint(x, y, srid=srid)
 
 
-def reproject(geom: GEOSGeometry, to_srid: int = 3857, from_srid: int = None) -> GEOSGeometry:
+def reproject(
+    geom: GEOSGeometry,
+    to_srid: int = 3857,
+    from_srid: int | None = None,
+) -> GEOSGeometry:
     from ubdc_airbnb.errors import UBDCCoordinateError
 
-    """ReProjects to new SRID (default epsg=3857). Returns new geometry."""
+    """Reprojects to new SRID (default epsg=3857). Returns new geometry."""
+    # TODO: #9 Add test
+
     if not issubclass(type(geom), GEOSGeometry):
         try:
             geom = GEOSGeometry(geom.ewkt)
