@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, ClassVar, List, Tuple, Union
+from typing import TYPE_CHECKING, Annotated, ClassVar, List, Tuple, Union
 
 import celery.states as c_states
 import mercantile
@@ -65,9 +65,9 @@ class AOIShape(models.Model):
 
     @property
     def geom_4326(self):
-        return self.as_wkt(4326)
+        return self.reproject(4326)
 
-    def as_wkt(self, epsg: int = 4326) -> str:
+    def reproject(self, epsg: int = 4326):
         geom = self.geom_3857
         return geom.transform(ct=epsg, clone=True)
 
@@ -80,6 +80,24 @@ class AOIShape(models.Model):
         # NB: when the bbox spans lines of lng 0 or lat 0, the bounding tile
         # will be Tile(x=0, y=0, z=0).
         return mercantile.bounding_tile(*bbox)
+
+    def create_grid(self) -> bool:
+        from itertools import chain
+
+        from ubdc_airbnb.utils.grids import grids_from_qk, quadkeys_of_geom
+        from ubdc_airbnb.utils.spatial import cut_polygon_at_prime_lines
+
+        geoms = cut_polygon_at_prime_lines(self.geom_4326)
+
+        init_qks = [quadkeys_of_geom(geom) for geom in geoms]
+        init_qks = list(chain.from_iterable(init_qks))
+        qks = list(chain.from_iterable([grids_from_qk(qk) for qk in init_qks]))
+
+        # TODO: create grids from qks as batch
+        for qk in qks:
+            UBDCGrid.objects.create_from_quadkey(qk, save=True)
+
+        return True
 
     @property
     def listings(self) -> QuerySet:
@@ -375,6 +393,7 @@ class AirBnBUser(models.Model):
     )
     timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Date of row creation.")
     last_updated = models.DateTimeField(auto_now=True, verbose_name="Latest update.")
+    needs_update = models.BooleanField(default=True, db_index=True)
 
     listings = models.ManyToManyField(AirBnBListing, related_name="users")
     responses = models.ManyToManyField("AirBnBResponse")

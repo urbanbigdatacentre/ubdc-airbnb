@@ -193,6 +193,7 @@ from django.contrib.gis.geos import MultiPolygon, Polygon
             ),
             4,
         ),
+        (MultiPolygon(Polygon.from_bbox((1, 1, 10, 10))), 1),
     ],
 )
 def test_cut_polygon_at_prime_lines(geom, expected):
@@ -207,3 +208,49 @@ def test_cut_polygon_at_prime_lines(geom, expected):
         assert g.valid, f"Invalid geometry: {g.ewkt}"
         assert g.area > 0, f"Empty geometry: {g.ewkt}"
         assert g.intersects(geom), f"Geometry does not intersect original: {g.ewkt}"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "qk,expected",
+    [
+        ("03113322333112", 0),  # child
+        ("0311332233312", 1),  # same level
+        ("0311332233311", 0),  # exists
+        ("031133223331", 3),  # parent -1
+        ("03113322333", 6),  # parent -2
+        ("0311332233", 9),  # parent -3
+    ],
+)
+def test_add_quadkay(qk, expected):
+    initial_grid = "0311332233311"
+    from ubdc_airbnb.models import UBDCGrid
+    from ubdc_airbnb.utils.grids import grids_from_qk
+
+    UBDCGrid.objects.create_from_quadkey(initial_grid, save=True)
+    assert UBDCGrid.objects.filter(quadkey=initial_grid).exists()
+
+    grids = grids_from_qk(qk)
+    assert len(grids) == expected
+
+
+@pytest.mark.django_db
+def test_qk_has_children():
+    initial_grid = "0311332233311"
+    from ubdc_airbnb.models import UBDCGrid
+    from ubdc_airbnb.utils.grids import qk_has_children
+
+    UBDCGrid.objects.create_from_quadkey(initial_grid, save=True)
+    qk = "031133223331"
+    assert qk_has_children(qk)
+
+
+@pytest.mark.django_db
+def test_qk_has_parent():
+    initial_grid = "0311332233311"
+    from ubdc_airbnb.models import UBDCGrid
+    from ubdc_airbnb.utils.grids import qk_has_parent
+
+    UBDCGrid.objects.create_from_quadkey(initial_grid, save=True)
+    qk = "03113322333110101"
+    assert qk_has_parent(qk)

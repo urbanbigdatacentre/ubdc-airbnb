@@ -189,8 +189,9 @@ def django_db_setup(django_db_setup, django_db_blocker):
             stale_listings_aoi,
             new_listings_aoi,
         ]
+        rv = []
         for idx, geom in enumerate(geometries, 1):
-            AOIShape.objects.create(
+            s = AOIShape.objects.create(
                 name=f"test-area-{idx}",
                 geom_3857=MultiPolygon(geom, srid=3857),
                 collect_bookings=True,
@@ -199,16 +200,13 @@ def django_db_setup(django_db_setup, django_db_blocker):
                 collect_listing_details=True,
                 scan_for_new_listings=True,
             )
+            rv.append(s)
+        return rv
 
     def create_listings():
         from django.contrib.gis.geos import GEOSGeometry
 
         from ubdc_airbnb.models import AirBnBListing
-
-        geometries = [
-            """{"coordinates": [-4.240,55.855],"type": "Point"}}""",
-            """ {"coordinates": [-4.031,55.339],"type": "Point"}}""",
-        ]
 
         NEW_LISTINGS = 10
         for idx in range(NEW_LISTINGS):
@@ -296,6 +294,14 @@ def django_db_setup(django_db_setup, django_db_blocker):
         assert AOIShape.objects.count() == 3
 
     return
+
+
+@pytest.fixture()
+def aoishape_model(db):
+    from django.apps import apps as django_apps
+
+    model = django_apps.get_model("app.AOIShape")
+    return model
 
 
 @pytest.fixture()

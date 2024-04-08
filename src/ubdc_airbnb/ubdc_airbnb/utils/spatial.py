@@ -37,7 +37,7 @@ def cut_polygon_at_prime_lines(polygon: GEOSGeometry) -> list[GEOSGeometry]:
 
     cross: GEOSMultiPolygon = prime_meridian.union(prime_parallel)
 
-    if polygon.geom_type == "GEOMETRYCOLLECTION ":
+    if polygon.geom_type.startswith("GEOMETRYCOLLECTION"):
         rv = [cut_polygon_at_prime_lines(geom) for geom in polygon]
         from itertools import chain
 
