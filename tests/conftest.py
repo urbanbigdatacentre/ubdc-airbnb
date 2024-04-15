@@ -1,5 +1,5 @@
 from datetime import timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 from unittest.mock import Mock
 
 import pytest
@@ -8,9 +8,10 @@ from faker import Faker
 if TYPE_CHECKING:
     from typing import Annotated, ClassVar
 
+    from django.db.models import Model
     from django.db.models.query import QuerySet
 
-    from ubdc_airbnb.models import AirBnBListing
+    from ubdc_airbnb.models import AirBnBListing, UBDCGrid
 
 
 fake = Faker()
@@ -18,10 +19,104 @@ fake = Faker()
 UTC = timezone.utc
 
 
-@pytest.fixture(scope="session")
-def mock_airbnb_client(session_mocker):
+@pytest.fixture(scope="function")
+def geojson_gen():
+    "A fixture that yields AOIs in GeoJSON format"
+    aoi_1 = """
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              51.31825698297584,
+              35.75530077463931
+            ],
+            [
+              51.306899339126915,
+              35.746188339471544
+            ],
+            [
+              51.319346086102684,
+              35.73752042064078
+            ],
+            [
+              51.312117707462846,
+              35.711951873523645
+            ],
+            [
+              51.391225757050194,
+              35.72691572921883
+            ],
+            [
+              51.37519802674012,
+              35.76488005996366
+            ],
+            [
+              51.3361537252286,
+              35.77778106702692
+            ],
+            [
+              51.31825698297584,
+              35.75530077463931
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      }
+    }
+  ]
+}"""
+    aoi_2 = """{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              51.35412641125819,
+              35.75936322561574
+            ],
+            [
+              51.38421221349503,
+              35.75936322561574
+            ],
+            [
+              51.38421221349503,
+              35.78401609844147
+            ],
+            [
+              51.35412641125819,
+              35.78401609844147
+            ],
+            [
+              51.35412641125819,
+              35.75936322561574
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": 1
+    }
+  ]
+}"""
+    aois = [aoi_2, aoi_1]
+    yield aois
+
+
+@pytest.fixture(scope="function")
+def mock_airbnb_client(mocker):
     # from ubdc_airbnb.airbnb_interface import airbnb_api
     from collections import Counter
+    from unittest.mock import MagicMock
 
     from requests import Request, Response
     from requests.exceptions import HTTPError
@@ -46,7 +141,9 @@ def mock_airbnb_client(session_mocker):
 
         @property
         def url(self):
-            return f"http://test.com/?listing_id={self.listing_id}&param=2"
+            if self.listing_id:
+                return f"http://test.com/?listing_id={self.listing_id}&param=2"
+            return "http://test.com/search?"
 
         @property
         def elapsed(self):
@@ -116,17 +213,74 @@ def mock_airbnb_client(session_mocker):
 
             return rv, rv.json()
 
+    def get_homes_side_effect(*args, **kwargs):
+        import inspect
+
+        # how any times this function has been called?
+        # Ask the parent mock object.
+        # Obviouslly, this is a hack and depents that this function is called from a mock object
+        # get a ref to parent mock object
+        mref = inspect.currentframe().f_back.f_locals.get("self")  # type: ignore
+        # get the call count
+        times_called: int = mref.call_count  # type: ignore
+
+        status_code = 200
+        match times_called:
+            case 1:
+                listings_number = 10000
+            case 2:
+                listings_number = 1000
+            case 3:
+                listings_number = 100
+            case 4:
+                listings_number = 10
+            case _:
+                listings_number = 1
+
+        has_next_page = True if listings_number >= 25 else False
+        listings = [
+            {
+                "listing": {
+                    "id_str": fake.pystr_format(string_format="##################"),  # 18 chars
+                    "lat": fake.pyfloat(
+                        max_value=kwargs.get("north", 10),
+                        min_value=kwargs.get("south", -10),
+                    ),
+                    "lng": fake.pyfloat(
+                        min_value=kwargs.get("west", -10),
+                        max_value=kwargs.get("east", 10),
+                    ),
+                }
+            }
+            for x in range(min(listings_number, 50))
+        ]
+        json_data = {
+            "explore_tabs": [
+                {"home_tab_metadata": {"listings_count": listings_number}},
+                {"pagination_metadata": {"has_next_page": has_next_page}},
+                {"sections": [[], [], {"listings": listings}]},
+            ],
+        }
+
+        rv = MockResponse(
+            status_code=status_code,
+            json_data=json_data,
+            listing_id=None,
+            headers={},
+            kwargs=kwargs,
+        )
+
+        return rv, rv.json()
+
     from ubdc_airbnb.airbnb_interface.airbnb_api import AirbnbApi
 
-    m = session_mocker.patch.object(
+    m = mocker.patch.multiple(
         AirbnbApi,
-        "get_calendar",
-        side_effect=calendar_side_effect,
+        get_homes=MagicMock(side_effect=get_homes_side_effect),
+        get_calendar=MagicMock(side_effect=calendar_side_effect),
     )
 
-    m.__name__ = "mock_get_calendar"
-
-    return m
+    yield m
 
 
 @pytest.fixture(scope="session")

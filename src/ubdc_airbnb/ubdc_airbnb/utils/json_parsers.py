@@ -21,7 +21,7 @@ class airbnb_response_parser:
             yield match.value
 
     @classmethod
-    def get_user_object(cls, response: dict) -> list[dict]:
+    def get_user_objects_from_search(cls, response: dict) -> list[dict]:
         matches = cls.__user_object__.find(response)
         return [m.value for m in matches]
 

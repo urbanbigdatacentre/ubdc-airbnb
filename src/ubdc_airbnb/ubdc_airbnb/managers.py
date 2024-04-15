@@ -1,6 +1,7 @@
 from functools import partial
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any, List, MutableMapping, Union
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Iterator, List, MutableMapping, Union
 
 import mercantile
 from celery.utils.log import get_task_logger
@@ -19,6 +20,11 @@ from ubdc_airbnb.utils.spatial import make_point, postgis_distance_a_to_b, repro
 
 logger = get_task_logger(__name__)
 
+
+# https://docs.djangoproject.com/en/5.0/topics/db/managers/
+# A Manager is the interface through which database query operations are provided to Django models.
+# Mangers are intended to be used to encapsulate logic for managing collections of objects.
+# At least one Manager exists for every model in a Django application."
 
 if TYPE_CHECKING:
     from requests import Response
@@ -79,7 +85,7 @@ class AirBnBResponseManager(models.Manager):
         self,
         response: "Response",
         _type: str,
-        task_id: str,
+        task_id: str | None = None,
         listing_id: int | None = None,
     ):
         from ubdc_airbnb.models import UBDCTask
@@ -259,66 +265,43 @@ class UserManager(models.Manager):
 
 class UBDCGridManager(models.Manager):
 
+    def intersect_with_aoi(self, aoi_list: "List[app_models.AOIShape]") -> Iterator["app_models.UBDCGrid"]:
+        "Get the grids that intersect with the aois."
+        q = models.Q()
+        for aoi in aoi_list:
+            q |= models.Q(geom_3857__intersects=aoi.geom_3857)
+
+        qs = self.filter(q)
+        qs = qs.order_by("quadkey")
+        qs = qs.distinct("quadkey")
+        for x in qs.iterator(chunk_size=1000):
+            yield x
+
     def has_quadkey(self, quadkey) -> bool:
         return self.filter(quadkey=quadkey).exists()
 
-    def create_from_quadkey(
-        self,
-        quadkey: Union[str, mercantile.Tile],
-        save=False,
-        allow_overlap_with_currents=True,
-    ):
-        # cast from tile->qk to facilitate the allow_overlap_with_currents
-        # routine in  create_from_tile.
-        # TODO:NOTE: bad practice, maybe refactor?
-        if isinstance(quadkey, mercantile.Tile):
-            quadkey = mercantile.quadkey(quadkey)
-
+    def model_from_quadkey(self, quadkey: str) -> "app_models.UBDCGrid":
+        """Make an UBDCGrid object and return a ref of it."""
         tile = mercantile.quadkey_to_tile(quadkey)
-        return self.create_from_tile(
-            tile,
-            allow_overlap_with_currents=allow_overlap_with_currents,
-            save=save,
-        )
+        return self.model_from_tile(tile)
 
-    def create_from_tile(
+    def create_from_quadkey(self, quadkey: str):
+        tile = mercantile.quadkey_to_tile(quadkey)
+        return self.create_from_tile(tile)
+
+    def model_from_tile(
         self,
         tile: mercantile.Tile,
-        allow_overlap_with_currents: bool = False,
-        save: bool = False,
-    ) -> Union["app_models.UBDCGrid", List["app_models.UBDCGrid"], None]:
-        """Make an UBDCGrid entry and return a ref of it."""
-
+    ) -> "app_models.UBDCGrid":
+        """Make an UBDCGrid object and return a ref of it."""
         quadkey = mercantile.quadkey(tile)
         bbox = list(mercantile.xy_bounds(*tile))
         min_x, min_y, max_x, max_y = bbox
         mid_x = min_x + max_x / 2
         mid_y = min_y + max_y / 2
-
-        if save:
-            op = self.create
-        else:
-            op = self.model
         geom_3857 = GEOSPolygon.from_bbox(bbox)
 
-        if not allow_overlap_with_currents:
-            overlapping_grids = self.filter(quadkey__startswith=mercantile.quadkey(tile))
-            if overlapping_grids.count() > 0:
-                children = mercantile.children(tile)
-
-                if self.has_quadkey(quadkey):
-                    self.get(quadkey=quadkey).delete()
-
-                children = filter(lambda x: not self.has_quadkey(mercantile.quadkey(x)), children)
-                create_from_quadkey = partial(
-                    self.create_from_quadkey,
-                    save=save,
-                    allow_overlap_with_currents=allow_overlap_with_currents,
-                )
-                res = list(map(create_from_quadkey, children))
-                return list(collapse(res))
-
-        ubdcgrid = op(
+        return self.model(
             geom_3857=geom_3857,
             quadkey=quadkey,
             bbox_ll_ur=",".join(map(str, bbox)),
@@ -330,4 +313,10 @@ class UBDCGridManager(models.Manager):
             y_distance_m=postgis_distance_a_to_b((mid_x, min_y), (mid_x, max_y)),
         )
 
-        return ubdcgrid
+    def create_from_tile(self, tile: mercantile.Tile) -> "app_models.UBDCGrid":
+        """Create an UBDCGrid entry and return a ref of it."""
+        obj = self.model_from_tile(tile)
+        if self.has_quadkey(obj.quadkey):
+            return self.get(quadkey=obj.quadkey)
+        obj.save()
+        return obj

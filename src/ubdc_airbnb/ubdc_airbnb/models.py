@@ -1,17 +1,16 @@
-from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, ClassVar, List, Tuple, Union
+from pathlib import Path
+from typing import TYPE_CHECKING, ClassVar, List, Tuple
 
 import celery.states as c_states
 import mercantile
 from celery.result import AsyncResult
 from celery.utils.log import get_task_logger
 from django.contrib.gis.db import models
-from django.contrib.gis.geos import GEOSGeometry, Polygon
+from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import GinIndex
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import QuerySet
-from django.utils import timezone
 from django.utils.functional import cached_property
 from django_celery_results.models import TaskResult as celery_Task
 from more_itertools import flatten
@@ -67,6 +66,44 @@ class AOIShape(models.Model):
     def geom_4326(self):
         return self.reproject(4326)
 
+    @classmethod
+    def create_from_geojson(cls, geojson: Path) -> "AOIShape":
+
+        "Create an AOI from a GeoJSON file. Returns the created object."
+
+        import json
+
+        assert geojson.exists(), f"File {geojson} does not exist."
+
+        payload = json.loads(geojson.read_text())
+        json_geom = json.dumps(payload["features"][0]["geometry"])
+
+        geom = GEOSGeometry(json_geom)
+        if not geom.geom_type.endswith("Polygon"):
+            raise ValueError("Only Polygon Like geometries are supported.")
+
+        if geom.geom_type == "Polygon":
+            geom = MultiPolygon(geom)
+
+        # geojson are supposed to be in 4326
+        geom.srid = 4326
+        # reproject to 3857 in place
+        geom.transform(3857)
+
+        rv = cls(
+            geom_3857=geom,
+            name=geojson.stem,
+            collect_calendars=False,
+            collect_listing_details=False,
+            collect_reviews=False,
+            collect_bookings=False,
+            scan_for_new_listings=False,
+        )
+        rv.save()
+        rv.refresh_from_db()
+
+        return rv
+
     def reproject(self, epsg: int = 4326):
         geom = self.geom_3857
         return geom.transform(ct=epsg, clone=True)
@@ -82,20 +119,28 @@ class AOIShape(models.Model):
         return mercantile.bounding_tile(*bbox)
 
     def create_grid(self) -> bool:
+        "Create Grids from this AOI. The grids will be automatically sized based on existing grids. Returns True if successful."
         from itertools import chain
 
-        from ubdc_airbnb.utils.grids import grids_from_qk, quadkeys_of_geom
+        from ubdc_airbnb.utils.grids import clean_quadkeys, quadkeys_of_geom
         from ubdc_airbnb.utils.spatial import cut_polygon_at_prime_lines
 
+        # cut the aoi geom at the prime lines.
+        # if not, and the aoi passes the primes, it's initial grid will cover the whole world.
         geoms = cut_polygon_at_prime_lines(self.geom_4326)
 
+        # depending on the complexity of the initial geom, we could have lists of lists of geometries
         init_qks = [quadkeys_of_geom(geom) for geom in geoms]
+        # so in this step we flatten the list of lists
         init_qks = list(chain.from_iterable(init_qks))
-        qks = list(chain.from_iterable([grids_from_qk(qk) for qk in init_qks]))
 
-        # TODO: create grids from qks as batch
-        for qk in qks:
-            UBDCGrid.objects.create_from_quadkey(qk, save=True)
+        qks = list(chain.from_iterable([clean_quadkeys(qk) for qk in init_qks]))
+
+        # create unsaved objects
+        objs = [UBDCGrid.objects.model_from_quadkey(qk) for qk in qks]
+
+        # bulk save them
+        UBDCGrid.objects.bulk_create(objs)
 
         return True
 
@@ -147,6 +192,12 @@ class UBDCGrid(models.Model):
         return f"{self.__class__.__name__}: {self.pk}/{self.quadkey}"
 
     @property
+    def intersects_with_aoi(self) -> bool:
+        """Check if this grid intersects with any AOI."""
+        q = AOIShape.objects.filter(geom_3857__intersects=self.geom_3857)
+        return q.exists()
+
+    @property
     def as_ewkt(self) -> str:
         """Return a WTK representation of the geometry. Includes SRID."""
         return self.geom_3857.ewkt
@@ -161,81 +212,77 @@ class UBDCGrid(models.Model):
         return AirBnBListing.objects.filter(geom_3857__intersects=self.geom_3857)
 
     @property
-    def as_mtile(self) -> mercantile.Tile:
+    def as_tile(self) -> mercantile.Tile:
         if self.quadkey is None:
             raise ValueError("QuadKey is not set.")
         return mercantile.quadkey_to_tile(self.quadkey)
 
-    def children(
-        self,
-        intersect_with: Union[int, str] | None = None,
-        zoom=None,
-        use_landmask=True,
-    ) -> List[mercantile.Tile]:
-        """Find the children for this Grid.
+    def children(self) -> "List[UBDCGrid]":
+        """Return unsaved grid childrens of this grid."""
+        from mercantile import children
 
-        :param intersect_with: Optionally (recommended) use a *AOISHAPE id* to filter out disjointed children
-        :param use_landmask: Use the internal landmask. (UK only)
-        :param zoom:
+        tile = self.as_tile
+        children_tiles = children(tile)
+        return [UBDCGrid.objects.model_from_tile(t) for t in children_tiles]
 
-        """
+    @classmethod
+    def model_from_quadkey(cls, quadkey: str) -> "UBDCGrid":
+        """Make an UBDCGrid object and return a ref of it."""
+        tile = mercantile.quadkey_to_tile(quadkey)
+        return cls.model_from_tile(tile)
 
-        # Clean all fields and raise a ValidationError containing
-        # a dict with all validation errors if any.
-        self.clean_fields()
+    @classmethod
+    def as_geojson(cls) -> str | None:
+        """Return a GeoJSON FeatureCollection of the queryset."""
+        from django.contrib.gis.db.models.functions import Transform
+        from django.contrib.gis.serializers.geojson import (
+            Serializer as GeoJSONSerializer,
+        )
 
-        tile = self.as_mtile
+        qset = cls.objects.only("geom_3857")
+        # qset = qset.annotate(geom=Transform("geom_3857", 4326))
+        serializer = GeoJSONSerializer()
+        serializer.serialize(qset, fields=("geom_3857",))
 
-        # assume zoom + 1
-        if zoom is None:
-            zoom = self.tile_z + 1
+        data = serializer.getvalue()
+        if data and isinstance(data, str):
+            return data
 
-        if self.tile_z <= zoom:
-            _zoom = tile.z
+    @classmethod
+    def save_as_geojson(cls, filename: Path) -> str | None:
+        context = cls.as_geojson()
+        if context:
+            filename.write_text(context)
+            return filename.as_posix()
 
-            while _zoom <= zoom:
-                if tile.z == _zoom:
-                    children = mercantile.children(*tile)
-                else:
-                    children = list(flatten(map(lambda t: mercantile.children(t, zoom=_zoom), children)))
+    @classmethod
+    def model_from_tile(
+        cls,
+        tile: mercantile.Tile,
+    ) -> "UBDCGrid":
+        """Make an UBDCGrid object and return a ref of it."""
+        from django.contrib.gis.geos import Polygon as GEOSPolygon
 
-                _zoom += 1
+        from ubdc_airbnb.utils.spatial import postgis_distance_a_to_b
 
-                if intersect_with:
-                    # if intersects_with is an integer, assume it's an ID that refers to a user-AOI
-                    if isinstance(intersect_with, int):
-                        aoi_geom = AOIShape.objects.get(pk=intersect_with).geom_3857
-                    # else if its a string, try to parse it to a geometry
-                    elif isinstance(intersect_with, str):
-                        aoi_geom = GEOSGeometry(intersect_with)
-                    else:
-                        raise UBDCError("Could not generate valid geometry to filter with.")
+        quadkey = mercantile.quadkey(tile)
+        bbox = list(mercantile.xy_bounds(*tile))
+        min_x, min_y, max_x, max_y = bbox
+        mid_x = min_x + max_x / 2
+        mid_y = min_y + max_y / 2
+        geom_3857 = GEOSPolygon.from_bbox(bbox)
 
-                    aoi_geom = aoi_geom.prepared
-
-                    def filter_func_intersects_with(_tile: mercantile.Tile) -> bool:
-                        polygon = Polygon.from_bbox(mercantile.xy_bounds(*_tile))
-                        return aoi_geom.intersects(polygon)
-
-                    children = filter(filter_func_intersects_with, children)
-
-                if use_landmask:
-                    potential_hits = WorldShape.objects.filter(geom_3857__intersects=self.geom_3857)
-                    # cast to prepared version
-                    potential_hits_prep = list(geom.prepared for geom in (x.geom_3857 for x in potential_hits))
-
-                    def filter_function_intersects_with_mask(
-                        _tile: mercantile.Tile,
-                    ) -> bool:
-                        polygon = Polygon.from_bbox(mercantile.xy_bounds(*_tile))
-                        polygon.srid = 3857
-                        # polygon = polygon.prepared
-
-                        return any([geom.intersects(polygon) for geom in potential_hits_prep])
-
-                    children = filter(filter_function_intersects_with_mask, children)
-
-        return list(children)
+        return cls(
+            geom_3857=geom_3857,
+            quadkey=quadkey,
+            bbox_ll_ur=",".join(map(str, bbox)),
+            tile_x=tile.x,
+            tile_y=tile.y,
+            tile_z=tile.z,
+            area=geom_3857.area,
+            x_distance_m=postgis_distance_a_to_b((min_x, mid_y), (max_x, mid_y)),
+            y_distance_m=postgis_distance_a_to_b((mid_x, min_y), (mid_x, max_y)),
+        )
 
 
 class AirBnBResponseTypes(models.TextChoices):
@@ -393,7 +440,6 @@ class AirBnBUser(models.Model):
     )
     timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Date of row creation.")
     last_updated = models.DateTimeField(auto_now=True, verbose_name="Latest update.")
-    needs_update = models.BooleanField(default=True, db_index=True)
 
     listings = models.ManyToManyField(AirBnBListing, related_name="users")
     responses = models.ManyToManyField("AirBnBResponse")

@@ -35,9 +35,7 @@ from ubdc_airbnb.models import (
 # from ubdc_airbnb.utils.users import ubdc_response_for_airbnb_user
 from ubdc_airbnb.task_managers import BaseTaskWithRetry
 from ubdc_airbnb.utils.grids import bbox_from_quadkey
-from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
 from ubdc_airbnb.utils.spatial import listing_locations_from_response, reproject
-from ubdc_airbnb.workunits import bbox_has_next_page
 
 logger = get_task_logger(__name__)
 airbnb_client = settings.AIRBNB_CLIENT
@@ -55,7 +53,8 @@ def task_update_or_add_reviews_at_listing(
     force_check: bool = False,
     **kwargs,
 ) -> str:
-    """Updates or adds comments inside the database for a particular listing.
+    """
+    Fetches comments responses  inside the database for a particular listing.
     Adds any new users in the process.
 
     :param self: UBDCTask
@@ -284,7 +283,7 @@ def task_discover_listings_at_grid(
     self,
     quadkey: str,
 ):
-    """Queries airbnb for listings in the given grid. Airbnb will return a maximum of 300 listings per request, so make sure that the grid is not too big. Preferably, lte 50 listings per grid.
+    """Queries airbnb for listings in the given grid. Airbnb will return a maximum of 300 listings per request, so make sure that the grid is not too big.
     :param quadkey: quadkey
     """
 
@@ -352,78 +351,63 @@ def task_discover_listings_at_grid(
 
 @shared_task(bind=True)
 @convert_exceptions
-def task_add_listing_detail(
+def task_get_listing_details(
     self,
     listing_id: Union[str, int],
 ) -> int:
-    """Adds the details for an existing AirBnBListing into the database. Returns updated listing_id"""
+    "Adds the details for an existing AirBnBListing into the database. Returns the listing_id"
+
+    # from this response we can harverst listing details and information if the host is a superhost or not.
+    # I don't have a dedicated listing details model to populate
+
     task_id = self.request.id
     time_now = timezone.now()
-    _listing_id = int(listing_id)
-    listing_entry = AirBnBListing.objects.get(listing_id=_listing_id)
-    # result = ubdc_airbnbapi.get_listing_details(_listing_id)['pdp_listing_detail']
+    listing_id_int = int(listing_id)
+
+    listing: AirBnBListing = AirBnBListing.objects.get(listing_id=listing_id_int)
 
     try:
-        airbnb_response = AirBnBResponse.objects.response_and_create(
+        airbnb_response: AirBnBResponse = AirBnBResponse.objects.response_and_create(
             method_name="get_listing_details",
-            listing_id=_listing_id,
+            listing_id=listing_id_int,
             task_id=task_id,
             _type=AirBnBResponseTypes.listingDetail,
         )
-
-        new_points = listing_locations_from_response(airbnb_response.payload)
-        new_point_4326 = new_points.get(listing_id, None)
-        if new_point_4326 is not None:
-            previous_point_3857 = listing_entry.geom_3857
-            previous_point_4326: Point = previous_point_3857.transform(4326, clone=True)
-            new_point_3857 = new_point_4326.transform(3857, clone=True)
-            distance = new_point_3857.distance(previous_point_3857)
-
-            threshold = float(settings.AIRBNB_LISTINGS_MOVED_MIN_DISTANCE)
-            if distance > threshold:
-                root: dict = listing_entry.notes
-                notes = root.get("notes", [])
-                entry = {
-                    "type": "move",
-                    "timestamp": time_now.isoformat(),
-                    "from": previous_point_4326.ewkt,
-                    "to": new_point_4326.ewkt,
-                    "distance": distance,
-                }
-                notes.append(entry)
-                listing_entry.geom_3857 = new_point_3857
-        listing_entry.save()
-        listing_entry.listing_updated_at = time_now
-        listing_entry.responses.add(airbnb_response)
-        listing_entry.save()
-
     except HTTPError as exc:
         raise exc
     finally:
-        listing_entry.listing_updated_at = time_now
-        listing_entry.save()
+        listing.listing_updated_at = time_now
+        listing.save()
 
-    return _listing_id
+    listing.responses.add(airbnb_response)
+
+    from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
+
+    pattern_primary_host = r"$..primary_host"
+    pattern_additional_hosts = r"$..additional_hosts[*]"
+    payload: dict = airbnb_response.payload
+    primary_hosts_generator = airbnb_response_parser.generic(pattern_primary_host, payload)
+    additional_hosts_generator = airbnb_response_parser.generic(pattern_additional_hosts, payload)
+
+    from itertools import chain
+
+    # process hosts
+    for host in chain(primary_hosts_generator, additional_hosts_generator):
+        user_id = host.get("id")
+        if user_id is None:
+            logger.warning(f"Host {host} does not have an id. Skipping.")
+            continue
+        is_superhost = host.get("is_superhost", False)
+        user, created = AirBnBUser.objects.get_or_create(user_id=user_id)
+        user.is_superhost = is_superhost
+        user.save()
+
+    return listing_id_int
 
 
 @shared_task(bind=True)
 @convert_exceptions
-def task_register_listings_or_divide_at_aoi(self, aoi_pk: int):
-    from ubdc_airbnb.utils.spatial import get_quadkeys_of_aoi
-
-    quadkeys = get_quadkeys_of_aoi(aoi_pk)
-
-    logger.info(f"Found {len(quadkeys)} grids for AOI {aoi_pk}")
-    for quadkey in quadkeys:
-        task = task_register_listings_or_divide_at_qk.s(quadkey=quadkey)
-        result = task.apply_async()
-        logger.info(f"Task: {result.id} for {quadkey} submitted.")
-
-
-# noinspection PyIncorrectDocstring
-@shared_task(bind=True)
-@convert_exceptions
-def task_register_listings_or_divide_at_qk(
+def task_register_listings_or_divide_at_quadkey(
     self: BaseTaskWithRetry,
     quadkey: str,
 ) -> Optional[str]:
@@ -439,13 +423,16 @@ def task_register_listings_or_divide_at_qk(
     # Easy to follow,
     # check bbox, if it's paginated, divide and resubmit
     # if not, store the listings
+    from uuid import uuid4
+
+    from ubdc_airbnb.utils.grids import clean_quadkeys, replace_quadkey_with_children
     from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
     from ubdc_airbnb.workunits import (
         bbox_has_next_page,
         register_listings_from_response,
     )
 
-    task_id = self.request.id
+    task_id = self.request.id or str(uuid4())
     grid: UBDCGrid = UBDCGrid.objects.get(quadkey=quadkey)
     bbox = bbox_from_quadkey(grid.quadkey)
 
@@ -454,7 +441,7 @@ def task_register_listings_or_divide_at_qk(
     south = bbox.south
     west = bbox.west
 
-    has_next_page: bool = bbox_has_next_page(
+    response_pk, has_next_page = bbox_has_next_page(
         east=east,
         north=north,
         south=south,
@@ -465,57 +452,58 @@ def task_register_listings_or_divide_at_qk(
     grid.datetime_last_estimated_listings_scan = timezone.now()
     if has_next_page:
         logger.info(f"Grid {grid.quadkey} has multiple pages of listings. Dividing!")
-
-        children = list(grid.children())
-
-        new_grids = []
-        for tile in children:
-            new_grid = UBDCGrid.objects.create_from_tile(tile, allow_overlap_with_currents=False)
-            new_grids.append(new_grid)
-
-        new_grids = list(collapse(new_grids))
-        UBDCGrid.objects.bulk_create(new_grids)
-
-        # The children are saved in the db, kill the parent
-        grid.delete()
-        quadkeys = [new_grid.quadkey for new_grid in new_grids]
-        job = group(task_register_listings_or_divide_at_qk.s(quadkey=qk) for qk in quadkeys)
+        quadkey = grid.quadkey
+        children_quadkeys = replace_quadkey_with_children(quadkey)
+        job = group(task_register_listings_or_divide_at_quadkey.s(quadkey=qk) for qk in children_quadkeys)
         group_result = job.apply_async()
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
-        group_task.op_name = task_register_listings_or_divide_at_qk.name
-        group_task.op_kwargs = {"quadkey": quadkeys}
+        group_task.op_name = task_register_listings_or_divide_at_quadkey.name
+        group_task.op_kwargs = {"quadkey": children_quadkeys}
         group_task.save()
 
         return group_result.id
 
-    # if we are here, the grid is not paginated
-
-    # Get the payload this task_id has generated; and process it.
-    response: AirBnBResponse = AirBnBResponse.objects.get(ubdc_task_id=task_id)
+    # The grid is not paginated
+    # Get the payload this task_id has generated; and add additional.
+    response: AirBnBResponse = AirBnBResponse.objects.get(pk=response_pk)
     payload = response.payload
-
     listings = register_listings_from_response(payload)
     estimated_listings = airbnb_response_parser.listing_count(payload)
-    logger.info(f"Grid {grid.quadkey} has {grid.estimated_listings} listings.")
     grid.estimated_listings = estimated_listings
+    logger.info(f"Grid {grid.quadkey} has {grid.estimated_listings} listings.")
     grid.datetime_last_listings_scan = timezone.now()
     grid.save()
 
-    # associate the response with the grid.
-    # this maybe does not belong here?
+    # TODO: Not Implemented:
+    # There's an oportunity here to extract the primary hosts
+    # from the found listings on this grid.
+
+    # associate the response with the grids.
     for listing in listings:
         listing.responses.add(response)
+
+    return None
 
 
 @shared_task(bind=True)
 @convert_exceptions
-def task_update_user_details(self: BaseTaskWithRetry, user_id: int) -> int:
-    """Update an existing user. Returns user_id.
+def task_update_user_details(
+    self: BaseTaskWithRetry,
+    user_id: int,
+) -> int:
+    """Update user details. Returns user_id.
 
-    If user cannot be accessed, updates its name to "INACCESSIBLE-USER" """
+    In case the user is innaccessible, if it's a placeholder user, it will update the name to 'innaccessible' and return the user_id. otherwise, nothing will be done.
+    """
+
+    # superhosts flag is only avaible in listing details or search results.
+
+    from ubdc_airbnb.workunits import (
+        is_user_placeholder,
+        update_user_details_from_airbnb_usr_response,
+    )
 
     task_id = self.request.id
-
     user, created = AirBnBUser.objects.get_or_create(user_id=user_id)
     try:
         airbnb_response = AirBnBResponse.objects.response_and_create(
@@ -526,103 +514,16 @@ def task_update_user_details(self: BaseTaskWithRetry, user_id: int) -> int:
         )
     except (HTTPError, ProxyError) as exc:
         logger.info(f"user_id: {user_id} is inaccessible", exc)
-        # airbnb_response = exc.ubdc_response
-        raise exc
+        if is_user_placeholder(user):
+            user.first_name = "INACCESSIBLE"
+            user.save()
+        a = 1
+        return user_id
+    finally:
+        user.responses.add(airbnb_response)
 
-    user.responses.add(airbnb_response)
-
-    payload = airbnb_response.payload
-    user_payload = payload["user"]
-    new_data = {}
-
-    try:
-        picture_url = airbnb_response_parser.profile_pics(payload)[0].split("?")[0]
-    except IndexError:
-        picture_url = ""
-
-    new_data.update(
-        first_name=user_payload.get("first_name", user.first_name),
-        about=user_payload.get("about", user.about),
-        airbnb_listing_count=user_payload.get("listings_count", user.listing_count),
-        verifications=user_payload.get("verifications", user.verifications),
-        picture_url=picture_url or user.picture_url,
-        created_at=user_payload.get("created_at", user.created_at),
-        location=user_payload.get("location", user.location),
-    )
-
-    for k, v in new_data.items():
-        setattr(user, k, v)
-    user.save()
-
+    update_user_details_from_airbnb_usr_response(user, airbnb_response)
     return user_id
-
-
-@shared_task(bind=True)
-@convert_exceptions
-def task_get_or_create_user(
-    self: BaseTaskWithRetry,
-    user_id: int,
-    defer: bool = True,
-    priority=4,
-) -> int:
-    """Try to fetch from the database the User or if not found Creates a New User.
-
-    Returns AirBnBUser id
-
-    If defer is True (default), if the user does not exist in the database,
-    a temporary user is returned with that user_id and a task with priority 'priority' to update him is submitted.
-
-    :param self: BaseTaskWithRetry
-    :param user_id: int. The user_id of the user to query about
-    :param defer: bool. If True the function will return a TEMP-UNKNOWN-USER user if the user_id does not exist
-                  and submit a task to update the details later.
-                        If False, fetch the user now, default True
-    :param priority: the priority of the generated task, if defer is true, Otherwise ignored. Default 4
-
-    :return user_id
-    """
-    user_id = int(user_id)
-    if user_id < 1:
-        raise UBDCError("user_id must be gt 0")
-    task_id = self.request.id
-
-    user, created = AirBnBUser.objects.get_or_create(
-        user_id=user_id,
-        defaults={
-            "first_name": "TEMP",
-            "airbnb_listing_count": 0,
-            "verifications": [],
-            "picture_url": "",
-            "location": "unknown",
-        },
-    )
-    if not created:
-        return user.user_id
-
-    if defer is True:
-        # create a task and return
-        task = task_update_user_details.s(user_id=user.user_id)
-        task.apply_async(priority=priority)
-
-        return user.user_id
-    else:
-        try:
-            ubdc_response = AirBnBResponse.objects.response_and_create(
-                "get_user",
-                user_id=user_id,
-                _type=AirBnBResponseTypes.userDetail,
-                task_id=task_id,
-            )
-        except (HTTPError, ProxyError) as exc:
-            logger.info(f"user_id: {user_id} is NOT ACCESSIBLE at this moment:", exc)
-            raise exc
-
-        ubdc_airbnb_user = AirBnBUser.objects.create_from_response(
-            user_id=user_id,
-            ubdc_response=ubdc_response,
-        )
-
-        return ubdc_airbnb_user.user_id
 
 
 @shared_task(bind=True)
@@ -732,12 +633,12 @@ def task_debug_add_w_delay(self: Task, x: int, y: int):
 
 
 __all__ = [
-    "task_add_listing_detail",
+    "task_get_listing_details",
     "task_debug_add_w_delay",
     "task_debug_sometimes_fail",
     "task_debug_wait",
     "task_discover_listings_at_grid",
-    "task_register_listings_or_divide_at_qk",
+    "task_register_listings_or_divide_at_quadkey",
     "task_get_booking_detail",
     "task_get_or_create_user",
     "task_update_calendar",

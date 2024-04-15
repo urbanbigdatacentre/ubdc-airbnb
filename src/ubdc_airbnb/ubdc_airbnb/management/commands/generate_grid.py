@@ -3,7 +3,6 @@ from argparse import ArgumentParser, ArgumentTypeError
 from django.core.management import BaseCommand
 
 from ubdc_airbnb.tasks import task_tidy_grids
-from ubdc_airbnb.utils.grids import generate_initial_grid
 
 input_choices = ["aoi", "quadkey"]
 
@@ -12,7 +11,6 @@ def check_positive(value) -> int:
     value = int(value)
     if value < 0:
         raise ArgumentTypeError(f"{value} must be positive integer.")
-
     return value
 
 
@@ -31,7 +29,6 @@ class Command(BaseCommand):
             choices=input_choices,
             default="aoi",
         )
-        # parser.add_argument("--no-tidy", action="store_false")
 
     def handle(self, *args, **options):
 
@@ -40,18 +37,17 @@ class Command(BaseCommand):
         input_type = options["input-type"]
 
         if input_type == "quadkey":
-            assert input_value.startswith("0")
+            assert len(input_value) > 5, "Quadkey must be at least 2 characters long."
             from ubdc_airbnb.models import UBDCGrid
 
-            UBDCGrid.objects.create_from_quadkey(
-                quadkey=input_value,
-                save=True,
-                allow_overlap_with_currents=False,
-            )
-            pass
-        if input_type == "aoi":
-            ## generate aoi
-            grids = generate_initial_grid(aoishape_id=input_value)
+            UBDCGrid.objects.create_from_quadkey(quadkey=input_value)
 
-        if tidy:
-            task_tidy_grids(less_than=50)
+        if input_type == "aoi":
+            from ubdc_airbnb.models import AOIShape
+
+            try:
+                aoi = AOIShape.objects.get(id=input_value)
+            except AOIShape.DoesNotExist:
+                raise ValueError(f"AOI with ID {input_value} does not exist.")
+
+            aoi.create_grid()

@@ -3,6 +3,7 @@ from collections import abc
 from typing import TYPE_CHECKING, Annotated, Dict, Literal, Sequence, Union
 
 from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import MultiLineString as GEOSMultiLineString
 from django.contrib.gis.geos import MultiPolygon as GEOSMultiPolygon
 from django.contrib.gis.geos import Point as GEOSPoint
 from django.db import connection
@@ -26,16 +27,30 @@ class ST_Union(Aggregate):
 from typing import Annotated
 
 
+def get_world_cross() -> GEOSMultiLineString:
+    prime_meridian = GEOSGeometry("LINESTRING(0 -90, 0 90)", srid=4326)
+    prime_parallel = GEOSGeometry("LINESTRING(-180 0, 180 0)", srid=4326)
+
+    cross: GEOSMultiLineString = prime_meridian.union(prime_parallel)
+    cross.srid = 4326
+    return cross
+
+
+def geom_intersects_world_cross(geom: GEOSGeometry) -> bool:
+    """Checks if a geometry intersects with the prime meridian or prime parallel."""
+    cross = get_world_cross()
+    if cross.srid != geom.srid:
+        warnings.warn("Cross geometry has different SRID than the input geometry. Result may be incorrect.")
+    return geom.intersects(cross)
+
+
 def cut_polygon_at_prime_lines(polygon: GEOSGeometry) -> list[GEOSGeometry]:
     """Cut a polygon like geometry at the prime meridian or prime parallel and and returns a list of geometries."""
     # TODO: #10 develop this function and add tests
 
     assert polygon.srid == 4326, "This function only works with WGS84 geometries"
 
-    prime_meridian = GEOSGeometry("LINESTRING(0 -90, 0 90)", srid=4326)
-    prime_parallel = GEOSGeometry("LINESTRING(-180 0, 180 0)", srid=4326)
-
-    cross: GEOSMultiPolygon = prime_meridian.union(prime_parallel)
+    cross = get_world_cross()
 
     if polygon.geom_type.startswith("GEOMETRYCOLLECTION"):
         rv = [cut_polygon_at_prime_lines(geom) for geom in polygon]

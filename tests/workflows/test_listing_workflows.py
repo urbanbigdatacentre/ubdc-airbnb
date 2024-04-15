@@ -45,13 +45,13 @@ def test_get_listings_at_grid(
     responses_model,
     ubdcgrid_model,
 ):
-    from ubdc_airbnb.tasks import task_register_listings_or_divide_at_qk
+    from ubdc_airbnb.tasks import task_register_listings_or_divide_at_quadkey
 
     initial_count = listings_model.objects.count()
     grid = ubdcgrid_model.objects.create_from_quadkey(quadkey=quadkey, save=True)
     assert ubdcgrid_model.objects.count() == 1
 
-    task = task_register_listings_or_divide_at_qk.s(quadkey=quadkey)
+    task = task_register_listings_or_divide_at_quadkey.s(quadkey=quadkey)
     result = task.apply_async()
 
     result.get(timeout=TASK_TIMEOUT)

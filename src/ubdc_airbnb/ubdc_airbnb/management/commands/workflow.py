@@ -14,7 +14,7 @@ from ubdc_airbnb.operations import (
 from ubdc_airbnb.tasks import (
     task_discover_listings_at_grid,
     task_register_listings_or_divide_at_aoi,
-    task_register_listings_or_divide_at_qk,
+    task_register_listings_or_divide_at_quadkey,
     task_update_calendar,
 )
 
@@ -37,9 +37,10 @@ class Command(BaseCommand):
     help = "Import AOI to the database from a shapefile/geojson."
 
     def add_arguments(self, parser: ArgumentParser):
-        subparsers = parser.add_subparsers(dest="workflow", required=True)
+        wkflow = parser.add_subparsers(dest="workflow", required=True)
         for option in workflow_options:
-            p = subparsers.add_parser(option)
+            p = wkflow.add_parser(option)
+            p.add_argument("--as-task", type=check_positive, help="Run this workflow as task.")
             p.add_argument("input-value")
             match option:
                 case "discover-listings":
@@ -60,13 +61,10 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         match options.get("workflow"):
-            # case "discover-listings-cron":
-            # name = op_discover_new_listings_periodical.name
-
             case "discover-listings":
                 if options["input-type"] == "quadkey":
                     kwargs = {"quadkey": options["input-value"]}
-                    name = task_register_listings_or_divide_at_qk.name
+                    name = task_register_listings_or_divide_at_quadkey.name
                 if options["input-type"] == "aoi":
                     kwargs = {"aoi_pk": options["input-value"]}
                     name = task_register_listings_or_divide_at_aoi.name

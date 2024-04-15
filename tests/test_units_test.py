@@ -222,26 +222,29 @@ def test_cut_polygon_at_prime_lines(geom, expected):
         ("0311332233", 9),  # parent -3
     ],
 )
-def test_add_quadkay(qk, expected):
+def test_clean_quadkeys(qk, expected):
     initial_grid = "0311332233311"
     from ubdc_airbnb.models import UBDCGrid
-    from ubdc_airbnb.utils.grids import grids_from_qk
+    from ubdc_airbnb.utils.grids import clean_quadkeys
 
-    UBDCGrid.objects.create_from_quadkey(initial_grid, save=True)
+    UBDCGrid.objects.create_from_quadkey(initial_grid)
     assert UBDCGrid.objects.filter(quadkey=initial_grid).exists()
 
-    grids = grids_from_qk(qk)
+    grids = clean_quadkeys(qk)
     assert len(grids) == expected
 
 
 @pytest.mark.django_db
-def test_qk_has_children():
+@pytest.mark.parametrize(
+    "qk",
+    ["031133223331", "0311332233311"],
+)
+def test_qk_has_children(qk):
     initial_grid = "0311332233311"
     from ubdc_airbnb.models import UBDCGrid
     from ubdc_airbnb.utils.grids import qk_has_children
 
-    UBDCGrid.objects.create_from_quadkey(initial_grid, save=True)
-    qk = "031133223331"
+    UBDCGrid.objects.create_from_quadkey(initial_grid)
     assert qk_has_children(qk)
 
 
@@ -251,6 +254,22 @@ def test_qk_has_parent():
     from ubdc_airbnb.models import UBDCGrid
     from ubdc_airbnb.utils.grids import qk_has_parent
 
-    UBDCGrid.objects.create_from_quadkey(initial_grid, save=True)
+    UBDCGrid.objects.create_from_quadkey(initial_grid)
     qk = "03113322333110101"
     assert qk_has_parent(qk)
+
+
+@pytest.mark.django_db
+def test_replace_grid_with_children():
+    from ubdc_airbnb.models import UBDCGrid
+    from ubdc_airbnb.utils.grids import replace_quadkey_with_children
+
+    initial_grid = "0311332233311"
+    grid = UBDCGrid.objects.create_from_quadkey(initial_grid)
+    rv = replace_quadkey_with_children(initial_grid)
+    assert len(rv) == 4
+    for qk in rv:
+        assert len(qk) > 12
+        assert qk.startswith("0311332233311")
+
+    assert UBDCGrid.objects.filter(quadkey=initial_grid).exists() is False

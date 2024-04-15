@@ -23,9 +23,9 @@ def get_submitted_listing_ids_for(
     """Get a Queryset with all the listing_ids that were used in a task in the last 24hours"""
     match purpose:
         case "reviews":
-            from ubdc_airbnb.tasks import task_add_listing_detail as task
+            from ubdc_airbnb.tasks import task_get_listing_details as task
         case "listing_details":
-            from ubdc_airbnb.tasks import task_add_listing_detail as task
+            from ubdc_airbnb.tasks import task_get_listing_details as task
         case "calendars":
             from ubdc_airbnb.tasks import task_update_calendar as task
         case _:

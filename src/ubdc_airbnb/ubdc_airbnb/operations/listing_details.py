@@ -9,7 +9,7 @@ from django.utils.timezone import now
 
 from ubdc_airbnb.errors import UBDCError
 from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGrid, UBDCGroupTask
-from ubdc_airbnb.tasks import task_add_listing_detail
+from ubdc_airbnb.tasks import task_get_listing_details
 from ubdc_airbnb.utils.spatial import get_listings_qs_for_aoi
 from ubdc_airbnb.utils.tasks import get_submitted_listing_ids_for
 
@@ -38,13 +38,13 @@ def op_add_listing_details_for_listing_ids(
     if isinstance(listing_id, Sequence):
         _listing_ids = map(int, listing_id)
 
-    job = group(task_add_listing_detail.s(listing_id=listing_id) for listing_id in _listing_ids)
+    job = group(task_get_listing_details.s(listing_id=listing_id) for listing_id in _listing_ids)
     group_result = job.apply_async()
     group_result.save()  # type: ignore # TODO: fix typing
 
     group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
     group_task.op_initiator = op_add_listing_details_for_listing_ids.name
-    group_task.op_name = task_add_listing_detail.name
+    group_task.op_name = task_get_listing_details.name
     group_task.op_kwargs = {"listing_id": listing_id}
     group_task.save()
 
@@ -84,7 +84,7 @@ def op_add_listing_details_at_grid(
     return
 
 
-@shared_task
+@shared_task(acks_late=False)
 def op_add_listing_details_at_aoi(
     id_shapes: Union[int, List[int]],
 ) -> Optional[str]:
@@ -133,71 +133,38 @@ def op_add_listing_details_at_aoi(
     return
 
 
-@shared_task
-def op_update_listing_details_periodical(
-    how_many: int = 5000, age_hours: int = 24 * 14, priority=4, use_aoi=True
-) -> Optional[str]:
-    """
-    An 'initiator' task that will select at the most 'how_many' (default 5000) listings that their listing details
-    are older than 'age_days' (default 15) days old.
-        For each of these listing a task will be created with priority 'priority' (default 4).
-        The tasks are hard-coded to expire, if not completed, in 23 hours after their publication
+@shared_task(acks_late=False)
+def op_update_listing_details_periodical(use_aoi=True) -> Optional[str]:
+    """Fetch Listing Details. If use_aoi = True (default) it will only fetch the listings that are within the AOI that are marked for listing_details harvest.
 
-    Return is a task_group_id UUID string that  these tasks will operate under.
-    In case there are no listings found None will be returned instead
-
-    :param use_aoi: If true, the listings will be selected only from the aoi_shapes that have been designated to this task, default  true
-    :param how_many:  Maximum number of listings to act, defaults to 5000
-    :param age_hours: How many HOURS before from the last update, before the it will be considered stale. int > 0, defaults to 14 (two weeks)
-    :param priority:  priority of the tasks generated. int from 1 to 10, 10 being maximum. defaults to 4
-    :return: str(UUID)
-    """
-    how_many = int(how_many)
-    age_hours = int(age_hours)
-    priority = int(priority)
-
-    if how_many < 0:
-        raise UBDCError("The variable how_many must be larger than 0")
-    if age_hours < 0:
-        raise UBDCError("The variable age_days must be larger than 0")
-    if not (0 < priority <= 10):
-        raise UBDCError("The variable priority must be between 1 than 10")
+    Otherwise, it will fetch all listings that fall within any AOI."""
 
     logger.info(f"Using AOI: {use_aoi}")
+    aoi_qs = AOIShape.objects.all()
     if use_aoi:
-        qs_listings = get_listings_qs_for_aoi("listing_details")
-    else:
-        qs_listings: QuerySet = AirBnBListing.objects.all()
+        aoi_qs = aoi_qs.filter(collect_listing_details=True)
 
-    logger.info(f"Found {qs_listings.count()} listings")
+    listings_qs = AirBnBListing.objects.all()
+    for aoi in aoi_qs:
+        listings_qs = listings_qs.filter(geom_3857__intersects=aoi.geom_3857)
 
-    engaged_listings = get_submitted_listing_ids_for(purpose="listing_details")
-    qs_listing_ids = qs_listings.exclude(listing_id__in=engaged_listings).order_by("listing_id").distinct()
+    listings_qs = listings_qs.order_by("listing_id").distinct("listing_id")
+    logger.info(f"Found {listings_qs.count()} listings over {aoi_qs.count()} AOIs")
 
-    timethrehold = (now() - timedelta(hours=age_hours)).date()
+    if listings_qs.exists():
 
-    qs_listings = (
-        AirBnBListing.objects.filter(listing_id__in=qs_listing_ids)
-        .filter(listing_updated_at__lte=timethrehold)
-        .order_by(F("listing_updated_at").asc(nulls_first=True))
-    )
-    logger.info(
-        f"Listing that are eligible to fetch their listings details: \t{qs_listings.count()}"
-        f"But will limit the selection to upper bound of {how_many} listings."
-    )
-    qs_listings = qs_listings[:how_many]
-    if qs_listings.exists():
-        listing_ids = list(qs_listings.values_list("listing_id", flat=True))
-        job = group(task_add_listing_detail.s(listing_id=listing_id) for listing_id in listing_ids)
-        group_result: AsyncResult[GroupResult] = job.apply_async(priority=priority)
-
+        listing_ids = list(listings_qs.values_list("listing_id", flat=True))
+        job = group(task_get_listing_details.s(listing_id=listing_id) for listing_id in listing_ids)
+        group_result: AsyncResult[GroupResult] = job.apply_async()
+        group_result.save()  # type: ignore
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
         group_task.op_initiator = op_update_listing_details_periodical.name
-        group_task.op_name = task_add_listing_detail.name
+        group_task.op_name = task_get_listing_details.name
         group_task.op_kwargs = {"listing_id": listing_ids}
         group_task.save()
 
         return group_result.id
+
     logger.info(f"No listings for listing_details have been found!")
     return None
 

@@ -21,15 +21,17 @@ def test_create_grid_qk():
     assert grid.quadkey == qk
 
 
-@pytest.mark.skip("WIP: The following is just a stab")
 @pytest.mark.django_db
-def test_create_grid_aoi():
+def test_create_grid_aoi(geojson_gen, aoishape_model, tmp_path):
     out = StringIO()
     from ubdc_airbnb.models import UBDCGrid
 
-    aoi_id = 1
-    call_command("generate_grid", aoi_id, stdout=out)
-    assert UBDCGrid.objects.count() > 1
+    p = tmp_path / "test-file.json"
+    p.write_text(geojson_gen[0])
+    aoi = aoishape_model.create_from_geojson(p)
+    aoi_id = aoi.id
+    call_command("generate_grid", aoi_id, "--input-type", "aoi", stdout=out)
+    assert UBDCGrid.objects.count() == 1
 
 
 # from django.test import TransactionTestCase

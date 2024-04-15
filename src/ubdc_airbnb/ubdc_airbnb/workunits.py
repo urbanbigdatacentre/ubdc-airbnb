@@ -11,16 +11,29 @@ from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
 logger = get_task_logger(__name__)
 
 
+def qk_has_next_page(quadkey: str, task_id=None) -> tuple[int, bool]:
+    from ubdc_airbnb.models import UBDCGrid
+    from ubdc_airbnb.utils.grids import bbox_from_quadkey
+
+    grid: UBDCGrid = UBDCGrid.objects.get(quadkey=quadkey)
+    bbox = bbox_from_quadkey(grid.quadkey)
+
+    east = bbox.east
+    north = bbox.north
+    south = bbox.south
+    west = bbox.west
+
+    return bbox_has_next_page(east, north, south, west, task_id)
+
+
 def bbox_has_next_page(
     east: float,
     north: float,
     south: float,
     west: float,
     task_id=None,
-) -> bool:
-    """Return True if the bbox has more pages, False otherwise.
-
-    The function will store the response in the database."""
+) -> tuple[int, bool]:
+    """Queries the airbnb API and returns the pk of the response and a bool if the bbox has more pages."""
 
     ubdc_response: AirBnBResponse = AirBnBResponse.objects.response_and_create(
         "get_homes",
@@ -31,8 +44,8 @@ def bbox_has_next_page(
         south=south,
         north=north,
     )
-
-    return airbnb_response_parser.has_next_page(ubdc_response.payload)
+    pk: int = ubdc_response.pk
+    return pk, airbnb_response_parser.has_next_page(ubdc_response.payload)
 
 
 def bbox_estimated_listings(
