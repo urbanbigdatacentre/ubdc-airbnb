@@ -46,7 +46,7 @@ def op_discover_new_listings_at_grid(
 
 
 @shared_task
-def op_discover_new_listings_periodical() -> str:
+def op_discover_new_listings_periodical() -> str | None:
     """
     An 'initiator' task that will start the process of discovering new listings in the AOIs that are marked for this task.
     There's no expiration date for this task.
@@ -59,15 +59,21 @@ def op_discover_new_listings_periodical() -> str:
 
     grids = UBDCGrid.objects.intersect_with_aoi(aois)
 
-    job = group(task_register_listings_or_divide_at_quadkey.s(quadkey=grid.quadkey) for grid in grids)
-    group_result: AsyncResult[GroupResult] = job.apply_async()
-    group_result.save()
-    group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
+    if grids.exists():
+        job = group(
+            task_register_listings_or_divide_at_quadkey.s(quadkey=grid.quadkey)
+            for grid in grids.iterator(chunk_size=1000)
+        )
+        group_result: AsyncResult[GroupResult] = job.apply_async()
+        group_result.save()  # type: ignore
+        group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
 
-    group_task.op_name = op_discover_new_listings_periodical.name
-    group_task.save()
+        group_task.op_name = op_discover_new_listings_periodical.name
+        group_task.save()
 
-    return group_result.id
+        return group_result.id
+
+    logger.info("No grids found for active AOIs to search")
 
 
 @shared_task
@@ -93,7 +99,8 @@ def op_discover_new_listings_at_aoi(
     if len(quadkeys) > 0:
         kwargs = {"quadkey": quadkeys}
         group_job = group(task_discover_listings_at_grid.s(quadkey=qk) for qk in quadkeys)
-        group_result: AsyncResult = group_job.apply_async()
+        group_result: AsyncResult[GroupResult] = group_job.apply_async()
+        group_result.save()  # type: ignore
 
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
 

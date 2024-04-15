@@ -265,7 +265,7 @@ class UserManager(models.Manager):
 
 class UBDCGridManager(models.Manager):
 
-    def intersect_with_aoi(self, aoi_list: "List[app_models.AOIShape]") -> Iterator["app_models.UBDCGrid"]:
+    def intersect_with_aoi(self, aoi_list: "List[app_models.AOIShape]"):
         "Get the grids that intersect with the aois."
         q = models.Q()
         for aoi in aoi_list:
@@ -274,8 +274,8 @@ class UBDCGridManager(models.Manager):
         qs = self.filter(q)
         qs = qs.order_by("quadkey")
         qs = qs.distinct("quadkey")
-        for x in qs.iterator(chunk_size=1000):
-            yield x
+
+        return qs
 
     def has_quadkey(self, quadkey) -> bool:
         return self.filter(quadkey=quadkey).exists()

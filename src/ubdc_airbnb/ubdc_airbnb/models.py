@@ -104,6 +104,28 @@ class AOIShape(models.Model):
 
         return rv
 
+    @classmethod
+    def create_from_bbox(cls, bbox: Tuple[float, float, float, float], name: str) -> "AOIShape":
+        from django.contrib.gis.geos import Polygon
+
+        geom = MultiPolygon(Polygon.from_bbox(bbox))
+        geom.srid = 4326
+        geom.transform(3857)
+
+        rv = cls(
+            geom_3857=geom,
+            name=name,
+            collect_calendars=False,
+            collect_listing_details=False,
+            collect_reviews=False,
+            collect_bookings=False,
+            scan_for_new_listings=False,
+        )
+        rv.save()
+        rv.refresh_from_db()
+
+        return rv
+
     def reproject(self, epsg: int = 4326):
         geom = self.geom_3857
         return geom.transform(ct=epsg, clone=True)

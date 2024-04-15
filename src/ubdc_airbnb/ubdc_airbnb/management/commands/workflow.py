@@ -11,9 +11,8 @@ from ubdc_airbnb.operations import (
     op_update_listing_details_periodical,
     op_update_reviews_periodical,
 )
-from ubdc_airbnb.tasks import (
+from ubdc_airbnb.tasks import (  # task_register_listings_or_divide_at_aoi,
     task_discover_listings_at_grid,
-    task_register_listings_or_divide_at_aoi,
     task_register_listings_or_divide_at_quadkey,
     task_update_calendar,
 )
@@ -65,9 +64,9 @@ class Command(BaseCommand):
                 if options["input-type"] == "quadkey":
                     kwargs = {"quadkey": options["input-value"]}
                     name = task_register_listings_or_divide_at_quadkey.name
-                if options["input-type"] == "aoi":
-                    kwargs = {"aoi_pk": options["input-value"]}
-                    name = task_register_listings_or_divide_at_aoi.name
+                # if options["input-type"] == "aoi":
+                #     kwargs = {"aoi_pk": options["input-value"]}
+                #     name = task_register_listings_or_divide_at_aoi.name
             case "get-calendar":
                 name = task_update_calendar.name
                 kwargs = {"listing_id": options["input-value"]}

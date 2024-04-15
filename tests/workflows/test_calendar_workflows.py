@@ -12,7 +12,7 @@ from celery.result import GroupResult
     ],
 )
 @pytest.mark.django_db(transaction=True)
-def test_get_calendar_for_listing_id(
+def test_op_update_calendars_for_listing_ids(
     mock_airbnb_client,
     listings_model,
     celery_worker,
