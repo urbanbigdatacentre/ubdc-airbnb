@@ -35,7 +35,7 @@ app.conf.beat_schedule = {
     # TODO: Remove priority from all tasks
     "op_update_listing_details_periodical": {
         "task": "ubdc_airbnb.operations.listing_details.op_update_listing_details_periodical",
-        "schedule": crontab(minute=0, hour="0", day_of_month="*/12"),  # At 05:00 on every 12th day-of-month
+        "schedule": crontab(minute=0, hour=5, day_of_month="*/12"),
     },
     # "op_update_reviews_periodical": {
     #     "task": "ubdc_airbnb.operations.reviews.op_update_reviews_periodical",
@@ -45,20 +45,19 @@ app.conf.beat_schedule = {
     # },
     "op_update_calendar_periodical": {
         "task": "ubdc_airbnb.operations.calendars.op_update_calendar_periodical",
-        "schedule": crontab(minute=0, hour="2"),  # Every day at two in the morning.
-        "kwargs": {"use_aoi": True},
+        "schedule": crontab(minute=0, hour=2),  # Every day at two in the morning.
+        "kwargs": {"use_aoi": True},  # Use only AOIs that are marked for scanning.
     },
     "op_discover_new_listings_periodical": {
         "task": "ubdc_airbnb.operations.discovery.op_discover_new_listings_periodical",
-        "schedule": crontab(minute=0, hour="*/5", day_of_month="*/5"),  # At 05:00 on every 5th day-of-month.
-        "kwargs": {},
+        "schedule": crontab(minute=0, hour=5, day_of_month="*/5"),
     },
-    "op_tidy_grids": {
-        "task": "ubdc_airbnb.tasks.task_tidy_grids",
-        "schedule": crontab(minute=0, hour=0, day_of_month=15),  # At 00:00 on day-of-month 15.
-        "kwargs": {"less_than": 50},
-        "options": {"priority": 3},
-    },
+    # "op_tidy_grids": {
+    #     "task": "ubdc_airbnb.tasks.task_tidy_grids",
+    #     "schedule": crontab(minute=0, hour=0, day_of_month=15),  # At 00:00 on day-of-month 15.
+    #     "kwargs": {"less_than": 50},
+    #     "options": {"priority": 3},
+    # },
 }
 
 
