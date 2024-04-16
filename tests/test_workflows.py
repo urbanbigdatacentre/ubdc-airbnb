@@ -27,6 +27,9 @@ def test_op_discover_new_listings_periodical(
         ubdcgrid_model.objects.create_from_tile(t)
 
     assert ubdcgrid_model.objects.count() == 9
+
+    # actual test starts from here.
+
     from ubdc_airbnb.operations.discovery import op_discover_new_listings_periodical
 
     job = op_discover_new_listings_periodical.s()
@@ -38,6 +41,7 @@ def test_op_discover_new_listings_periodical(
         group_result.join()
         assert group_result.completed_count() == 9
         assert ubdcgrid_model.objects.count() == 18
+        # the first 3 results are spawning 4 new subtasks
         assert len(group_result[0].children[0]) == 4
         assert len(group_result[1].children[0]) == 4
         assert len(group_result[2].children[0]) == 4

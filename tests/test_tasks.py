@@ -36,8 +36,7 @@ def test_task_register_listings_or_divide_at_qk_process(
 
     assert ubdcgrid_model.objects.all().count() == 1
     assert responses_model.objects.all().count() == 1
-    # 30 listings by default; 10 from the mock response
-    assert listings_model.objects.all().count() == 30 + 10
+    assert listings_model.objects.all().count() == 10
     assert id_mock.called == False
 
 
@@ -74,7 +73,7 @@ def test_task_register_listings_or_divide_at_qk_divide(
 def test_task_update_calendar_200(responses_model, mock_airbnb_client):
     from ubdc_airbnb.tasks import task_update_calendar
 
-    rv = task_update_calendar(listing_id=1234567)
+    task_update_calendar(listing_id=1234567)
     assert responses_model.objects.all().count() == 1
     response = responses_model.objects.first()
     assert response.listing_id == 1234567

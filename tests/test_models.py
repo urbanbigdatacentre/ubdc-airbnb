@@ -28,6 +28,9 @@ def test_aoi_create_grid(aoishape_model, ubdcgrid_model, geojson_gen, tmp_path):
         f.write_text(gj)
         aoi = aoishape_model.create_from_geojson(f)
         aoi.create_grid()
+        if idx >= 1:
+            # only use the first two AOIs
+            break
 
     assert aoishape_model.objects.filter(name__startswith="test-aoi-").count() == 2
     assert ubdcgrid_model.objects.all().count() == 13

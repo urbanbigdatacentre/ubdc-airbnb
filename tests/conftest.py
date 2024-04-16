@@ -1,124 +1,31 @@
 from datetime import timezone
-from typing import TYPE_CHECKING, Iterable
 from unittest.mock import Mock
 
 import pytest
 from faker import Faker
 
-if TYPE_CHECKING:
-    from typing import Annotated, ClassVar
-
-    from django.db.models import Model
-    from django.db.models.query import QuerySet
-
-    from ubdc_airbnb.models import AirBnBListing, UBDCGrid
-
-
 fake = Faker()
-
 UTC = timezone.utc
 
 
 @pytest.fixture(scope="function")
 def geojson_gen():
     "A fixture that yields AOIs in GeoJSON format"
-    aoi_1 = """
-{
-  "type": "FeatureCollection",
-  "features": [
-    {
-      "type": "Feature",
-      "properties": {},
-      "geometry": {
-        "coordinates": [
-          [
-            [
-              51.31825698297584,
-              35.75530077463931
-            ],
-            [
-              51.306899339126915,
-              35.746188339471544
-            ],
-            [
-              51.319346086102684,
-              35.73752042064078
-            ],
-            [
-              51.312117707462846,
-              35.711951873523645
-            ],
-            [
-              51.391225757050194,
-              35.72691572921883
-            ],
-            [
-              51.37519802674012,
-              35.76488005996366
-            ],
-            [
-              51.3361537252286,
-              35.77778106702692
-            ],
-            [
-              51.31825698297584,
-              35.75530077463931
-            ]
-          ]
-        ],
-        "type": "Polygon"
-      }
-    }
-  ]
-}"""
-    aoi_2 = """{
-  "type": "FeatureCollection",
-  "features": [
-    {
-      "type": "Feature",
-      "properties": {},
-      "geometry": {
-        "coordinates": [
-          [
-            [
-              51.35412641125819,
-              35.75936322561574
-            ],
-            [
-              51.38421221349503,
-              35.75936322561574
-            ],
-            [
-              51.38421221349503,
-              35.78401609844147
-            ],
-            [
-              51.35412641125819,
-              35.78401609844147
-            ],
-            [
-              51.35412641125819,
-              35.75936322561574
-            ]
-          ]
-        ],
-        "type": "Polygon"
-      },
-      "id": 1
-    }
-  ]
-}"""
-    aois = [aoi_2, aoi_1]
-    yield aois
+    from pathlib import Path
+
+    test_aoi_folder = Path(__file__).parent / "test_aois"
+    assert test_aoi_folder.exists()
+    assert test_aoi_folder.is_dir()
+
+    yield [f.read_text() for f in test_aoi_folder.glob("*.geojson")]
 
 
 @pytest.fixture(scope="function")
 def mock_airbnb_client(mocker):
     # from ubdc_airbnb.airbnb_interface import airbnb_api
-    from collections import Counter
     from unittest.mock import MagicMock
 
-    from requests import Request, Response
+    from requests import Request
     from requests.exceptions import HTTPError
 
     class MockResponse:
@@ -167,6 +74,7 @@ def mock_airbnb_client(mocker):
 
         import inspect
 
+        json_data = {"test": "test"}
         # how any times this function has been called?
         # Ask the parent mock object.
         # Obviouslly, this is a hack and depents that this function is called from a mock object
@@ -175,7 +83,7 @@ def mock_airbnb_client(mocker):
         # get the call count
         times_called: int = mref.call_count  # type: ignore
 
-        # listing_ids starting with 8:
+        # Special Rules for listing_ids starting with 8:
         # every odd call returns 503
         # every even call returns 200
         if str(listing_id).startswith("8"):
@@ -185,7 +93,7 @@ def mock_airbnb_client(mocker):
                 headers.update({"X-Crawlera-Error": "banned"})
                 response = MockResponse(
                     status_code=status_code,
-                    json_data={"test": "test"},
+                    json_data=json_data,
                     listing_id=listing_id,
                     headers=headers,
                     kwargs=kwargs,
@@ -196,7 +104,7 @@ def mock_airbnb_client(mocker):
             else:
                 rv = MockResponse(
                     status_code=200,
-                    json_data={"test": "test"},
+                    json_data=json_data,
                     listing_id=listing_id,
                     headers=headers,
                     kwargs=kwargs,
@@ -205,7 +113,7 @@ def mock_airbnb_client(mocker):
         else:
             rv = MockResponse(
                 status_code=status_code,
-                json_data={"test": "test"},
+                json_data=json_data,
                 listing_id=listing_id,
                 headers=headers,
                 kwargs=kwargs,
@@ -304,149 +212,7 @@ def celery_parameters():
 
 @pytest.fixture(scope="session")
 def django_db_setup(django_db_setup, django_db_blocker):
-    from django.contrib.gis.db.models import Union
-    from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
-    from django.db.models import TextField
-    from django.db.models.functions import Cast
-
-    from ubdc_airbnb.models import AirBnBListing, AOIShape
-
-    def create_aoi():
-
-        # fmt: off
-        recent_listings_aoi = (
-            AirBnBListing
-             .objects
-             .annotate(as_str=Cast("listing_id", TextField()))
-            .filter(as_str__startswith=7)
-            .aggregate(geom=Union("geom_3857"))
-        )['geom'].convex_hull
-        stale_listings_aoi = (
-            AirBnBListing
-             .objects
-             .annotate(as_str=Cast("listing_id", TextField()))
-            .filter(as_str__startswith=8)
-            .aggregate(geom=Union("geom_3857"))
-        )['geom'].convex_hull
-
-        new_listings_aoi = (
-            AirBnBListing
-             .objects
-             .annotate(as_str=Cast("listing_id", TextField()))
-            .filter(as_str__startswith=9)
-            .aggregate(geom=Union("geom_3857"))
-        )['geom'].convex_hull
-        # fmt: on
-
-        geometries = [
-            recent_listings_aoi,
-            stale_listings_aoi,
-            new_listings_aoi,
-        ]
-        rv = []
-        for idx, geom in enumerate(geometries, 1):
-            s = AOIShape.objects.create(
-                name=f"test-area-{idx}",
-                geom_3857=MultiPolygon(geom, srid=3857),
-                collect_bookings=True,
-                collect_reviews=False,
-                collect_calendars=True,
-                collect_listing_details=True,
-                scan_for_new_listings=True,
-            )
-            rv.append(s)
-        return rv
-
-    def create_listings():
-        from django.contrib.gis.geos import GEOSGeometry
-
-        from ubdc_airbnb.models import AirBnBListing
-
-        NEW_LISTINGS = 10
-        for idx in range(NEW_LISTINGS):
-            PREFIX = "999999"
-            lat, lon = fake.local_latlng(country_code="GB", coords_only=True)
-            WKText = f'{{"coordinates": [{lon},{lat}],"type": "Point"}}}}'
-            geom = GEOSGeometry(WKText)
-            geom.srid = 4326
-            geom.transform(3857)
-            AirBnBListing.objects.create(
-                listing_updated_at=None,
-                calendar_updated_at=None,
-                booking_quote_updated_at=None,
-                reviews_updated_at=None,
-                listing_id=int(PREFIX + str(idx)),
-                geom_3857=geom,
-            )
-
-        STALE_LISTINGS = 10
-        for idx in range(STALE_LISTINGS):
-            PREFIX = "899999"
-            lat, lon = fake.local_latlng(country_code="GB", coords_only=True)
-            WKText = f'{{"coordinates": [{lon},{lat}],"type": "Point"}}}}'
-            geom = GEOSGeometry(WKText)
-            geom.srid = 4326
-            geom.transform(3857)
-            AirBnBListing.objects.create(
-                listing_updated_at=fake.date_time_between(
-                    start_date="-1y",
-                    end_date="-1w",
-                    tzinfo=UTC,
-                ),
-                calendar_updated_at=fake.date_time_between(
-                    start_date="-1y",
-                    end_date="-1w",
-                    tzinfo=UTC,
-                ),
-                booking_quote_updated_at=fake.date_time_between(
-                    start_date="-1y",
-                    end_date="-1w",
-                    tzinfo=UTC,
-                ),
-                reviews_updated_at=fake.date_time_between(
-                    start_date="-1y",
-                    end_date="-1w",
-                    tzinfo=UTC,
-                ),
-                listing_id=int(PREFIX + str(idx)),
-                geom_3857=geom,
-            )
-
-        RECENT_LISTINGS = 10
-        for idx in range(STALE_LISTINGS):
-            PREFIX = "799999"
-            lat, lon = fake.local_latlng(country_code="GB", coords_only=True)
-            WKText = f'{{"coordinates": [{lon},{lat}],"type": "Point"}}}}'
-            geom = GEOSGeometry(WKText)
-            geom.srid = 4326
-            geom.transform(3857)
-            AirBnBListing.objects.create(
-                listing_updated_at=fake.date_time_between(
-                    start_date="-1d",
-                    tzinfo=UTC,
-                ),
-                calendar_updated_at=fake.date_time_between(
-                    start_date="-1d",
-                    tzinfo=UTC,
-                ),
-                booking_quote_updated_at=fake.date_time_between(
-                    start_date="-1d",
-                    tzinfo=UTC,
-                ),
-                reviews_updated_at=fake.date_time_between(
-                    start_date="-1d",
-                    tzinfo=UTC,
-                ),
-                listing_id=int(PREFIX + str(idx)),
-                geom_3857=geom,
-            )
-
-    with django_db_blocker.unblock():
-        create_listings()
-        create_aoi()
-        assert AirBnBListing.objects.count() == 30
-        assert AOIShape.objects.count() == 3
-
+    # place here any pre-db provisioning
     return
 
 
