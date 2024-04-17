@@ -35,7 +35,7 @@ app.conf.beat_schedule = {
     # TODO: Remove priority from all tasks
     "op_update_listing_details_periodical": {
         "task": "ubdc_airbnb.operations.listing_details.op_update_listing_details_periodical",
-        "schedule": crontab(minute=0, hour=5, day_of_month="*/12"),
+        "schedule": crontab(minute=0, hour=5, day_of_month="12,24"),
     },
     # "op_update_reviews_periodical": {
     #     "task": "ubdc_airbnb.operations.reviews.op_update_reviews_periodical",
@@ -50,7 +50,7 @@ app.conf.beat_schedule = {
     },
     "op_discover_new_listings_periodical": {
         "task": "ubdc_airbnb.operations.discovery.op_discover_new_listings_periodical",
-        "schedule": crontab(minute=0, hour=5, day_of_month="*/5"),
+        "schedule": crontab(minute=0, hour=5, day_of_month="5,10,15,20,25"),
     },
     # "op_tidy_grids": {
     #     "task": "ubdc_airbnb.tasks.task_tidy_grids",
