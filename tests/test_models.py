@@ -111,3 +111,19 @@ def test_create_aoi_from_geojson(aoishape_model, geojson_gen, tmp_path):
         aoishape_model.create_from_geojson(f)
 
     assert aoishape_model.objects.filter(name__startswith="test-aoi-").count() == 2
+
+
+@pytest.mark.django_db
+def test_get_listing_detail_from_listing_id(mock_airbnb_client):
+    from ubdc_airbnb.models import AirBnBResponse, AirBnBResponseTypes
+
+    listing_id = 1234
+    response = AirBnBResponse.objects.fetch_response(
+        type=AirBnBResponseTypes.listingDetail,
+        listing_id=listing_id,
+    )
+
+    assert response
+    assert response.listing_id == listing_id
+    assert response.pk
+    assert response.ubdc_task == None

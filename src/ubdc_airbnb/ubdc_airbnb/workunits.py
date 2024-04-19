@@ -35,9 +35,8 @@ def bbox_has_next_page(
 ) -> tuple[int, bool]:
     """Queries the airbnb API and returns the pk of the response and a bool if the bbox has more pages."""
 
-    ubdc_response: AirBnBResponse = AirBnBResponse.objects.response_and_create(
-        "get_homes",
-        _type=AirBnBResponseTypes.search,
+    ubdc_response: AirBnBResponse = AirBnBResponse.objects.fetch_response(
+        type=AirBnBResponseTypes.search,
         task_id=task_id,
         west=west,
         east=east,
@@ -60,9 +59,8 @@ def bbox_estimated_listings(
     The function will store the response in the database.
     """
 
-    ubdc_response: AirBnBResponse = AirBnBResponse.objects.response_and_create(
-        "bbox_metadata_search",
-        _type=AirBnBResponseTypes.searchMetaOnly,
+    ubdc_response: AirBnBResponse = AirBnBResponse.objects.fetch_response(
+        type=AirBnBResponseTypes.searchMetaOnly,
         task_id=task_id,
         west=west,
         east=east,

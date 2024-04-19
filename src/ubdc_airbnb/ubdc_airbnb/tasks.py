@@ -91,11 +91,10 @@ def task_update_or_add_reviews_at_listing(
     listing = AirBnBListing.objects.get(listing_id=listing_id)
 
     # get the first page
-    response_review = AirBnBResponse.objects.response_and_create(
-        "get_reviews",
+    response_review = AirBnBResponse.objects.fetch_response(
         offset=0,
         limit=limit,
-        _type=AirBnBResponseTypes.review,
+        type=AirBnBResponseTypes.review,
         listing_id=listing_id,
         task_id=task_id,
     )
@@ -167,11 +166,10 @@ def task_update_or_add_reviews_at_listing(
             if reviews_seen >= reviews_total_number:
                 break
             offset = reviews_seen
-            response_review = AirBnBResponse.objects.response_and_create(
-                "get_reviews",
+            response_review = AirBnBResponse.objects.fetch_response(
                 task_id=task_id,
                 listing_id=listing_id,
-                _type=AirBnBResponseTypes.review,
+                type=AirBnBResponseTypes.review,
                 offset=offset,
                 limit=limit,
             )
@@ -206,9 +204,9 @@ def task_update_calendar(
     listing_entry, created = AirBnBListing.objects.get_or_create(listing_id=listing_id)
     logger.info(f"Listing: {listing_id} created: {created}")
     try:
-        ubdc_response = AirBnBResponse.objects.response_and_create(
+        ubdc_response = AirBnBResponse.objects.fetch_response(
             method_name="get_calendar",
-            _type=AirBnBResponseTypes.calendar,
+            type=AirBnBResponseTypes.calendar,
             calendar_months=months,
             task_id=self.request.id,
             listing_id=listing_id,
@@ -256,11 +254,10 @@ def task_get_booking_detail(self: Task, listing_id: int) -> int:
     )
 
     try:
-        booking_response = AirBnBResponse.objects.response_and_create(
-            "get_booking_details",
+        booking_response = AirBnBResponse.objects.fetch_response(
             listing_id=listing_id,
             calendar=calendar.payload,
-            _type=AirBnBResponseTypes.bookingQuote,
+            type=AirBnBResponseTypes.bookingQuote,
             task_id=self.request.id,
         )
         if booking_response:
@@ -302,7 +299,7 @@ def task_discover_listings_at_grid(
         airbnbapi_response = airbnb_client.response
         logger.warning
         search_response_obj = AirBnBResponse.objects.create_from_response(
-            airbnbapi_response, _type=AirBnBResponseTypes.search, task_id=task_id
+            airbnbapi_response, type=AirBnBResponseTypes.search, task_id=task_id
         )
 
         listings = listing_locations_from_response(airbnbapi_response.json())
@@ -367,11 +364,11 @@ def task_get_listing_details(
     listing: AirBnBListing = AirBnBListing.objects.get(listing_id=listing_id_int)
 
     try:
-        airbnb_response: AirBnBResponse = AirBnBResponse.objects.response_and_create(
+        airbnb_response: AirBnBResponse = AirBnBResponse.objects.fetch_response(
             method_name="get_listing_details",
             listing_id=listing_id_int,
             task_id=task_id,
-            _type=AirBnBResponseTypes.listingDetail,
+            type=AirBnBResponseTypes.listingDetail,
         )
     except HTTPError as exc:
         raise exc
@@ -506,10 +503,9 @@ def task_update_user_details(
     task_id = self.request.id
     user, created = AirBnBUser.objects.get_or_create(user_id=user_id)
     try:
-        airbnb_response = AirBnBResponse.objects.response_and_create(
-            "get_user",
+        airbnb_response = AirBnBResponse.objects.fetch_response(
             user_id=user_id,
-            _type=AirBnBResponseTypes.userDetail,
+            type=AirBnBResponseTypes.userDetail,
             task_id=task_id,
         )
     except (HTTPError, ProxyError) as exc:

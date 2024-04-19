@@ -1,7 +1,5 @@
-from functools import partial
 from json import JSONDecodeError
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator, List, MutableMapping, Union
+from typing import TYPE_CHECKING, Any, List, MutableMapping, Type
 
 import mercantile
 from celery.utils.log import get_task_logger
@@ -9,7 +7,6 @@ from django.conf import settings
 from django.contrib.gis.geos.polygon import Polygon as GEOSPolygon
 from django.db import models
 from django.utils.timesince import timesince
-from more_itertools import collapse
 from requests import HTTPError
 from requests.exceptions import ProxyError
 
@@ -34,10 +31,9 @@ if TYPE_CHECKING:
 
 class AirBnBResponseManager(models.Manager):
 
-    def response_and_create(
+    def fetch_response(
         self,
-        method_name: str,  # TODO: replace with Literal[type]
-        _type: str,
+        type: "app_models.AirBnBResponseTypes",
         task_id: str | None = None,
         **kwargs,
     ):
@@ -45,18 +41,40 @@ class AirBnBResponseManager(models.Manager):
 
         If an exception is raised during the request, it is caught and the response is saved in the database.
         The exception is then re-raised."""
+        from ubdc_airbnb.models import AirBnBResponseTypes
 
         # Could raise exception.
         client = settings.AIRBNB_CLIENT
 
+        match type:
+            case AirBnBResponseTypes.bookingQuote:
+                method_name = "get_booking_details"
+            case AirBnBResponseTypes.calendar:
+                method_name = "get_calendar"
+            case AirBnBResponseTypes.review:
+                method_name = "get_reviews"
+            case AirBnBResponseTypes.listingDetail:
+                method_name = "get_listing_details"
+            case AirBnBResponseTypes.search:
+                method_name = "get_homes"
+            case AirBnBResponseTypes.searchMetaOnly:
+                method_name = "bbox_metadata_search"
+            case AirBnBResponseTypes.userDetail:
+                method_name = "get_user_detail"
+            case _:
+                raise ValueError(f"Invalid _type: {type}")
+
         method = getattr(client, method_name)
 
         if method is None:
-            raise Exception(f"{method_name} is not a valid method.")
+            raise Exception(f"could not find reference: {method_name}")
 
         try:
             response, payload = method(**kwargs)
         except (HTTPError, ProxyError) as exc:
+            # Middleware errors.
+            # Don't log the response, but retry.
+
             response = exc.response
             assert response is not None
             # crawlera handling
@@ -64,15 +82,17 @@ class AirBnBResponseManager(models.Manager):
             if response.status_code == 503:
                 if response.headers.get("X-Crawlera-Error") == "banned":
                     raise UBDCRetriableError(f"crawlera-error: {response.text}")
+
         listing_id = kwargs.get("listing_id", None)
 
         obj = self.create_from_response(
             response=response,
-            _type=_type,
+            type=type,
             task_id=task_id,
             listing_id=listing_id,
         )
 
+        # The object has been created successfully.
         try:
             response.raise_for_status()
         except (HTTPError, ProxyError) as exc:
@@ -84,26 +104,11 @@ class AirBnBResponseManager(models.Manager):
     def create_from_response(
         self,
         response: "Response",
-        _type: str,
+        type: str,
         task_id: str | None = None,
         listing_id: int | None = None,
     ):
         from ubdc_airbnb.models import UBDCTask
-
-        if _type is None:
-            # TODO: Heuristics?
-            _type = ""
-
-        if (
-            _type
-            not in [
-                "USR",
-                "SHM",
-                "SRH",
-            ]
-            and listing_id is None
-        ):
-            raise AttributeError(f"The listing_id is required for the specified _type: {_type}")
 
         try:
             payload = response.json()
@@ -112,18 +117,18 @@ class AirBnBResponseManager(models.Manager):
             if response.status_code == 429:
                 # 429 Too Many Requests: we are being rate limited
                 raise UBDCRetriableError("429 error, retrying") from e
-            raise UBDCError(f"Response text was not Json. It was: {response.content}") from e
+            raise UBDCError(f"Response text was not json. It was: {response.content}") from e
 
         except AttributeError as e:
             # there are cases where the body comes back empty.
-            logger.info("Error: Body could not be serialised (empty?)")
+            logger.info("body could not be serialised (empty?)")
             raise UBDCRetriableError("Attribute error, retrying") from e
 
         ubdc_task = UBDCTask.objects.filter(task_id=task_id).first()  # returns None if not found
 
         params = {}
         params.update(
-            _type=_type,
+            _type=type,
             listing_id=listing_id,
             status_code=response.status_code,
             request_headers=dict(**response.request.headers),

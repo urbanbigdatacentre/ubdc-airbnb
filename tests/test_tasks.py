@@ -1,7 +1,11 @@
+import datetime
 from unittest.mock import patch
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
+
+utc = ZoneInfo("UTC")
 
 
 @pytest.mark.django_db
@@ -47,10 +51,10 @@ def test_task_register_listings_or_divide_at_qk_divide(
     mocker,
     mock_airbnb_client,
 ):
-
-    mock_group = mocker.patch("ubdc_airbnb.tasks.group")
     from ubdc_airbnb.models import UBDCGroupTask
 
+    epsilon = datetime.timedelta(seconds=2)
+    mock_group = mocker.patch("ubdc_airbnb.tasks.group")
     quadkey = "031133233211"
 
     id_mock = mocker.PropertyMock(return_value=str(uuid4()))
@@ -65,7 +69,12 @@ def test_task_register_listings_or_divide_at_qk_divide(
 
     assert ubdcgrid_model.objects.all().count() == 4
     assert responses_model.objects.all().count() == 1
-    # we have
+
+    for grid in ubdcgrid_model.objects.all():
+        timestamp = grid.timestamp
+        assert timestamp is not None
+        assert timestamp.tzinfo is not None
+        assert abs(datetime.datetime.now(tz=utc) - timestamp) < epsilon
     assert mock_group.call_count == 1
     assert len(list(mock_group.call_args.args[0])) == 4
 

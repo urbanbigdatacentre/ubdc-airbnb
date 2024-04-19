@@ -29,10 +29,17 @@ def mock_airbnb_client(mocker):
     from requests.exceptions import HTTPError
 
     class MockResponse:
-        def __init__(self, status_code, json_data, listing_id, headers, **kwargs):
+        def __init__(
+            self,
+            status_code: int = 200,
+            json_data: dict[str, str] = {"test": "test"},
+            listing_id: int | None = None,
+            headers: dict[str, str] = {"x-header": "test"},
+            **kwargs,
+        ):
             self.status_code = status_code
-            self.json_data: dict = json_data
-            self.listing_id: int = listing_id
+            self.json_data = json_data
+            self.listing_id = listing_id
             self.headers = headers
 
         def raise_for_status(self):
@@ -59,10 +66,6 @@ def mock_airbnb_client(mocker):
         @property
         def request(self):
             return Mock(spec=Request, headers={"Test": "Test"})
-
-    class MockRequest:
-        # TODO: populate?
-        pass
 
     def calendar_side_effect(
         listing_id,
@@ -180,14 +183,25 @@ def mock_airbnb_client(mocker):
 
         return rv, rv.json()
 
+    def get_listing_details_effect(*args, **kwargs):
+        status_code = 200
+        listing_id = kwargs.get("listing_id", 12345)
+        rv = MockResponse(
+            status_code=status_code,
+            listing_id=listing_id,
+            kwargs=kwargs,
+        )
+
+        return rv, rv.json()
+
     from ubdc_airbnb.airbnb_interface.airbnb_api import AirbnbApi
 
     m = mocker.patch.multiple(
         AirbnbApi,
         get_homes=MagicMock(side_effect=get_homes_side_effect),
         get_calendar=MagicMock(side_effect=calendar_side_effect),
+        get_listing_details=MagicMock(side_effect=get_listing_details_effect),
     )
-
     yield m
 
 
