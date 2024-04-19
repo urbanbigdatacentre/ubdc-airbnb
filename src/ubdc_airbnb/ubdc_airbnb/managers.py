@@ -49,18 +49,23 @@ class AirBnBResponseManager(models.Manager):
         match type:
             case AirBnBResponseTypes.bookingQuote:
                 method_name = "get_booking_details"
+                assert "listing_id" in kwargs
             case AirBnBResponseTypes.calendar:
                 method_name = "get_calendar"
+                assert "listing_id" in kwargs
             case AirBnBResponseTypes.review:
                 method_name = "get_reviews"
+                assert "listing_id" in kwargs
             case AirBnBResponseTypes.listingDetail:
                 method_name = "get_listing_details"
+                assert "listing_id" in kwargs
             case AirBnBResponseTypes.search:
                 method_name = "get_homes"
             case AirBnBResponseTypes.searchMetaOnly:
                 method_name = "bbox_metadata_search"
             case AirBnBResponseTypes.userDetail:
                 method_name = "get_user_detail"
+                assert "user_id" in kwargs
             case _:
                 raise ValueError(f"Invalid _type: {type}")
 
