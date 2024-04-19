@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 def op_add_listing_details_for_listing_ids(
     listing_id: Union[int, List[int]],
 ) -> str:
-    """Fetch and store into the database LISTING DETAILS for one or many LISTING_IDs.
+    """Fetch and store LISTING DETAILS for one or many LISTING_IDs.
     This is an initiating task which will generate len(listing_id) sub tasks.
 
     :param listing_id: an integer or a List[int] to get the listing details from airbnb
@@ -135,9 +135,8 @@ def op_add_listing_details_at_aoi(
 
 @shared_task(acks_late=False)
 def op_update_listing_details_periodical(use_aoi=True) -> Optional[str]:
-    """Fetch Listing Details. If use_aoi = True (default) it will only fetch the listings that are within the AOI that are marked for listing_details harvest.
-
-    Otherwise, it will fetch all listings that fall within any AOI."""
+    """Fetch listing details.
+    If use_aoi = True (default) it will only fetch for listings that intersect with AOIs that are marked for such."""
 
     logger.info(f"Using AOI: {use_aoi}")
     aoi_qs = AOIShape.objects.all()
@@ -152,8 +151,7 @@ def op_update_listing_details_periodical(use_aoi=True) -> Optional[str]:
     logger.info(f"Found {listings_qs.count()} listings over {aoi_qs.count()} AOIs")
 
     if listings_qs.exists():
-
-        listing_ids = list(listings_qs.values_list("listing_id", flat=True))
+        listing_ids = listings_qs.values_list("listing_id", flat=True)
         job = group(task_get_listing_details.s(listing_id=listing_id) for listing_id in listing_ids)
         group_result: AsyncResult[GroupResult] = job.apply_async()
         group_result.save()  # type: ignore
