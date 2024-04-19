@@ -352,12 +352,12 @@ def task_get_listing_details(
     self,
     listing_id: Union[str, int],
 ) -> int:
-    "Adds the details for an existing AirBnBListing into the database. Returns the listing_id"
+    "Fetches the Listing Details for known ListingID. Returns the listing_id on success."
 
     # from this response we can harverst listing details and information if the host is a superhost or not.
     # I don't have a dedicated listing details model to populate
 
-    task_id = self.request.id
+    task_id = self.request.id or None
     time_now = timezone.now()
     listing_id_int = int(listing_id)
 
@@ -365,7 +365,6 @@ def task_get_listing_details(
 
     try:
         airbnb_response: AirBnBResponse = AirBnBResponse.objects.fetch_response(
-            method_name="get_listing_details",
             listing_id=listing_id_int,
             task_id=task_id,
             type=AirBnBResponseTypes.listingDetail,
@@ -390,10 +389,7 @@ def task_get_listing_details(
 
     # process hosts
     for host in chain(primary_hosts_generator, additional_hosts_generator):
-        user_id = host.get("id")
-        if user_id is None:
-            logger.warning(f"Host {host} does not have an id. Skipping.")
-            continue
+        user_id = host["id"]
         is_superhost = host.get("is_superhost", False)
         user, created = AirBnBUser.objects.get_or_create(user_id=user_id)
         user.is_superhost = is_superhost

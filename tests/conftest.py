@@ -1,4 +1,5 @@
 from datetime import timezone
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -32,9 +33,9 @@ def mock_airbnb_client(mocker):
         def __init__(
             self,
             status_code: int = 200,
-            json_data: dict[str, str] = {"test": "test"},
+            json_data: dict[str, Any] = {"test": "test"},
             listing_id: int | None = None,
-            headers: dict[str, str] = {"x-header": "test"},
+            headers: dict[str, Any] = {"x-header": "test"},
             **kwargs,
         ):
             self.status_code = status_code
@@ -184,11 +185,27 @@ def mock_airbnb_client(mocker):
         return rv, rv.json()
 
     def get_listing_details_effect(*args, **kwargs):
+
+        def gen_fake_user():
+            return {
+                "id": fake.random_int(min=300000, max=1000000),
+                "first_name": fake.first_name(),
+                "picture_url": fake.image_url(),
+                "is_superhost": fake.boolean(),
+            }
+
         status_code = 200
+        json_data = {
+            "pdp_listing_detail": {
+                "primary_host": gen_fake_user(),
+                "additional_hosts": [gen_fake_user() for _ in range(3)],
+            }
+        }
         listing_id = kwargs.get("listing_id", 12345)
         rv = MockResponse(
             status_code=status_code,
             listing_id=listing_id,
+            json_data=json_data,
             kwargs=kwargs,
         )
 

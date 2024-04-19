@@ -86,3 +86,21 @@ def test_task_update_calendar_200(responses_model, mock_airbnb_client):
     assert responses_model.objects.all().count() == 1
     response = responses_model.objects.first()
     assert response.listing_id == 1234567
+
+
+def test_task_get_listing_details(
+    responses_model,
+    mock_airbnb_client,
+    mocker,
+    listings_model,
+):
+    m = mocker.patch.object(listings_model, "objects")
+    from ubdc_airbnb.tasks import task_get_listing_details
+
+    task_get_listing_details(listing_id=1234567)
+    assert responses_model.objects.all().count() == 1
+    response = responses_model.objects.first()
+    assert response.listing_id == 1234567
+    assert m.get.called == True
+    assert m.get().save.called == True
+    assert m.get().responses.add.called == True
