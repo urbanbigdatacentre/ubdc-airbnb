@@ -139,17 +139,12 @@ def op_update_listing_details_periodical(use_aoi=True) -> Optional[str]:
     If use_aoi = True (default) it will only fetch for listings that intersect with AOIs that are marked for such."""
 
     logger.info(f"Using AOI: {use_aoi}")
-    aoi_qs = AOIShape.objects.all()
-    if use_aoi:
-        aoi_qs = aoi_qs.filter(collect_listing_details=True)
 
     listings_qs = AirBnBListing.objects.all()
-    for aoi in aoi_qs:
-        listings_qs = listings_qs.filter(geom_3857__intersects=aoi.geom_3857)
+    if use_aoi:
+        listings_qs = get_listings_qs_for_aoi("listing_details")
 
-    listings_qs = listings_qs.order_by("listing_id").distinct("listing_id")
-    logger.info(f"Found {listings_qs.count()} listings over {aoi_qs.count()} AOIs")
-
+    logger.info(f"Found {listings_qs.count()} listings to fetch.")
     if listings_qs.exists():
         listing_ids = listings_qs.values_list("listing_id", flat=True)
         job = group(task_get_listing_details.s(listing_id=listing_id) for listing_id in listing_ids)
