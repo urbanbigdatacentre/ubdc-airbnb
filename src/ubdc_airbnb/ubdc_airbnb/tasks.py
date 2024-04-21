@@ -204,7 +204,6 @@ def task_update_calendar(
     logger.info(f"Listing: {listing_id} created: {created}")
     try:
         ubdc_response = AirBnBResponse.objects.fetch_response(
-            method_name="get_calendar",
             type=AirBnBResponseTypes.calendar,
             calendar_months=months,
             task_id=self.request.id,
