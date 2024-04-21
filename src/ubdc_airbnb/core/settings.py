@@ -21,10 +21,6 @@ else:
     warnings.warn(message)
 
 EXTRA_HEADERS = {x.replace("_", "-"): os.environ[x] for x in os.environ if x.startswith("PROXY_HEADER_")}
-AIRBNB_CLIENT = AirbnbApi(
-    proxy=AIRBNB_PROXY,
-    extra_headers=EXTRA_HEADERS,
-)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_ENV") == "DEV"

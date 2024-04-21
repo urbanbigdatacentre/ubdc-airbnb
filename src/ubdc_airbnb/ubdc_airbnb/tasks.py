@@ -19,6 +19,7 @@ from more_itertools import collapse
 from requests import HTTPError
 from requests.exceptions import ProxyError
 
+from ubdc_airbnb.airbnb_interface.airbnb_api import AirbnbApi
 from ubdc_airbnb.decorators import convert_exceptions
 from ubdc_airbnb.errors import UBDCError, UBDCRetriableError
 from ubdc_airbnb.models import (
@@ -31,14 +32,12 @@ from ubdc_airbnb.models import (
     UBDCGroupTask,
     UBDCTask,
 )
-
-# from ubdc_airbnb.utils.users import ubdc_response_for_airbnb_user
 from ubdc_airbnb.task_managers import BaseTaskWithRetry
 from ubdc_airbnb.utils.grids import bbox_from_quadkey
 from ubdc_airbnb.utils.spatial import listing_locations_from_response, reproject
 
 logger = get_task_logger(__name__)
-airbnb_client = settings.AIRBNB_CLIENT
+airbnb_client = AirbnbApi()
 
 
 if TYPE_CHECKING:

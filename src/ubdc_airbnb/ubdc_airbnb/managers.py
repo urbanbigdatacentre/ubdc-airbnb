@@ -41,10 +41,10 @@ class AirBnBResponseManager(models.Manager):
 
         If an exception is raised during the request, it is caught and the response is saved in the database.
         The exception is then re-raised."""
+        from ubdc_airbnb.airbnb_interface.airbnb_api import AirbnbApi
         from ubdc_airbnb.models import AirBnBResponseTypes
 
-        # Could raise exception.
-        client = settings.AIRBNB_CLIENT
+        airbnb_client = AirbnbApi()
 
         match type:
             case AirBnBResponseTypes.bookingQuote:
@@ -69,7 +69,7 @@ class AirBnBResponseManager(models.Manager):
             case _:
                 raise ValueError(f"Invalid _type: {type}")
 
-        method = getattr(client, method_name)
+        method = getattr(airbnb_client, method_name)
 
         if method is None:
             raise Exception(f"could not find reference: {method_name}")
