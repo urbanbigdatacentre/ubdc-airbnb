@@ -37,7 +37,7 @@ from ubdc_airbnb.utils.grids import bbox_from_quadkey
 from ubdc_airbnb.utils.spatial import listing_locations_from_response, reproject
 
 logger = get_task_logger(__name__)
-airbnb_client = AirbnbApi()
+airbnb_client = AirbnbApi(proxy=settings.AIRBNB_PROXY)
 
 
 if TYPE_CHECKING:

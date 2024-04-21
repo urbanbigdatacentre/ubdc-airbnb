@@ -44,7 +44,7 @@ class AirBnBResponseManager(models.Manager):
         from ubdc_airbnb.airbnb_interface.airbnb_api import AirbnbApi
         from ubdc_airbnb.models import AirBnBResponseTypes
 
-        airbnb_client = AirbnbApi()
+        airbnb_client = AirbnbApi(proxy=settings.AIRBNB_PROXY)
 
         match type:
             case AirBnBResponseTypes.bookingQuote:
