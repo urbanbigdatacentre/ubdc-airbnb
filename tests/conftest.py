@@ -211,14 +211,10 @@ def mock_airbnb_client(mocker):
 
         return rv, rv.json()
 
-    from ubdc_airbnb.airbnb_interface.airbnb_api import AirbnbApi
-
-    m = mocker.patch.multiple(
-        AirbnbApi,
-        get_homes=MagicMock(side_effect=get_homes_side_effect),
-        get_calendar=MagicMock(side_effect=calendar_side_effect),
-        get_listing_details=MagicMock(side_effect=get_listing_details_effect),
-    )
+    m = mocker.patch("ubdc_airbnb.airbnb_interface.airbnb_api.AirbnbApi", autospec=True)
+    m().get_homes.side_effect = get_homes_side_effect
+    m().get_listing_details.side_effect = get_listing_details_effect
+    m().get_calendar.side_effect = calendar_side_effect
     yield m
 
 
