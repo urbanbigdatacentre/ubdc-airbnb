@@ -468,6 +468,31 @@ class AirBnBUser(models.Model):
 
     objects: ClassVar[UserManager] = UserManager()
 
+    def update_from_response(self, response: AirBnBResponse) -> None:
+        "Update the user from a response object."
+        if response._type != AirBnBResponseTypes.userDetail:
+            raise UBDCError(f"Cannot update user from response of type {response._type}")
+
+        payload = response.payload
+        user_data = payload.get("user", {})
+
+        self.first_name = user_data.get("first_name", self.user_id)
+        self.about = user_data.get("about", "")
+        self.location = user_data.get("location", "")
+        self.airbnb_listing_count = user_data.get("listings_count", 0)
+        self.verifications = user_data.get("verifications", [])
+        self.picture_url = user_data.get("picture_url", "").split("?")[0]
+        self.created_at = user_data.get("created_at", None)
+
+    @property
+    def is_placeholder(self) -> bool:
+        "Retuns True if the user name is default. False otherwise."
+        return self.first_name == model_defaults.AIRBNBUSER_FIRST_NAME
+
+    @property
+    def is_disabled(self) -> bool:
+        return self.first_name == model_defaults.AIRBNBUSER_DISABLED
+
     @cached_property
     def listing_count(self) -> int:
         return self.listings.count()

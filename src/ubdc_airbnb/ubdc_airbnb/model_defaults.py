@@ -1,6 +1,7 @@
 # Default values for the models
 
 AIRBNBUSER_FIRST_NAME = "airbnbuser"
+AIRBNBUSER_DISABLED = "airbnbuser-disabled"
 AIRBNBUSER_LOCATION = ""
 AIRBNBUSER_ABOUT = ""
 AIOSHAPE_NAME = "A Collection Area"

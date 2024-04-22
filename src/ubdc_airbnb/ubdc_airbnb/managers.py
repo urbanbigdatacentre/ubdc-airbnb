@@ -64,7 +64,7 @@ class AirBnBResponseManager(models.Manager):
             case AirBnBResponseTypes.searchMetaOnly:
                 method_name = "bbox_metadata_search"
             case AirBnBResponseTypes.userDetail:
-                method_name = "get_user_detail"
+                method_name = "get_user"
                 assert "user_id" in kwargs
             case _:
                 raise ValueError(f"Invalid _type: {type}")

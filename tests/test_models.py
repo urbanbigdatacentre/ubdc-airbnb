@@ -114,7 +114,37 @@ def test_create_aoi_from_geojson(aoishape_model, geojson_gen, tmp_path):
 
 
 @pytest.mark.django_db
-def test_get_listing_detail_from_listing_id(mock_airbnb_client):
+def test_airbnbResponse_get_user_detail(mock_airbnb_client, responses_model):
+    from requests.exceptions import HTTPError
+
+    from ubdc_airbnb.errors import UBDCRetriableError
+    from ubdc_airbnb.models import AirBnBResponse, AirBnBResponseTypes
+
+    user_id = 1234
+    response = AirBnBResponse.objects.fetch_response(
+        type=AirBnBResponseTypes.userDetail,
+        user_id=user_id,
+    )
+    assert responses_model.objects.count() == 1
+
+    with pytest.raises(HTTPError):
+        response = AirBnBResponse.objects.fetch_response(
+            type=AirBnBResponseTypes.userDetail,
+            user_id=user_id,
+        )
+    assert responses_model.objects.count() == 2
+
+    with pytest.raises(UBDCRetriableError):
+        response = AirBnBResponse.objects.fetch_response(
+            type=AirBnBResponseTypes.userDetail,
+            user_id=user_id,
+        )
+
+    assert responses_model.objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_airbnbResponse_get_listing_detail(mock_airbnb_client):
     from ubdc_airbnb.models import AirBnBResponse, AirBnBResponseTypes
 
     listing_id = 1234

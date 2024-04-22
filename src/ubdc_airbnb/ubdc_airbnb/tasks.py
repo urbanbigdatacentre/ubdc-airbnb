@@ -476,23 +476,16 @@ def task_register_listings_or_divide_at_quadkey(
     return None
 
 
+from ubdc_airbnb import model_defaults
+
+
 @shared_task(bind=True)
 @convert_exceptions
 def task_update_user_details(
     self: BaseTaskWithRetry,
     user_id: int,
 ) -> int:
-    """Update user details. Returns user_id.
-
-    In case the user is innaccessible, if it's a placeholder user, it will update the name to 'innaccessible' and return the user_id. otherwise, nothing will be done.
-    """
-
-    # superhosts flag is only avaible in listing details or search results.
-
-    from ubdc_airbnb.workunits import (
-        is_user_placeholder,
-        update_user_details_from_airbnb_usr_response,
-    )
+    """Update user details. Returns user_id."""
 
     task_id = self.request.id
     user, created = AirBnBUser.objects.get_or_create(user_id=user_id)
@@ -503,16 +496,17 @@ def task_update_user_details(
             task_id=task_id,
         )
     except (HTTPError, ProxyError) as exc:
+        # we are to late!
+        # Although we have a user_id, the user profile has been deactivated.
         logger.info(f"user_id: {user_id} is inaccessible", exc)
-        if is_user_placeholder(user):
-            user.first_name = "INACCESSIBLE"
+        if user.is_placeholder:
+            user.first_name = model_defaults.AIRBNBUSER_DISABLED
             user.save()
-        a = 1
         return user_id
     finally:
         user.responses.add(airbnb_response)
 
-    update_user_details_from_airbnb_usr_response(user, airbnb_response)
+    user.update_from_response(airbnb_response)
     return user_id
 
 

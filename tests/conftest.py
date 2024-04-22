@@ -1,11 +1,10 @@
+import inspect
 from datetime import timezone
 from typing import Any
 from unittest.mock import Mock
 
 import pytest
-from faker import Faker
 
-fake = Faker()
 UTC = timezone.utc
 
 
@@ -22,11 +21,9 @@ def geojson_gen():
 
 
 @pytest.fixture(scope="function")
-def mock_airbnb_client(mocker):
+def mock_airbnb_client(mocker, faker):
     # from ubdc_airbnb.airbnb_interface import airbnb_api
-    from unittest.mock import MagicMock
-
-    from requests import Request
+    from requests import Request, Response
     from requests.exceptions import HTTPError
 
     class MockResponse:
@@ -62,11 +59,46 @@ def mock_airbnb_client(mocker):
 
         @property
         def elapsed(self):
-            return fake.time_delta()
+            return faker.time_delta()
 
         @property
         def request(self):
             return Mock(spec=Request, headers={"Test": "Test"})
+
+    def user_side_effect(*args, **kwargs):
+        mref = inspect.currentframe().f_back.f_locals.get("self")  # type: ignore
+        # get the call count
+        times_called: int = mref.call_count  # type: ignore
+        match times_called:
+            case 1:
+                status_code = 200
+            case 2:
+                status_code = 404
+            case 3:
+                status_code = 503
+                headers = {"X-Crawlera-Error": "banned"}
+                e = HTTPError("Mock-Exception code: 503")
+                e.response = MockResponse(status_code=503, headers=headers)
+                raise e
+            case _:
+                status_code = 200
+
+        json_data = {
+            "user": {
+                "id": faker.random_int(min=300000, max=1000000),
+                "first_name": faker.first_name(),
+                "picture_url": faker.image_url(),
+                "is_superhost": faker.boolean(),
+                "location": faker.country(),
+                "listings_count": faker.random_int(min=0, max=100),
+                "reviewee_count": faker.random_int(min=0, max=100),
+                "verifications": [faker.word() for _ in range(3)],
+                "created_at": faker.iso8601(tzinfo=UTC),
+                "picture_urls": [faker.image_url() for _ in range(3)],
+            }
+        }
+        rv = MockResponse(status_code=status_code, json_data=json_data, kwargs=kwargs)
+        return rv, rv.json()
 
     def calendar_side_effect(
         listing_id,
@@ -126,8 +158,6 @@ def mock_airbnb_client(mocker):
             return rv, rv.json()
 
     def get_homes_side_effect(*args, **kwargs):
-        import inspect
-
         # how any times this function has been called?
         # Ask the parent mock object.
         # Obviouslly, this is a hack and depents that this function is called from a mock object
@@ -153,12 +183,12 @@ def mock_airbnb_client(mocker):
         listings = [
             {
                 "listing": {
-                    "id_str": fake.pystr_format(string_format="##################"),  # 18 chars
-                    "lat": fake.pyfloat(
+                    "id_str": faker.pystr_format(string_format="##################"),  # 18 chars
+                    "lat": faker.pyfloat(
                         max_value=kwargs.get("north", 10),
                         min_value=kwargs.get("south", -10),
                     ),
-                    "lng": fake.pyfloat(
+                    "lng": faker.pyfloat(
                         min_value=kwargs.get("west", -10),
                         max_value=kwargs.get("east", 10),
                     ),
@@ -188,10 +218,10 @@ def mock_airbnb_client(mocker):
 
         def gen_fake_user():
             return {
-                "id": fake.random_int(min=300000, max=1000000),
-                "first_name": fake.first_name(),
-                "picture_url": fake.image_url(),
-                "is_superhost": fake.boolean(),
+                "id": faker.random_int(min=300000, max=1000000),
+                "first_name": faker.first_name(),
+                "picture_url": faker.image_url(),
+                "is_superhost": faker.boolean(),
             }
 
         status_code = 200
@@ -215,6 +245,7 @@ def mock_airbnb_client(mocker):
     m().get_homes.side_effect = get_homes_side_effect
     m().get_listing_details.side_effect = get_listing_details_effect
     m().get_calendar.side_effect = calendar_side_effect
+    m().get_user.side_effect = user_side_effect
     yield m
 
 
@@ -265,6 +296,14 @@ def ubdcgrid_model(db):
 
     model = django_apps.get_model("app.UBDCGrid")
     assert model.objects.count() == 0
+    return model
+
+
+@pytest.fixture()
+def user_model(db):
+    from django.apps import apps as django_apps
+
+    model = django_apps.get_model("app.AirBnBUser")
     return model
 
 
