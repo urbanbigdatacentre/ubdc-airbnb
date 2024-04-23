@@ -5,9 +5,9 @@ from django.core.management import BaseCommand
 from ubdc_airbnb.management.commands import int_to_listing
 from ubdc_airbnb.models import AirBnBListing
 from ubdc_airbnb.tasks import (
+    task_add_reviews_of_listing,
     task_get_listing_details,
     task_update_calendar,
-    task_update_or_add_reviews_at_listing,
 )
 
 op_choices = ["calendar", "listing-detail", "reviews"]
@@ -40,7 +40,7 @@ class Command(BaseCommand):
             self.stdout.write(f"Fetched listing-details for listing {r}")
             return
         if op == "reviews":
-            r = task_update_or_add_reviews_at_listing(listing_id=listing.listing_id)
+            r = task_add_reviews_of_listing(listing_id=listing.listing_id)
             self.stdout.write(f"Fetched reviews for listing {r}")
             return
 

@@ -7,7 +7,7 @@ from django.db.models import F
 
 from ubdc_airbnb.errors import UBDCError
 from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGroupTask
-from ubdc_airbnb.tasks import task_update_or_add_reviews_at_listing
+from ubdc_airbnb.tasks import task_add_reviews_of_listing
 from ubdc_airbnb.utils.spatial import get_listings_qs_for_aoi
 from ubdc_airbnb.utils.tasks import get_submitted_listing_ids_for
 
@@ -25,14 +25,14 @@ def op_update_comment_at_listings(listing_id: Union[int, Sequence[int]], force_c
 
     tasks_list = []
     for idx in listing_ids:
-        task = task_update_or_add_reviews_at_listing.s(listing_id=idx, force_check=force_check)
+        task = task_add_reviews_of_listing.s(listing_id=idx, force_check=force_check)
         tasks_list.append(task)
 
     job = group(tasks_list)
     group_result: GroupResult = job.apply_async()
     group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
 
-    group_task.op_name = task_update_or_add_reviews_at_listing.name
+    group_task.op_name = task_add_reviews_of_listing.name
     group_task.op_initiator = op_update_comment_at_listings.name
     group_task.op_kwargs = {"listing_id": listing_ids}
     group_task.save()
@@ -125,11 +125,11 @@ def op_update_reviews_periodical(
 
     if qs_listings.exists():
         listing_ids = list(qs_listings.values_list("listing_id", flat=True))
-        job = group(task_update_or_add_reviews_at_listing.s(listing_id=listing_id) for listing_id in listing_ids)
+        job = group(task_add_reviews_of_listing.s(listing_id=listing_id) for listing_id in listing_ids)
         group_result: GroupResult = job.apply_async(priority=priority)
 
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
-        group_task.op_name = task_update_or_add_reviews_at_listing.name
+        group_task.op_name = task_add_reviews_of_listing.name
         group_task.op_initiator = op_update_reviews_periodical.name
         group_task.op_kwargs = {"listing_id": listing_ids}
         group_task.save()

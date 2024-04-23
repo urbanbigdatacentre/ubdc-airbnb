@@ -1,7 +1,7 @@
 from collections import Counter
 from datetime import timedelta
 from random import random
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import mercantile
 from celery import Task, group, shared_task
@@ -46,144 +46,68 @@ if TYPE_CHECKING:
 
 @shared_task(bind=True)
 @convert_exceptions
-def task_update_or_add_reviews_at_listing(
+def task_add_reviews_of_listing(
     self: Task,
     listing_id: int,
-    force_check: bool = False,
+    offset=0,
+    limit=100,
     **kwargs,
-) -> str:
+) -> None:
     """
-    Fetches comments responses  inside the database for a particular listing.
-    Adds any new users in the process.
-
-    :param self: UBDCTask
-    :type self: UBDCTask
-    :param listing_id:  The listing_id of the listing that the comments/reviews will be harvested from
-    :type listing_id: int
-    :param force_check: ,defaults to True
-    :type force_check: bool, optional
-    :param defer_user_creation: Create a temporary AirBnB User entry and submit a task to populate data later.
-                                Defaults to True
-
-
-    :return: Returns the number of reviews that were processed.
-    :rtype: int
-
+    Fetches review responses. Adds any new users in the process.
     """
-
-    # comment to fetch per request
-    priority = int(kwargs.get("priority", 4))
-    limit = int(kwargs.get("reviews_per_page", 100))
-    if not 0 <= priority <= 10:
-        raise UBDCError("Variable priority must be between 0 and 10")
-    if not 1 < limit <= 100:
-        raise UBDCError("Variable reviews_per_page must be between 1 and 100")
 
     task_id = self.request.id
-
-    # summary of what we did
-    _return = {
-        "AirBnBListing": 0,
-        "AirBnBReview": [],
-    }
-
     listing = AirBnBListing.objects.get(listing_id=listing_id)
 
-    # get the first page
     response_review = AirBnBResponse.objects.fetch_response(
-        offset=0,
+        offset=offset,
         limit=limit,
         type=AirBnBResponseTypes.review,
         listing_id=listing_id,
         task_id=task_id,
     )
 
-    _return["AirBnBListing"] = response_review.id
-    reviews_total_number = response_review.payload["metadata"]["reviews_count"]
-    page = response_review.payload.copy()
+    payload = response_review.payload
+    reviews_count = payload["metadata"]["reviews_count"]
+    pages = reviews_count // limit
+    current_offset = int(response_review.query_params["_offset"])
+    has_multiple_pages = pages > 1
+    current_page = current_offset // limit  # 0 based page
 
-    # Logic:
-    # With each page fetched; check if the most recent reviews
-    # for an existing listing (in the db)
-    #
-    # The reviews are coming in chronological order, timestamp desc. (newest first.)
-    #  For each review:
-    #   Check if we have the users, if not make a placeholder user
-
-    reviews_seen = 0
-    reviews_processed = []
-
-    user_default = {
-        "first_name": "UBDC-PLACEHOLDER",
-        "airbnb_listing_count": 0,
-        "verifications": [],
-        "picture_url": "",
-        "location": "",
-    }
-
-    while True:
-        reviews = page["reviews"]
-        reviews_seen += len(reviews)
-
-        # for/else
-        for review in reviews:
-            review_id = review["id"]
-            author_id = review["author_id"]
-            recipient_id = review["recipient_id"]
-
-            author, created = AirBnBUser.objects.get_or_create(user_id=author_id, defaults=user_default)
-            if created:
-                logger.info(f"Adding author user  ({author.user_id})")
-            recipient, created = AirBnBUser.objects.get_or_create(user_id=recipient_id, defaults=user_default)
-            if created:
-                logger.info(f"Adding (recipient) user ({author.user_id})")
-                # Connect author and recipient to this listing
-            listing.users.add(author, recipient)
-
-            try:
-                review = AirBnBReview.objects.get(review_id=review_id)
-                seen_before = True
-            except AirBnBReview.DoesNotExist:
-                review = AirBnBReview(
-                    review_id=review_id,
-                    created_at=review["created_at"],
-                    review_text=review["comments"],
-                    language=review.get("language", ""),
-                    listing=listing,
-                    author_id=author.user_id,
-                    recipient_id=recipient.user_id,
-                    response=response_review,
-                )
-                seen_before = False
-                reviews_processed.append(review)
-
-            if seen_before and not force_check:
-                break
-
-        else:
-            # only executed if the previous loop did NOT break
-            if reviews_seen >= reviews_total_number:
-                break
-            offset = reviews_seen
-            response_review = AirBnBResponse.objects.fetch_response(
-                task_id=task_id,
+    if has_multiple_pages and current_page == 0:
+        # submit the other pages
+        for page in range(1, pages + 1):
+            listing_id = listing_id
+            task = task_add_reviews_of_listing.s(
                 listing_id=listing_id,
-                type=AirBnBResponseTypes.review,
-                offset=offset,
+                offset=page * limit,
                 limit=limit,
             )
-            page = response_review.payload
+            task.apply_async()
+        listing.reviews_updated_at = timezone.now()
+        listing.save()
 
-            continue
-        break  # this is only executed if the inner loop DID break
+    ## process the review payload
+    reviews: list[dict[str, Any]] = payload["reviews"]
+    for review in reviews:
+        review_id = review["id"]
+        author_data = review["author"]
+        recipient_data = review["recipient"]
+        author, _ = AirBnBUser.objects.get_or_create(user_id=author_data["id"])
+        recipient, _ = AirBnBUser.objects.get_or_create(user_id=recipient_data["id"])
+        listing.users.add(author, recipient)
 
-    AirBnBReview.objects.bulk_create(reviews_processed)
-    listing.reviews_updated_at = timezone.now()
-    listing.save()
-    logger.info(
-        f"Finished processed reviews for listing_id: {listing.listing_id} (added {len(reviews_processed)} reviews)."
-    )
-    return f"Finished Processing Reviews for {listing.listing_id}"
+        review = AirBnBReview(
+            review_id=review_id,
+            created_at=review["created_at"],
+            review_text=review["comments"],
+            language=review.get("language", ""),
+            listing=listing,
+            author_id=author.user_id,
+            recipient_id=recipient.user_id,
+            response=response_review,
+        )
 
 
 @shared_task(bind=True)
@@ -626,7 +550,7 @@ __all__ = [
     "task_get_booking_detail",
     "task_get_or_create_user",
     "task_update_calendar",
-    "task_update_or_add_reviews_at_listing",
+    "task_add_reviews_of_listing",
     "task_update_user_details",
     "task_tidy_grids",
 ]

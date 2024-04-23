@@ -104,3 +104,25 @@ def test_task_get_listing_details(
     assert m.get.called == True
     assert m.get().save.called == True
     assert m.get().responses.add.called == True
+
+
+@pytest.mark.django_db
+def test_task_add_reviews_of_listing(
+    responses_model,
+    mock_airbnb_client,
+    mocker,
+    listings_model,
+):
+    listing_id = 1234567
+    listings_model.objects.create(listing_id=listing_id)
+    from ubdc_airbnb.tasks import task_add_reviews_of_listing
+
+    mock_signature = mocker.MagicMock(spec=task_add_reviews_of_listing)
+    group_mock = mocker.patch("ubdc_airbnb.tasks.group")
+    task_add_reviews_of_listing.s = mock_signature
+
+    task_add_reviews_of_listing(listing_id=1234567)
+    assert responses_model.objects.all().count() == 1
+    response = responses_model.objects.first()
+    assert response.listing_id == 1234567
+    assert mock_signature().apply_async.call_count == 3

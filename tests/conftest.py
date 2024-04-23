@@ -26,9 +26,12 @@ def mock_airbnb_client(mocker, faker):
     from requests import Request, Response
     from requests.exceptions import HTTPError
 
+    from ubdc_airbnb.models import AirBnBResponseTypes
+
     class MockResponse:
         def __init__(
             self,
+            response_type: AirBnBResponseTypes,
             status_code: int = 200,
             json_data: dict[str, Any] = {"test": "test"},
             listing_id: int | None = None,
@@ -39,6 +42,18 @@ def mock_airbnb_client(mocker, faker):
             self.json_data = json_data
             self.listing_id = listing_id
             self.headers = headers
+
+            match response_type:
+                case AirBnBResponseTypes.listingDetail:
+                    self.listing_id = kwargs.get("listing_id", 12345)
+                    self._url = f"http://test.com/?listing_id={self.listing_id}&param=2"
+                case AirBnBResponseTypes.review:
+                    self.listing_id = kwargs.get("listing_id", 12345)
+                    self.offset = kwargs.get("offset", 0)
+                    self.limit = kwargs.get("limit", 100)
+                    self._url = f"https://test.com/api/v2/reviews?_order=language_country&listing_id={self.listing_id}&_offset={self.offset}&role=all&_limit={self.limit}&_format=for_mobile_client"
+                case _:
+                    self._url = "http://test.com"
 
         def raise_for_status(self):
             if self.status_code != 200:
@@ -53,9 +68,7 @@ def mock_airbnb_client(mocker, faker):
 
         @property
         def url(self):
-            if self.listing_id:
-                return f"http://test.com/?listing_id={self.listing_id}&param=2"
-            return "http://test.com/search?"
+            return self._url
 
         @property
         def elapsed(self):
@@ -64,6 +77,49 @@ def mock_airbnb_client(mocker, faker):
         @property
         def request(self):
             return Mock(spec=Request, headers={"Test": "Test"})
+
+    def review_side_effect(*args, **kwargs):
+        # mref = inspect.currentframe().f_back.f_locals.get("self")  # type: ignore
+        # assert mref
+        # times_called: int = mref.call_count
+        status_code = 200
+        review_id = faker.random_int(min=300000, max=1000000)
+        author_id = faker.random_int(min=300000, max=1000000)
+        recipient_id = faker.random_int(min=300000, max=1000000)
+        json_data = {
+            "reviews": [
+                {
+                    "id": review_id,
+                    "role": "guest",
+                    "author": {
+                        "id": author_id,
+                        "first_name": faker.first_name(),
+                        "picture_url": faker.image_url(),
+                    },
+                    "id_str": str(review_id),
+                    "comments": faker.text(),
+                    "author_id": author_id,
+                    "recipient_id": recipient_id,
+                    "recipient": {
+                        "id": recipient_id,
+                        "first_name": faker.first_name(),
+                        "picture_url": faker.image_url(),
+                    },
+                    "created_at": faker.iso8601(tzinfo=UTC),
+                }
+            ],
+            "metadata": {
+                "reviews_count": 350,
+                "should_show_review_translations": False,
+            },
+        }
+        rv = MockResponse(
+            response_type=AirBnBResponseTypes.review,
+            status_code=status_code,
+            json_data=json_data,
+            kwargs=kwargs,
+        )
+        return rv, rv.json()
 
     def user_side_effect(*args, **kwargs):
         mref = inspect.currentframe().f_back.f_locals.get("self")  # type: ignore
@@ -78,7 +134,11 @@ def mock_airbnb_client(mocker, faker):
                 status_code = 503
                 headers = {"X-Crawlera-Error": "banned"}
                 e = HTTPError("Mock-Exception code: 503")
-                e.response = MockResponse(status_code=503, headers=headers)
+                e.response = MockResponse(
+                    response_type=AirBnBResponseTypes.userDetail,
+                    status_code=503,
+                    headers=headers,
+                )
                 raise e
             case _:
                 status_code = 200
@@ -97,7 +157,12 @@ def mock_airbnb_client(mocker, faker):
                 "picture_urls": [faker.image_url() for _ in range(3)],
             }
         }
-        rv = MockResponse(status_code=status_code, json_data=json_data, kwargs=kwargs)
+        rv = MockResponse(
+            response_type=AirBnBResponseTypes.userDetail,
+            status_code=status_code,
+            json_data=json_data,
+            kwargs=kwargs,
+        )
         return rv, rv.json()
 
     def calendar_side_effect(
@@ -128,6 +193,7 @@ def mock_airbnb_client(mocker, faker):
                 status_code = 503
                 headers.update({"X-Crawlera-Error": "banned"})
                 response = MockResponse(
+                    response_type=AirBnBResponseTypes.calendar,
                     status_code=status_code,
                     json_data=json_data,
                     listing_id=listing_id,
@@ -139,6 +205,7 @@ def mock_airbnb_client(mocker, faker):
                 raise e
             else:
                 rv = MockResponse(
+                    response_type=AirBnBResponseTypes.calendar,
                     status_code=200,
                     json_data=json_data,
                     listing_id=listing_id,
@@ -148,6 +215,7 @@ def mock_airbnb_client(mocker, faker):
                 return rv, rv.json()
         else:
             rv = MockResponse(
+                response_type=AirBnBResponseTypes.calendar,
                 status_code=status_code,
                 json_data=json_data,
                 listing_id=listing_id,
@@ -205,6 +273,7 @@ def mock_airbnb_client(mocker, faker):
         }
 
         rv = MockResponse(
+            response_type=AirBnBResponseTypes.search,
             status_code=status_code,
             json_data=json_data,
             listing_id=None,
@@ -233,6 +302,7 @@ def mock_airbnb_client(mocker, faker):
         }
         listing_id = kwargs.get("listing_id", 12345)
         rv = MockResponse(
+            AirBnBResponseTypes.listingDetail,
             status_code=status_code,
             listing_id=listing_id,
             json_data=json_data,
@@ -246,6 +316,7 @@ def mock_airbnb_client(mocker, faker):
     m().get_listing_details.side_effect = get_listing_details_effect
     m().get_calendar.side_effect = calendar_side_effect
     m().get_user.side_effect = user_side_effect
+    m().get_reviews.side_effect = review_side_effect
     yield m
 
 
