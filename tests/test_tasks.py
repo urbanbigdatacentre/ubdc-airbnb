@@ -126,3 +126,6 @@ def test_task_add_reviews_of_listing(
     response = responses_model.objects.first()
     assert response.listing_id == 1234567
     assert mock_signature().apply_async.call_count == 3
+
+    task_add_reviews_of_listing(listing_id=1234567, offset=300)
+    assert mock_signature().apply_async.call_count == 3
