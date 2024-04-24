@@ -129,3 +129,26 @@ def test_task_add_reviews_of_listing(
 
     task_add_reviews_of_listing(listing_id=1234567, offset=300)
     assert mock_signature().apply_async.call_count == 3
+
+
+def test_task_task_update_user_details(mock_airbnb_client, user_model, responses_model):
+    from requests.exceptions import HTTPError
+
+    from ubdc_airbnb.errors import UBDCRetriableError
+    from ubdc_airbnb.tasks import task_update_user_details
+
+    task_update_user_details(user_id=12345)
+
+    assert user_model.objects.count() == 1
+    assert responses_model.objects.count() == 1
+
+    # 2nd call return 404 but it's handled
+    task_update_user_details(user_id=12345)
+    assert user_model.objects.count() == 1
+    assert responses_model.objects.count() == 2
+
+    # 3rd call return 503, throughs an exception that will be re-tried
+    with pytest.raises(UBDCRetriableError):
+        task_update_user_details(user_id=12345)
+        assert user_model.objects.count() == 1
+        assert responses_model.objects.count() == 2

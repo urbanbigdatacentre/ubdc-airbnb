@@ -427,8 +427,6 @@ def task_update_user_details(
             user.first_name = model_defaults.AIRBNBUSER_DISABLED
             user.save()
         return user_id
-    finally:
-        user.responses.add(airbnb_response)
 
     user.update_from_response(airbnb_response)
     return user_id

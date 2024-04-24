@@ -134,7 +134,10 @@ def mock_airbnb_client(mocker, faker):
                 headers = {"X-Crawlera-Error": "banned"}
                 e = HTTPError("Mock-Exception code: 503")
                 e.response = MockResponse(
-                    response_type=AirBnBResponseTypes.userDetail, status_code=503, headers=headers, **kwargs
+                    response_type=AirBnBResponseTypes.userDetail,
+                    status_code=503,
+                    headers=headers,
+                    **kwargs,
                 )
                 raise e
             case _:
