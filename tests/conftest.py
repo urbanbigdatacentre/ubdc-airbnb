@@ -77,7 +77,7 @@ def mock_airbnb_client(mocker, faker):
         def request(self):
             return Mock(spec=Request, headers={"Test": "Test"})
 
-    def review_side_effect(*args, **kwargs):
+    def get_reviews_side_effect(*args, **kwargs):
         # mref = inspect.currentframe().f_back.f_locals.get("self")  # type: ignore
         # assert mref
         # times_called: int = mref.call_count
@@ -120,7 +120,7 @@ def mock_airbnb_client(mocker, faker):
         )
         return rv, rv.json()
 
-    def user_side_effect(*args, **kwargs):
+    def get_user_side_effect(*args, **kwargs):
         mref = inspect.currentframe().f_back.f_locals.get("self")  # type: ignore
         # get the call count
         times_called: int = mref.call_count  # type: ignore
@@ -165,7 +165,7 @@ def mock_airbnb_client(mocker, faker):
         )
         return rv, rv.json()
 
-    def calendar_side_effect(
+    def get_calendar_side_effect(
         listing_id,
         status_code=200,
         json_data={},
@@ -283,7 +283,7 @@ def mock_airbnb_client(mocker, faker):
 
         return rv, rv.json()
 
-    def get_listing_details_effect(*args, **kwargs):
+    def get_listing_details_side_effect(*args, **kwargs):
 
         def gen_fake_user():
             return {
@@ -313,10 +313,10 @@ def mock_airbnb_client(mocker, faker):
 
     m = mocker.patch("ubdc_airbnb.airbnb_interface.airbnb_api.AirbnbApi", autospec=True)
     m().get_homes.side_effect = get_homes_side_effect
-    m().get_listing_details.side_effect = get_listing_details_effect
-    m().get_calendar.side_effect = calendar_side_effect
-    m().get_user.side_effect = user_side_effect
-    m().get_reviews.side_effect = review_side_effect
+    m().get_listing_details.side_effect = get_listing_details_side_effect
+    m().get_calendar.side_effect = get_calendar_side_effect
+    m().get_user.side_effect = get_user_side_effect
+    m().get_reviews.side_effect = get_reviews_side_effect
     yield m
 
 
