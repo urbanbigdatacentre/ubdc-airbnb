@@ -40,7 +40,7 @@ def mock_airbnb_client(mocker, faker):
             self.status_code = status_code
             self.json_data = json_data
             self.listing_id = kwargs.get("listing_id", None)
-            self.headers = headers
+            self._headers = headers
 
             match response_type:
                 case AirBnBResponseTypes.listingDetail:
@@ -55,8 +55,17 @@ def mock_airbnb_client(mocker, faker):
                     self._url = "http://test.com"
 
         def raise_for_status(self):
+            exc = HTTPError(f"Mock-Exception code: {self.status_code}", response=self)  # type: ignore
             if self.status_code != 200:
-                raise HTTPError(f"Mock-Exception code: {self.status_code}")
+                raise exc
+
+        @property
+        def headers(self):
+            response_headers = {}
+            if self.status_code == 503:
+                response_headers["X-Crawlera-Error"] = "banned"
+
+            return dict(self._headers, **response_headers)
 
         def json(self):
             return self.json_data
@@ -75,7 +84,11 @@ def mock_airbnb_client(mocker, faker):
 
         @property
         def request(self):
-            return Mock(spec=Request, headers={"Test": "Test"})
+            request_headers = {}
+            mock_request = mocker.MagicMock(spec=Request)
+            mock_request_headers = mocker.PropertyMock(return_value=request_headers)
+            type(mock_request).headers = mock_request_headers
+            return mock_request
 
     def get_reviews_side_effect(*args, **kwargs):
         # mref = inspect.currentframe().f_back.f_locals.get("self")  # type: ignore
@@ -128,17 +141,17 @@ def mock_airbnb_client(mocker, faker):
             case 1:
                 status_code = 200
             case 2:
-                status_code = 404
+                status_code = 403
             case 3:
                 status_code = 503
                 headers = {"X-Crawlera-Error": "banned"}
-                e = HTTPError("Mock-Exception code: 503")
-                e.response = MockResponse(
+                response = MockResponse(
                     response_type=AirBnBResponseTypes.userDetail,
-                    status_code=503,
+                    status_code=status_code,
                     headers=headers,
                     **kwargs,
                 )
+                e = HTTPError("Mock-Exception code: 503", response=response)  # type: ignore
                 raise e
             case _:
                 status_code = 200
@@ -167,8 +180,6 @@ def mock_airbnb_client(mocker, faker):
 
     def get_calendar_side_effect(
         listing_id,
-        status_code=200,
-        json_data={},
         headers={},
         **kwargs,
     ):
@@ -184,46 +195,32 @@ def mock_airbnb_client(mocker, faker):
         # get the call count
         times_called: int = mref.call_count  # type: ignore
 
-        # Special Rules for listing_ids starting with 8:
-        # every odd call returns 503
-        # every even call returns 200
-        if str(listing_id).startswith("8"):
-            if times_called % 2 == 1:
-                # 503
+        match times_called:
+            case 1:
+                status_code = 200
+            case 2:
+                status_code = 403
+            case 3:
                 status_code = 503
-                headers.update({"X-Crawlera-Error": "banned"})
                 response = MockResponse(
                     response_type=AirBnBResponseTypes.calendar,
                     status_code=status_code,
-                    json_data=json_data,
-                    listing_id=listing_id,
                     headers=headers,
                     **kwargs,
                 )
-                e = HTTPError("Mock-Exception code: 503")
-                e.response = response
+                e = HTTPError("Mock-Exception code: 503", response=response)  # type: ignore
                 raise e
-            else:
-                rv = MockResponse(
-                    response_type=AirBnBResponseTypes.calendar,
-                    status_code=200,
-                    json_data=json_data,
-                    listing_id=listing_id,
-                    headers=headers,
-                    **kwargs,
-                )
-                return rv, rv.json()
-        else:
-            rv = MockResponse(
-                response_type=AirBnBResponseTypes.calendar,
-                status_code=status_code,
-                json_data=json_data,
-                listing_id=listing_id,
-                headers=headers,
-                **kwargs,
-            )
 
-            return rv, rv.json()
+        rv = MockResponse(
+            response_type=AirBnBResponseTypes.calendar,
+            status_code=status_code,
+            json_data=json_data,
+            listing_id=listing_id,
+            headers=headers,
+            **kwargs,
+        )
+
+        return rv, rv.json()
 
     def get_homes_side_effect(*args, **kwargs):
         # how any times this function has been called?
