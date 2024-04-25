@@ -8,7 +8,6 @@ from django.db.models import F
 from ubdc_airbnb.errors import UBDCError
 from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGroupTask
 from ubdc_airbnb.tasks import task_add_reviews_of_listing
-from ubdc_airbnb.utils.spatial import get_listings_qs_for_aoi
 from ubdc_airbnb.utils.tasks import get_submitted_listing_ids_for
 
 logger = get_task_logger(__name__)
@@ -109,7 +108,7 @@ def op_update_reviews_periodical(
         raise UBDCError("The variable priority must be between 1 than 10")
 
     if use_aoi:
-        qs_listings = get_listings_qs_for_aoi(purpose="reviews")
+        qs_listings = AirBnBListing.objects.for_purpose(purpose="reviews")
         logger.info(f"Found {qs_listings.count()} listings")
     else:
         qs_listings = AirBnBListing.objects.all()

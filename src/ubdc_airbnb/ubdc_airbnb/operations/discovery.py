@@ -12,7 +12,7 @@ from django.utils.timezone import now
 from ubdc_airbnb.errors import UBDCError
 from ubdc_airbnb.models import AOIShape, UBDCGrid, UBDCGroupTask, UBDCTask
 from ubdc_airbnb.tasks import task_discover_listings_at_grid
-from ubdc_airbnb.utils.spatial import get_grids_for
+from ubdc_airbnb.utils.spatial import get_quadkeys_for
 
 logger = get_task_logger(__name__)
 

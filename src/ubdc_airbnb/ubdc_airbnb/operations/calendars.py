@@ -10,7 +10,6 @@ from django.utils.timezone import now
 from ubdc_airbnb.errors import UBDCError
 from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGroupTask
 from ubdc_airbnb.tasks import task_update_calendar
-from ubdc_airbnb.utils.spatial import get_listings_qs_for_aoi
 from ubdc_airbnb.utils.tasks import get_submitted_listing_ids_for
 from ubdc_airbnb.utils.time import end_of_day, seconds_from_now
 
@@ -95,7 +94,7 @@ def op_update_calendar_periodical(use_aoi=True, **kwargs) -> list[str]:
 
     logger.info(f"Using AOI: {use_aoi}")
     if use_aoi:
-        qs_listings = get_listings_qs_for_aoi("calendar")
+        qs_listings = AirBnBListing.objects.for_purpose("calendar")
     else:
         qs_listings: "QuerySet" = AirBnBListing.objects.all()
 

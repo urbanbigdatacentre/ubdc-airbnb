@@ -17,7 +17,12 @@ from more_itertools import flatten
 
 from ubdc_airbnb import model_defaults
 from ubdc_airbnb.errors import UBDCError
-from ubdc_airbnb.managers import AirBnBResponseManager, UBDCGridManager, UserManager
+from ubdc_airbnb.managers import (
+    AirBnBListingManager,
+    AirBnBResponseManager,
+    UBDCGridManager,
+    UserManager,
+)
 
 logger = get_task_logger(__name__)
 
@@ -426,7 +431,7 @@ class AirBnBListing(models.Model):
 
     responses = models.ManyToManyField("AirBnBResponse")
 
-    objects: ClassVar[AirBnBResponseManager] = AirBnBResponseManager()
+    objects: ClassVar[AirBnBListingManager] = AirBnBListingManager()
 
 
 class AirBnBUser(models.Model):

@@ -11,20 +11,12 @@ from django.db.models import Aggregate, Subquery
 from jsonpath_ng import parse
 from more_itertools import sliced
 
-if TYPE_CHECKING:
-    from django.db.models import QuerySet
-
-    from ubdc_airbnb.models import AirBnBListing
-
 
 class ST_Union(Aggregate):
     name = "st_union"
     function = "ST_UNION"
     allow_distinct = False
     arity = 1
-
-
-from typing import Annotated
 
 
 def get_world_cross() -> GEOSMultiLineString:
@@ -93,7 +85,7 @@ def cut_polygon_at_prime_lines(polygon: GEOSGeometry) -> list[GEOSGeometry]:
 
 
 def get_quadkeys_of_aoi(aoi_pk: int) -> list[str]:
-    """Returns a list of quadkeys that intersect with a single AOI"""
+    """Returns a list of database quadkeys that intersect with given AOI-key"""
     from ubdc_airbnb.models import AOIShape, UBDCGrid
 
     aoi = AOIShape.objects.get(pk=aoi_pk)
@@ -107,7 +99,7 @@ def get_quadkeys_of_aoi(aoi_pk: int) -> list[str]:
     return [grid["quadkey"] for grid in qs_grids]
 
 
-def get_grids_for(
+def get_quadkeys_for(
     purpose: Literal["discover_listings"],
 ) -> list[str]:
     # TODO: #7 Create case test for this.
@@ -128,29 +120,6 @@ def get_grids_for(
     )
 
     return list(qs_grids)
-
-
-def get_listings_qs_for_aoi(purpose: Literal["calendar", "reviews", "listing_details"]) -> 'QuerySet["AirBnBListing"]':
-    """Returns a QS with all the listings ids within an enabled AOI"""
-
-    from ubdc_airbnb.models import AirBnBListing, AOIShape
-
-    match purpose:
-        case "listing_details":
-            list_aoi = AOIShape.objects.filter(collect_listing_details=True).values("collect_listing_details")
-        case "calendar":
-            list_aoi = AOIShape.objects.filter(collect_calendars=True).values("collect_calendars")
-        case "reviews":
-            list_aoi = AOIShape.objects.filter(collect_reviews=True).values("collect_reviews")
-        case _:
-            raise ValueError("invalid argument")
-
-    aoi_area_union = list_aoi.annotate(union=ST_Union("geom_3857"))
-    qs_listings = AirBnBListing.objects.filter(geom_3857__intersects=Subquery(aoi_area_union.values("union")))
-
-    qs_listings = qs_listings.order_by("listing_id").distinct("listing_id")
-
-    return qs_listings
 
 
 def listing_locations_from_response(response: dict) -> Dict[str, GEOSPoint]:

@@ -10,7 +10,6 @@ from django.utils.timezone import now
 from ubdc_airbnb.errors import UBDCError
 from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGrid, UBDCGroupTask
 from ubdc_airbnb.tasks import task_get_listing_details
-from ubdc_airbnb.utils.spatial import get_listings_qs_for_aoi
 from ubdc_airbnb.utils.tasks import get_submitted_listing_ids_for
 
 logger = get_task_logger(__name__)
@@ -139,10 +138,10 @@ def op_update_listing_details_periodical(use_aoi=True) -> Optional[str]:
     If use_aoi = True (default) it will only fetch for listings that intersect with AOIs that are marked for such."""
 
     logger.info(f"Using AOI: {use_aoi}")
-
-    listings_qs = AirBnBListing.objects.all()
     if use_aoi:
-        listings_qs = get_listings_qs_for_aoi("listing_details")
+        listings_qs = AirBnBListing.objects.for_purpose("listing_details")
+    else:
+        listings_qs = AirBnBListing.objects.all()
 
     logger.info(f"Found {listings_qs.count()} listings to fetch.")
     if listings_qs.exists():

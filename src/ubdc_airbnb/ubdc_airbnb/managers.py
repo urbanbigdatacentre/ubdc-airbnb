@@ -1,11 +1,12 @@
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any, List, MutableMapping, Type
+from typing import TYPE_CHECKING, Any, List, Literal, MutableMapping, Type
 
 import mercantile
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.contrib.gis.geos.polygon import Polygon as GEOSPolygon
 from django.db import models
+from django.db.models import QuerySet, Subquery
 from django.utils.timesince import timesince
 from requests import HTTPError
 from requests.exceptions import ProxyError
@@ -13,7 +14,12 @@ from requests.exceptions import ProxyError
 from ubdc_airbnb.convenience import query_params_from_url
 from ubdc_airbnb.errors import UBDCError, UBDCRetriableError
 from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
-from ubdc_airbnb.utils.spatial import make_point, postgis_distance_a_to_b, reproject
+from ubdc_airbnb.utils.spatial import (
+    ST_Union,
+    make_point,
+    postgis_distance_a_to_b,
+    reproject,
+)
 
 logger = get_task_logger(__name__)
 
@@ -149,6 +155,32 @@ class AirBnBResponseManager(models.Manager):
 
 
 class AirBnBListingManager(models.Manager):
+
+    def for_purpose(
+        self,
+        purpose: Literal["calendar", "reviews", "listing_details"],
+    ) -> 'QuerySet["app_models.AirBnBListing"]':
+        """Returns a QS with all the listings ids within an enabled AOI"""
+
+        from ubdc_airbnb.models import AOIShape
+
+        match purpose:
+            case "listing_details":
+                list_aoi = AOIShape.objects.filter(collect_listing_details=True).values("collect_listing_details")
+            case "calendar":
+                list_aoi = AOIShape.objects.filter(collect_calendars=True).values("collect_calendars")
+            case "reviews":
+                list_aoi = AOIShape.objects.filter(collect_reviews=True).values("collect_reviews")
+            case _:
+                raise ValueError("invalid argument")
+
+        aoi_area_union = list_aoi.annotate(union=ST_Union("geom_3857"))
+        qs_listings = self.filter(geom_3857__intersects=Subquery(aoi_area_union.values("union")))
+
+        qs_listings = qs_listings.order_by("listing_id").distinct("listing_id")
+
+        return qs_listings
+
     def create_from_data(self, listing_id: int, lon: float, lat: float) -> "app_models.AirBnBListing":
         """Create an AirBnBListing Point from data. The returned object is saved in the Database
         :param listing_id:
