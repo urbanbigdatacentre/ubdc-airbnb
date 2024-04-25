@@ -195,50 +195,6 @@ class AirBnBListingManager(models.Manager):
 
         return obj
 
-    def from_endpoint_explore_tabs(
-        self,
-        response: dict,
-        save: bool = True,
-    ) -> List["app_models.AirBnBListing"]:
-        """TODO: DOC"""
-        if save:
-            op = self.create
-        else:
-            op = self.model
-
-        listings_objects = []
-        sections = response["explore_tabs"][0]["sections"]
-        for section in sections:
-            listings = section.get("listings", None)
-            if listings is None:
-                continue
-
-            for listing in listings:
-                listing_profile = listing["listing"]
-                listing_id = listing_profile.get("id")
-                try:
-                    u = self.get(listing_id=listing_id)
-                except self.model.DoesNotExist:
-                    obj = op(
-                        listing_id=listing_id,
-                        geom_3857=reproject(
-                            make_point(
-                                x=listing_profile["lng"],
-                                y=listing_profile["lat"],
-                                srid=4326,
-                            ),
-                            to_srid=3857,
-                        ),
-                    )
-                    listings_objects.append(obj)
-                else:
-                    print(
-                        f"Listing with the airbnb_id {listing_id} was found in a previous iteration "
-                        f"({timesince(u.timestamp)} ago)"
-                    )
-
-        return listings_objects
-
 
 class UserManager(models.Manager):
 
