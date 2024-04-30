@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.django_db
-def test_aoishape_create_from_geom(aoishape_model):
+def test_aoishape_model_create_from_geom(aoishape_model):
     name = "test-aoi"
     geom = MultiPolygon(Polygon.from_bbox((0, 0, 10, 10)), srid=4326)
     aoi = aoishape_model.create_from_geometry(geom, name=name)
@@ -20,12 +20,11 @@ def test_aoishape_create_from_geom(aoishape_model):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_get_or_create_user():
+def test_user_model_get_or_create_user(user_model):
     from ubdc_airbnb.model_defaults import AIRBNBUSER_FIRST_NAME
-    from ubdc_airbnb.models import AirBnBUser
 
     user_id = "1234"
-    user, created = AirBnBUser.objects.get_or_create(user_id=user_id)
+    user, created = user_model.objects.get_or_create(user_id=user_id)
 
     assert user.user_id == user_id
     assert user.first_name == AIRBNBUSER_FIRST_NAME
@@ -33,7 +32,7 @@ def test_get_or_create_user():
 
 
 @pytest.mark.django_db(transaction=True)
-def test_aoi_create_grid(aoishape_model, ubdcgrid_model, geojson_gen, tmp_path):
+def test_aoishape_model_create_grid(aoishape_model, ubdcgrid_model, geojson_gen, tmp_path):
     for idx, gj in enumerate(geojson_gen):
         f = tmp_path / f"test-aoi-{idx}.geojson"
         f.write_text(gj)
@@ -48,11 +47,9 @@ def test_aoi_create_grid(aoishape_model, ubdcgrid_model, geojson_gen, tmp_path):
 
 
 @pytest.mark.django_db
-def test_grid_intesects_with_aoi():
+def test_ubdcgrid_model_intesects_with_aoi(ubdcgrid_model, aoishape_model):
     from django.contrib.gis.geos import MultiPolygon, Point
     from mercantile import tile
-
-    from ubdc_airbnb.models import AOIShape, UBDCGrid
 
     p = (10, 10)
     p_geom = Point(p, srid=4326)
@@ -62,23 +59,21 @@ def test_grid_intesects_with_aoi():
     aoi_shape.srid = 4326
     geom_3857 = aoi_shape.transform(3857, clone=True)
 
-    aoi = AOIShape.objects.create(name="test-aoi", geom_3857=geom_3857)
-    grid = UBDCGrid.objects.create_from_tile(t)
+    aoi = aoishape_model.objects.create(name="test-aoi", geom_3857=geom_3857)
+    grid = ubdcgrid_model.objects.create_from_tile(t)
     assert grid.intersects_with_aoi
 
 
 @pytest.mark.django_db
-def test_grid_as_geojson(tmp_path):
+def test_ubdcgrid_model_as_geojson(tmp_path, ubdcgrid_model):
     import json
 
-    from ubdc_airbnb.models import UBDCGrid
+    ubdcgrid_model.objects.create_from_quadkey("120200230")
+    ubdcgrid_model.objects.create_from_quadkey("120200231")
+    ubdcgrid_model.objects.create_from_quadkey("120200233")
+    ubdcgrid_model.objects.create_from_quadkey("120200232")
 
-    UBDCGrid.objects.create_from_quadkey("120200230")
-    UBDCGrid.objects.create_from_quadkey("120200231")
-    UBDCGrid.objects.create_from_quadkey("120200233")
-    UBDCGrid.objects.create_from_quadkey("120200232")
-
-    rv = UBDCGrid.as_geojson()
+    rv = ubdcgrid_model.as_geojson()
 
     assert rv
     data = json.loads(rv)
@@ -86,7 +81,7 @@ def test_grid_as_geojson(tmp_path):
     assert len(data["features"]) == 4
 
     f = tmp_path / "test.geojson"
-    rv2 = UBDCGrid.save_as_geojson(f)
+    rv2 = ubdcgrid_model.save_as_geojson(f)
 
     assert rv2
     assert rv2 == f.as_posix()
@@ -96,14 +91,13 @@ def test_grid_as_geojson(tmp_path):
 
 
 @pytest.mark.django_db
-def test_grid_objects_intersect_with_aoi(ubdcgrid_model):
-    from ubdc_airbnb.models import AOIShape, UBDCGrid
+def test_grid_objects_intersect_with_aoi(ubdcgrid_model, aoishape_model):
 
     aoi_1_geom = MultiPolygon(Polygon.from_bbox((0, 0, 10, 10)), srid=4326).transform(3857, clone=True)
     aoi_2_geom = MultiPolygon(Polygon.from_bbox((5, 5, 15, 15)), srid=4326).transform(3857, clone=True)
 
-    aoi_1 = AOIShape.objects.create(name="aoi-1", geom_3857=aoi_1_geom)
-    aoi_2 = AOIShape.objects.create(name="aoi-2", geom_3857=aoi_2_geom)
+    aoi_1 = aoishape_model.objects.create(name="aoi-1", geom_3857=aoi_1_geom)
+    aoi_2 = aoishape_model.objects.create(name="aoi-2", geom_3857=aoi_2_geom)
 
     aoi_1.create_grid()
     aoi_2.create_grid()
@@ -115,7 +109,7 @@ def test_grid_objects_intersect_with_aoi(ubdcgrid_model):
 
 
 @pytest.mark.django_db
-def test_create_aoi_from_geojson(aoishape_model, geojson_gen, tmp_path):
+def test_aoishape_create_from_geojson(aoishape_model, geojson_gen, tmp_path):
     for idx, gj in enumerate(geojson_gen):
         f = tmp_path / f"test-aoi-{idx}.geojson"
         f.write_text(gj)
@@ -129,24 +123,24 @@ def test_airbnbResponse_get_user_detail(mock_airbnb_client, responses_model):
     from requests.exceptions import HTTPError
 
     from ubdc_airbnb.errors import UBDCRetriableError
-    from ubdc_airbnb.models import AirBnBResponse, AirBnBResponseTypes
+    from ubdc_airbnb.models import AirBnBResponseTypes
 
     user_id = 1234
-    response = AirBnBResponse.objects.fetch_response(
+    response = responses_model.objects.fetch_response(
         type=AirBnBResponseTypes.userDetail,
         user_id=user_id,
     )
     assert responses_model.objects.count() == 1
 
     with pytest.raises(HTTPError):
-        response = AirBnBResponse.objects.fetch_response(
+        response = responses_model.objects.fetch_response(
             type=AirBnBResponseTypes.userDetail,
             user_id=user_id,
         )
     assert responses_model.objects.count() == 2
 
     with pytest.raises(UBDCRetriableError):
-        response = AirBnBResponse.objects.fetch_response(
+        response = responses_model.objects.fetch_response(
             type=AirBnBResponseTypes.userDetail,
             user_id=user_id,
         )
@@ -155,11 +149,11 @@ def test_airbnbResponse_get_user_detail(mock_airbnb_client, responses_model):
 
 
 @pytest.mark.django_db
-def test_airbnbResponse_get_listing_detail(mock_airbnb_client):
-    from ubdc_airbnb.models import AirBnBResponse, AirBnBResponseTypes
+def test_airbnbResponse_get_listing_detail(mock_airbnb_client, responses_model):
+    from ubdc_airbnb.models import AirBnBResponseTypes
 
     listing_id = 1234
-    response = AirBnBResponse.objects.fetch_response(
+    response = responses_model.objects.fetch_response(
         type=AirBnBResponseTypes.listingDetail,
         listing_id=listing_id,
     )
