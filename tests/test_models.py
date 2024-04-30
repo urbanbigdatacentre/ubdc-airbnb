@@ -8,6 +8,17 @@ if TYPE_CHECKING:
     from ubdc_airbnb.models import AOIShape
 
 
+@pytest.mark.django_db
+def test_aoishape_create_from_geom(aoishape_model):
+    name = "test-aoi"
+    geom = MultiPolygon(Polygon.from_bbox((0, 0, 10, 10)), srid=4326)
+    aoi = aoishape_model.create_from_geometry(geom, name=name)
+    assert aoi.geom_3857
+    assert aoi.geom_3857.srid == 3857
+    assert aoi.geom_3857 == geom.transform(3857, clone=True)
+    assert aoi.name == name
+
+
 @pytest.mark.django_db(transaction=True)
 def test_get_or_create_user():
     from ubdc_airbnb.model_defaults import AIRBNBUSER_FIRST_NAME

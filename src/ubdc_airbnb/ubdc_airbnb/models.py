@@ -110,26 +110,44 @@ class AOIShape(models.Model):
         return rv
 
     @classmethod
+    def create_from_geometry(cls, geom: GEOSGeometry, name: str) -> "AOIShape":
+        "Create an AOI from a GEOSGeometry object. Returns the created object."
+        if not geom.geom_type.endswith("Polygon"):
+            raise ValueError("Only Polygon Like geometries are supported.")
+
+        if geom.geom_type == "Polygon":
+            geom = MultiPolygon(geom)
+
+        match geom.srid:
+            case None:
+                geom.srid = 3857
+            case _:
+                geom.transform(3857)
+
+        defaults = {
+            "collect_calendars": False,
+            "collect_listing_details": False,
+            "collect_reviews": False,
+            "collect_bookings": False,
+            "scan_for_new_listings": False,
+        }
+
+        return cls.objects.create(geom_3857=geom, name=name, **defaults)
+
+    @classmethod
+    def create_from_wkt(cls, wkt: str, name: str) -> "AOIShape":
+        "Create an AOI from a WKT string. Returns the created object."
+        from django.contrib.gis.geos import GEOSGeometry
+
+        geom = GEOSGeometry(wkt)
+        return cls.create_from_geometry(geom, name)
+
+    @classmethod
     def create_from_bbox(cls, bbox: Tuple[float, float, float, float], name: str) -> "AOIShape":
         from django.contrib.gis.geos import Polygon
 
         geom = MultiPolygon(Polygon.from_bbox(bbox))
-        geom.srid = 4326
-        geom.transform(3857)
-
-        rv = cls(
-            geom_3857=geom,
-            name=name,
-            collect_calendars=False,
-            collect_listing_details=False,
-            collect_reviews=False,
-            collect_bookings=False,
-            scan_for_new_listings=False,
-        )
-        rv.save()
-        rv.refresh_from_db()
-
-        return rv
+        return cls.create_from_geometry(geom, name)
 
     def reproject(self, epsg: int = 4326):
         geom = self.geom_3857
