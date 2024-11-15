@@ -295,6 +295,10 @@ def mock_airbnb_client(mocker, faker):
             "pdp_listing_detail": {
                 "primary_host": gen_fake_user(),
                 "additional_hosts": [gen_fake_user() for _ in range(3)],
+                "illegal_strings":
+                    {
+                    "null-char": "\u0000"
+                }
             }
         }
         # listing_id = kwargs.get("listing_id", 12345)

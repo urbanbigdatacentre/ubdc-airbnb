@@ -1,5 +1,6 @@
+import json
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, List, Tuple
+from typing import TYPE_CHECKING, ClassVar, Iterable, List, Tuple
 
 import celery.states as c_states
 import mercantile
@@ -40,7 +41,8 @@ class WorldShape(models.Model):
 
 
 class AOIShape(models.Model):
-    geom_3857 = models.MultiPolygonField(srid=3857, help_text="Geometry column. Defined at EPSG:3857", editable=False)
+    geom_3857 = models.MultiPolygonField(
+        srid=3857, help_text="Geometry column. Defined at EPSG:3857", editable=False)
     name = models.TextField(
         default=model_defaults.AIOSHAPE_NAME,
         help_text="Name to display.",
@@ -73,7 +75,6 @@ class AOIShape(models.Model):
 
     @classmethod
     def create_from_geojson(cls, geojson: Path) -> "AOIShape":
-
         "Create an AOI from a GeoJSON file. Returns the created object."
 
         import json
@@ -396,6 +397,15 @@ class AirBnBResponse(models.Model):
 
     objects: ClassVar[AirBnBResponseManager] = AirBnBResponseManager()
 
+    def save(self, *args, **kwargs) -> None:
+        # sanitize payload; remove illegal characters
+
+        payload_str = json.dumps(self.payload, cls=DjangoJSONEncoder)
+        payload_str = payload_str.replace("\\u0000", "")
+        self.payload = json.loads(payload_str)
+
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.pk}/{self.get__type_display()}"  # type: ignore # TODO: fix typing?
 
@@ -535,7 +545,8 @@ class AirBnBUser(models.Model):
 
 
 class AirBnBReview(models.Model):
-    review_id = models.BigIntegerField(unique=True, null=False, blank=False, help_text="AirBNB Review id")  # required
+    review_id = models.BigIntegerField(unique=True, null=False, blank=False,
+                                       help_text="AirBNB Review id")  # required
     created_at = models.DateTimeField(help_text="as reported by AirBNB", blank=False, null=False)  # required
     timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Date of row creation.")
     review_text = models.TextField()
@@ -583,7 +594,8 @@ class UBDCGroupTask(models.Model):
     root_id = models.UUIDField(editable=False, db_index=True, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     datetime_started = models.DateTimeField(null=True)
-    datetime_finished = models.DateTimeField(null=True)  # TODO: find a good way to find when a group-task finishes
+    # TODO: find a good way to find when a group-task finishes
+    datetime_finished = models.DateTimeField(null=True)
 
     op_name = models.TextField(blank=True, null=True)
     op_args = ArrayField(base_field=models.CharField(max_length=255), blank=True, null=True)
