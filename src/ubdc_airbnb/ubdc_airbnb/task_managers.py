@@ -25,7 +25,7 @@ class BaseTaskWithRetry(Task):
     retry_backoff = True
     retry_backoff_max = 30  # seconds
     retry_jitter = False
-    acks_late = True
+    acks_late = False
     worker_prefetch_multiplier = 1
 
     def __call__(self, *args, **kwargs):
