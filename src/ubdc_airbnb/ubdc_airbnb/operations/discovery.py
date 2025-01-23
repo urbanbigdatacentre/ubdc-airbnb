@@ -38,7 +38,7 @@ def op_discover_new_listings_at_grid(
     return group_result.id
 
 
-@shared_task
+@shared_task(acks_late=False)
 def op_discover_new_listings_periodical() -> str | None:
     """
     An 'initiator' task that will start the process of discovering new listings in the AOIs that are marked for this task.
@@ -51,11 +51,11 @@ def op_discover_new_listings_periodical() -> str | None:
     aois = list(AOIShape.objects.filter(scan_for_new_listings=True))
 
     grids = UBDCGrid.objects.intersect_with_aoi(aois)
+    quadkeys = grids.values_list("quadkey", flat=True)
 
-    if grids.exists():
+    def submit_batch(batch: list[str]):
         job = group(
-            task_register_listings_or_divide_at_quadkey.s(quadkey=grid.quadkey)
-            for grid in grids.iterator(chunk_size=1000)
+            task_register_listings_or_divide_at_quadkey.s(quadkey=qk) for qk in batch
         )
         group_result: AsyncResult[GroupResult] = job.apply_async()
         group_result.save()  # type: ignore
@@ -63,8 +63,17 @@ def op_discover_new_listings_periodical() -> str | None:
 
         group_task.op_name = op_discover_new_listings_periodical.name
         group_task.save()
+        logger.info(f"Sentch of {len(batch)} grids to task group {group_result.id}")
 
-        return group_result.id
+    if quadkeys.exists():
+        batch = []
+        for idx, qk in enumerate(quadkeys.iterator(chunk_size=1000)):
+            batch.append(qk)
+            if idx % 1000 == 0 and idx > 0:
+                submit_batch(batch)
+                batch.clear()
+        submit_batch(batch)
+        return
 
     logger.info("No grids found for active AOIs to search")
 
