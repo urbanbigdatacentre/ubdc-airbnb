@@ -28,8 +28,8 @@ def op_update_comment_at_listings(listing_id: Union[int, Sequence[int]], force_c
         tasks_list.append(task)
 
     job = group(tasks_list)
-    group_result: GroupResult = job.apply_async()
-    group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
+    group_result: GroupResult = job.apply_async()  # type: ignore
+    group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)  # type: ignore
 
     group_task.op_name = task_add_reviews_of_listing.name
     group_task.op_initiator = op_update_comment_at_listings.name
@@ -40,7 +40,7 @@ def op_update_comment_at_listings(listing_id: Union[int, Sequence[int]], force_c
 
 
 @shared_task
-def op_update_reviews_aoi(id_shape: Union[int, Sequence[int]], force_check=False) -> List[str]:
+def op_update_reviews_aoi(id_shape: Union[int, Sequence[int]], force_check=False) -> str:
     """
     :param id_shape: single or sequence of ints representing pks of id_shapes
     :param force_check: check all comment history, defaults to False

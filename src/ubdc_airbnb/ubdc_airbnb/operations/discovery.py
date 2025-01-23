@@ -3,16 +3,9 @@ from typing import List, Sequence, Union
 from celery import group, shared_task
 from celery.result import AsyncResult, GroupResult
 from celery.utils.log import get_task_logger
-from dateutil.relativedelta import relativedelta
-from django.db.models import F, TextField
-from django.db.models.fields.json import KeyTextTransform
-from django.db.models.functions import Cast
-from django.utils.timezone import now
 
-from ubdc_airbnb.errors import UBDCError
-from ubdc_airbnb.models import AOIShape, UBDCGrid, UBDCGroupTask, UBDCTask
+from ubdc_airbnb.models import AOIShape, UBDCGrid, UBDCGroupTask
 from ubdc_airbnb.tasks import task_discover_listings_at_grid
-from ubdc_airbnb.utils.spatial import get_quadkeys_for
 
 logger = get_task_logger(__name__)
 
@@ -92,7 +85,8 @@ def op_discover_new_listings_at_aoi(
     quadkeys = set()
     for _id in id_shapes:
         aoi_shape = AOIShape.objects.get(id=_id)
-        _quadkeys = UBDCGrid.objects.filter(geom_3857__intersects=aoi_shape.geom_3857).values_list("quadkey", flat=True)
+        _quadkeys = UBDCGrid.objects.filter(
+            geom_3857__intersects=aoi_shape.geom_3857).values_list("quadkey", flat=True)
         quadkeys.update(list(_quadkeys))
 
     quadkeys = list(quadkeys)
