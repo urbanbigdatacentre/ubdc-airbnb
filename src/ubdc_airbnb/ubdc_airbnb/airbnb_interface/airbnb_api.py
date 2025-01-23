@@ -255,6 +255,7 @@ class AirbnbApi(object):
         items_offset=0,
         items_per_grid=25,
         metadata_only=False,
+        **kwargs,
     ) -> tuple[Response, dict]:
         """
         TODO: Update Docstring
@@ -282,8 +283,12 @@ class AirbnbApi(object):
             "key": self.airbnb_api_key,
         }
 
-        if self.federated_search_session_id:
-            params.update({"federated_search_session_id": self.federated_search_session_id})
+        federated_search_session_id = kwargs.get(
+            "federated_search_session_id",
+            self.federated_search_session_id
+        )
+        if federated_search_session_id:
+            params.update(federated_search_session_id=federated_search_session_id)
 
         if self.client_session_id:
             params.update(client_session_id=self.client_session_id)
@@ -364,7 +369,7 @@ class AirbnbApi(object):
 
             matches = json_parse(r"$..explore_tabs..sections..listing[id,lat,lng]").find(payload)
             res_gen = chunked(matches, 3, strict=True)
-            yield page, res_gen
+            yield page, res_gen  # type: ignore
 
             page += 1
             pagination_metadata = payload["explore_tabs"][0]["pagination_metadata"]

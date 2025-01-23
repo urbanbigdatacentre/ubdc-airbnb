@@ -11,6 +11,46 @@ from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
 logger = get_task_logger(__name__)
 
 
+def get_next_page_payload(parent_page_task_id: str, this_task_id: str) -> dict:
+
+    obj: AirBnBResponse = AirBnBResponse.objects.get(ubdc_task_id=parent_page_task_id)
+    logger.info(f"Parent Task ID: {parent_page_task_id}/found")
+    response = obj.payload
+
+    lnglat_bbox = airbnb_response_parser.get_lnglat_bbox(response=response)
+    federated_search_session_id = airbnb_response_parser.get_federated_search_session_id(response=response)
+    next_page_offset = airbnb_response_parser.get_next_page_offset(response=response)
+    try:
+        previous_page_offset = airbnb_response_parser.get_previous_page_items_offset(response=response)
+    except AssertionError:
+        # no previous page offset means we are at the first page
+        previous_page_offset = 0
+        items_per_grid = int(next_page_offset)
+    else:
+        items_per_grid = int((next_page_offset - previous_page_offset) / 2)
+
+    # this needs to be an int. if float you'll get a 400 from the API
+    # TODO: push validation to the api client
+
+    logger.info(f"Next Page Offset: {next_page_offset}")
+    logger.info(f"Previous Page Offset: {previous_page_offset}")
+    logger.info(f"Items per grid: {items_per_grid}")
+
+    bbox = lnglat_bbox._asdict()
+
+    ubdc_response: AirBnBResponse = AirBnBResponse.objects.fetch_response(
+        type=AirBnBResponseTypes.search,
+        task_id=this_task_id,
+        federated_search_session_id=federated_search_session_id,
+        items_offset=next_page_offset,
+        items_per_grid=items_per_grid,
+        **bbox
+    )
+    rv: dict = ubdc_response.payload
+
+    return rv
+
+
 def qk_has_next_page(quadkey: str, task_id=None) -> tuple[int, bool]:
     from ubdc_airbnb.models import UBDCGrid
     from ubdc_airbnb.utils.grids import bbox_from_quadkey

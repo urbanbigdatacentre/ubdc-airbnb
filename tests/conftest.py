@@ -2,10 +2,15 @@ import inspect
 from datetime import timezone
 from typing import Any
 from unittest.mock import Mock
-
+from queue import Queue, Empty as ExcEmptyQueue
 import pytest
 
 UTC = timezone.utc
+
+
+@pytest.fixture(scope="function")
+def response_queue():
+    return Queue()
 
 
 @pytest.fixture(scope="function")
@@ -21,9 +26,9 @@ def geojson_gen():
 
 
 @pytest.fixture(scope="function")
-def mock_airbnb_client(mocker, faker):
+def mock_airbnb_client(mocker, faker, response_queue):
     # from ubdc_airbnb.airbnb_interface import airbnb_api
-    from requests import Request, Response
+    from requests import Request
     from requests.exceptions import HTTPError
 
     from ubdc_airbnb.models import AirBnBResponseTypes
@@ -94,6 +99,12 @@ def mock_airbnb_client(mocker, faker):
         # mref = inspect.currentframe().f_back.f_locals.get("self")  # type: ignore
         # assert mref
         # times_called: int = mref.call_count
+        try:
+            response_data = response_queue.get_nowait()
+        except ExcEmptyQueue as e:
+            raise ExcEmptyQueue(
+                "Queue is empty. Did you forget to add entries with response_queue fixture?") from e
+        response_queue.task_done()
         status_code = 200
         review_id = faker.random_int(min=300000, max=1000000)
         author_id = faker.random_int(min=300000, max=1000000)
@@ -184,32 +195,17 @@ def mock_airbnb_client(mocker, faker):
         **kwargs,
     ):
 
-        import inspect
+        try:
+            response_data = response_queue.get_nowait()
+        except ExcEmptyQueue as e:
+            raise ExcEmptyQueue(
+                "Queue is empty. Did you forget to add entries with response_queue fixture?") from e
+        response_queue.task_done()
 
-        json_data = {"test": "test"}
-        # how any times this function has been called?
-        # Ask the parent mock object.
-        # Obviouslly, this is a hack and depents that this function is called from a mock object
-        # get a ref to parent mock object
-        mref = inspect.currentframe().f_back.f_locals.get("self")  # type: ignore
-        # get the call count
-        times_called: int = mref.call_count  # type: ignore
-
-        match times_called:
-            case 1:
-                status_code = 200
-            case 2:
-                status_code = 403
-            case 3:
-                status_code = 503
-                response = MockResponse(
-                    response_type=AirBnBResponseTypes.calendar,
-                    status_code=status_code,
-                    headers=headers,
-                    **kwargs,
-                )
-                e = HTTPError("Mock-Exception code: 503", response=response)  # type: ignore
-                raise e
+        json_data = response_data.get('json_data', {"test": "test"})
+        status_code = response_data['status_code']
+        listing_id = response_data['listing_id']
+        headers = response_data.get('headers', {})
 
         rv = MockResponse(
             response_type=AirBnBResponseTypes.calendar,
@@ -219,62 +215,27 @@ def mock_airbnb_client(mocker, faker):
             headers=headers,
             **kwargs,
         )
-
+        rv.raise_for_status()
         return rv, rv.json()
 
     def get_homes_side_effect(*args, **kwargs):
-        # how any times this function has been called?
-        # Ask the parent mock object.
-        # Obviouslly, this is a hack and depents that this function is called from a mock object
-        # get a ref to parent mock object
-        mref = inspect.currentframe().f_back.f_locals.get("self")  # type: ignore
-        # get the call count
-        times_called: int = mref.call_count  # type: ignore
 
-        status_code = 200
-        match times_called:
-            case 1:
-                listings_number = 10000
-            case 2:
-                listings_number = 1000
-            case 3:
-                listings_number = 100
-            case 4:
-                listings_number = 10
-            case _:
-                listings_number = 1
+        try:
+            response_data = response_queue.get_nowait()
+        except ExcEmptyQueue as e:
+            raise ExcEmptyQueue(
+                "Queue is empty. Did you forget to add entries with response_queue fixture?") from e
+        response_queue.task_done()
 
-        has_next_page = True if listings_number >= 25 else False
-        listings = [
-            {
-                "listing": {
-                    "id_str": faker.pystr_format(string_format="##################"),  # 18 chars
-                    "lat": faker.pyfloat(
-                        max_value=kwargs.get("north", 10),
-                        min_value=kwargs.get("south", -10),
-                    ),
-                    "lng": faker.pyfloat(
-                        min_value=kwargs.get("west", -10),
-                        max_value=kwargs.get("east", 10),
-                    ),
-                }
-            }
-            for x in range(min(listings_number, 50))
-        ]
-        json_data = {
-            "explore_tabs": [
-                {"home_tab_metadata": {"listings_count": listings_number}},
-                {"pagination_metadata": {"has_next_page": has_next_page}},
-                {"sections": [[], [], {"listings": listings}]},
-            ],
-        }
+        status_code = response_data['status_code']
+        json_data = response_data['body']
+        headers = response_data['headers']
 
         rv = MockResponse(
             response_type=AirBnBResponseTypes.search,
             status_code=status_code,
             json_data=json_data,
-            listing_id=None,
-            headers={},
+            headers=headers,
             **kwargs,
         )
 
@@ -384,6 +345,14 @@ def listings_model(db):
     from django.apps import apps as django_apps
 
     model = django_apps.get_model("app.AirBnBListing")
+    return model
+
+
+@pytest.fixture()
+def ubdctask_model(db):
+    from django.apps import apps as django_apps
+
+    model = django_apps.get_model("app.UBDCTask")
     return model
 
 

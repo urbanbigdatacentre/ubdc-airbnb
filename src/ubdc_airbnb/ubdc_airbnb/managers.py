@@ -82,17 +82,14 @@ class AirBnBResponseManager(models.Manager):
 
         try:
             response, payload = method(**kwargs)
-        except (HTTPError, ProxyError) as exc:
-            # Middleware errors.
-            # Don't log the response, but retry.
-
+        except ProxyError as exc:
+            # Sometimes it fails to resolve. Could be tied to OS issues, or network. Regardless, retry.
+            raise UBDCRetriableError("ProxyError") from exc
+        except HTTPError as exc:
+            # TODO: [EASY-FIX] This is a generic error. Why we did not get any response? We should log this. Where?
+            # As long there's a response it's handled in the next block.
             response = exc.response
             assert response is not None
-            # crawlera handling
-            # https://docs.zyte.com/smart-proxy-manager/errors.html
-            if response.status_code == 503:
-                if response.headers.get("X-Crawlera-Error") == "banned":
-                    raise UBDCRetriableError(f"crawlera-error: {response.text}")
 
         listing_id = kwargs.get("listing_id", None)
 
@@ -120,20 +117,46 @@ class AirBnBResponseManager(models.Manager):
         listing_id: int | None = None,
     ):
         from ubdc_airbnb.models import UBDCTask
+        status_code = response.status_code
 
         try:
             payload = response.json()
         except JSONDecodeError as e:
-            logger.info(f"Could not decode the payload. Response status_code:{response.status_code}.")
-            if response.status_code == 429:
-                # 429 Too Many Requests: we are being rate limited
-                raise UBDCRetriableError("429 error, retrying") from e
-            raise UBDCError(f"Response text was not json. It was: {response.content}") from e
-
+            import base64
+            payload = {}
+            payload.update(
+                content=response.content,
+                base64_str=base64.b64encode(response.content),
+            )
         except AttributeError as e:
             # there are cases where the body comes back empty.
             logger.info("body could not be serialised (empty?)")
-            raise UBDCRetriableError("Attribute error, retrying") from e
+            raise UBDCRetriableError(f"AttributeError. Status-Code: {status_code}. Retrying") from e
+
+        should_raise = None
+        match status_code:
+            case 200:
+                # 200 OK
+                pass
+            case 429:
+                # 429 Too Many Requests; pass for retry
+                should_raise = UBDCRetriableError("429 error, retrying", response)
+            case 403:
+                # 403 Forbidden. We want to know about this.
+                pass
+            case 503:
+                # 503 Service Unavailable?
+                should_raise = UBDCRetriableError("503 error, retrying", response)
+            case _:
+                # TODO: [EASY-FIX] Consider doing a db entry for this. Or Sentry logging.
+
+                req = response.request
+                logger.info(f"Un-expected status")
+                logger.info(f"Response: {response.text}")
+                logger.info(f"Request: {req.method} {status_code} {req.url}")
+                logger.info(f"Headers:")
+                for k, v in req.headers.items():
+                    logger.info(f"{k}: {v}")
 
         ubdc_task = UBDCTask.objects.filter(task_id=task_id).first()  # returns None if not found
 
@@ -141,7 +164,7 @@ class AirBnBResponseManager(models.Manager):
         params.update(
             _type=type,
             listing_id=listing_id,
-            status_code=response.status_code,
+            status_code=status_code,
             request_headers=dict(**response.request.headers),
             payload=payload,
             url=response.url,
@@ -149,7 +172,11 @@ class AirBnBResponseManager(models.Manager):
             seconds_to_complete=response.elapsed.seconds,
         )
 
-        obj = self.create(ubdc_task=ubdc_task, **params)
+        obj, _ = self.update_or_create(ubdc_task=ubdc_task, defaults={**params})
+
+        if should_raise:
+            logger.info(f"SELECT * FROM app_airbnbresponse WHERE id = {obj.id}")
+            raise should_raise
 
         return obj
 
@@ -166,7 +193,8 @@ class AirBnBListingManager(models.Manager):
 
         match purpose:
             case "listing_details":
-                list_aoi = AOIShape.objects.filter(collect_listing_details=True).values("collect_listing_details")
+                list_aoi = AOIShape.objects.filter(
+                    collect_listing_details=True).values("collect_listing_details")
             case "calendar":
                 list_aoi = AOIShape.objects.filter(collect_calendars=True).values("collect_calendars")
             case "reviews":
@@ -311,6 +339,7 @@ class UBDCGridManager(models.Manager):
             y_distance_m=postgis_distance_a_to_b((mid_x, min_y), (mid_x, max_y)),
         )
 
+    # TODO: [EASY-FIX] This is a get or create, but branded as get.
     def create_from_tile(self, tile: mercantile.Tile) -> "app_models.UBDCGrid":
         """Create an UBDCGrid entry and return a ref of it."""
         obj = self.model_from_tile(tile)

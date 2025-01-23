@@ -2,8 +2,6 @@ import os
 import warnings
 from pathlib import Path
 
-from ubdc_airbnb.airbnb_interface.airbnb_api import AirbnbApi
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "!@%ff)awnl(dx)6!!$zrdd9=l_6b76vl+*pw2jj54vljjiz2-y"
 
@@ -13,6 +11,7 @@ AIRBNB_API_ENDPOINT = os.getenv("AIRBNB_API_ENDPOINT", "https://www.airbnb.co.uk
 AIRBNB_PUBLIC_API_KEY = os.getenv("AIRBNB_PUBLIC_API_KEY", "d306zoyjsyarp7ifhu67rjxn52tv0t20")
 AIRBNB_LISTINGS_MOVED_MIN_DISTANCE = os.getenv("AIRBNB_LISTINGS_MOVED_MIN_DISTANCE", 150)
 ZYTE_API_KEY = os.getenv("ZYTE_API_KEY")
+MAX_GRID_LEVEL = os.getenv("MAX_GRID_LEVEL", 22)
 if ZYTE_API_KEY:
     AIRBNB_PROXY = f"http://{ZYTE_API_KEY}:@proxy.crawlera.com:8011"
 else:

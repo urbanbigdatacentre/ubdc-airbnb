@@ -1,3 +1,4 @@
+from ubdc_airbnb import model_defaults
 from collections import Counter
 from datetime import timedelta
 from random import random
@@ -88,7 +89,7 @@ def task_add_reviews_of_listing(
         listing.reviews_updated_at = timezone.now()
         listing.save()
 
-    ## process the review payload
+    # process the review payload
     reviews: list[dict[str, Any]] = payload["reviews"]
     for review in reviews:
         review_id = review["id"]
@@ -219,7 +220,7 @@ def task_discover_listings_at_grid(
 
     for page, _ in data_pages_gen:
         airbnbapi_response = airbnb_client.response
-        logger.warning
+        assert airbnbapi_response is not None
         search_response_obj = AirBnBResponse.objects.create_from_response(
             airbnbapi_response, type=AirBnBResponseTypes.search, task_id=task_id
         )
@@ -321,6 +322,35 @@ def task_get_listing_details(
 
 
 @shared_task(bind=True)
+def task_get_next_page_homes(self: BaseTaskWithRetry, parent_page_task_id: str):
+    "Uses meta from the parent task to get the next page of listings."
+    from ubdc_airbnb.workunits import get_next_page_payload
+    from ubdc_airbnb.workunits import register_listings_from_response
+    from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
+
+    logger.info(f"Task {parent_page_task_id} is getting the next page of listings.")
+    logger.info(f"Task {self.request.id} is getting the next page of listings.")
+
+    this_task_id = self.request.id
+    assert this_task_id is not None
+    payload: dict = get_next_page_payload(
+        parent_page_task_id=parent_page_task_id,
+        this_task_id=this_task_id
+    )
+
+    # process this page results
+    register_listings_from_response(payload)
+
+    has_next_page = airbnb_response_parser.has_next_page(payload)
+    if has_next_page:
+        # shoot another task/request
+
+        # self is the new parent task
+        next_page_task = task_get_next_page_homes.s(parent_page_task_id=self.request.id)
+        next_page_task.apply_async()
+
+
+@shared_task(bind=True)
 @convert_exceptions
 def task_register_listings_or_divide_at_quadkey(
     self: BaseTaskWithRetry,
@@ -338,34 +368,39 @@ def task_register_listings_or_divide_at_quadkey(
     # Easy to follow,
     # check bbox, if it's paginated, divide and resubmit
     # if not, store the listings
-    from uuid import uuid4
+    # from uuid import uuid4
 
-    from ubdc_airbnb.utils.grids import clean_quadkeys, replace_quadkey_with_children
     from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
-    from ubdc_airbnb.workunits import (
-        bbox_has_next_page,
-        register_listings_from_response,
-    )
+    from ubdc_airbnb.utils.grids import replace_quadkey_with_children
+    from ubdc_airbnb.workunits import bbox_has_next_page
+    from ubdc_airbnb.workunits import register_listings_from_response
 
-    task_id = self.request.id or str(uuid4())
+    task_id = self.request.id
     grid: UBDCGrid = UBDCGrid.objects.get(quadkey=quadkey)
-    bbox = bbox_from_quadkey(grid.quadkey)
+    lnglat_bbox = bbox_from_quadkey(grid.quadkey)
+    bbox = lnglat_bbox._asdict()
 
-    east = bbox.east
-    north = bbox.north
-    south = bbox.south
-    west = bbox.west
-
-    response_pk, has_next_page = bbox_has_next_page(
-        east=east,
-        north=north,
-        south=south,
-        west=west,
-        task_id=task_id,
-    )
+    response_pk, has_next_page = bbox_has_next_page(task_id=task_id, **bbox)
+    response: AirBnBResponse = AirBnBResponse.objects.get(pk=response_pk)
+    payload = response.payload
+    listings = register_listings_from_response(payload)
 
     grid.datetime_last_estimated_listings_scan = timezone.now()
-    if has_next_page:
+
+    logger.info(f"Grid {grid.quadkey} has next page: {has_next_page}")
+
+    if has_next_page and len(quadkey) >= settings.MAX_GRID_LEVEL:
+        # Safeguard; we don't want to divide too much.
+        # We could find ourself here as a result of a broken SHR response.
+        # default is 22 but can be configured in settings.
+        # 22 represents a ~10m x 10m grid
+
+        logger.info(
+            f"Quadkey {quadkey} is too deep to divide. (max: {settings.MAX_GRID_LEVEL}. This: {len(quadkey)}).")
+        job = task_get_next_page_homes.s(parent_page_task_id=task_id)
+        job.apply_async()
+
+    if has_next_page and len(quadkey) < settings.MAX_GRID_LEVEL:
         logger.info(f"Grid {grid.quadkey} has multiple pages of listings. Dividing!")
         quadkey = grid.quadkey
         children_quadkeys = replace_quadkey_with_children(quadkey)
@@ -380,10 +415,8 @@ def task_register_listings_or_divide_at_quadkey(
 
     # The grid is not paginated
     # Get the payload this task_id has generated; and add additional.
-    response: AirBnBResponse = AirBnBResponse.objects.get(pk=response_pk)
-    payload = response.payload
-    listings = register_listings_from_response(payload)
-    estimated_listings = airbnb_response_parser.listing_count(payload)
+
+    estimated_listings = airbnb_response_parser.listing_count(response=payload)
     grid.estimated_listings = estimated_listings
     logger.info(f"Grid {grid.quadkey} has {grid.estimated_listings} listings.")
     grid.datetime_last_listings_scan = timezone.now()
@@ -398,9 +431,6 @@ def task_register_listings_or_divide_at_quadkey(
         listing.responses.add(response)
 
     return None
-
-
-from ubdc_airbnb import model_defaults
 
 
 @shared_task(bind=True)
