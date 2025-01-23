@@ -1,3 +1,4 @@
+from django.utils import timezone
 import inspect
 
 from celery import signals
@@ -7,7 +8,6 @@ from celery.utils.log import get_task_logger
 from ubdc_airbnb.models import UBDCGroupTask, UBDCTask
 
 logger = get_task_logger(__name__)
-from django.utils import timezone
 
 
 @signals.before_task_publish.connect
@@ -24,7 +24,8 @@ def ubdc_handles_task_publish(sender: str = None, headers=None, body=None, **kwa
     group_task_id = info.get("group", None)
     root_id = None if task_id == info.get("root_id") else info.get("root_id", task_id)
     if group_task_id:
-        group_task_obj, created = UBDCGroupTask.objects.get_or_create(group_task_id=group_task_id, root_id=root_id)
+        group_task_obj, created = UBDCGroupTask.objects.get_or_create(
+            group_task_id=group_task_id, root_id=root_id)
 
     else:
         group_task_obj = None
@@ -47,7 +48,7 @@ def ubdc_handles_task_publish(sender: str = None, headers=None, body=None, **kwa
         for k, v in _data.items():
             setattr(task_obj, k, v)
         task_obj.save()
-        logger.info(f'{inspect.stack()[0][3]}: Created task: {info["id"]}')
+        logger.info(f'{inspect.stack()[0][3]}: Created task: {info["id"]} / {info["task"]}')
     else:
         logger.info(f'{inspect.stack()[0][3]}: Task {info["id"]} found.')
     return
