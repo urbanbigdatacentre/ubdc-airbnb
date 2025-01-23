@@ -95,7 +95,7 @@ CELERY_TASK_QUEUE_MAX_PRIORITY = 10
 CELERY_TASK_DEFAULT_PRIORITY = 5  # 1 is the lowest, 10 the highest
 CELERY_TASK_INHERIT_PARENT_PRIORITY = True
 TIMEZONE = TIME_ZONE
-CELERY_WORKER_PREFETCH_MULTIPLIER = os.getenv("CELERY_WORKER_PREFETCH_MULTIPLIER", 10)
+CELERY_WORKER_PREFETCH_MULTIPLIER = os.getenv("CELERY_WORKER_PREFETCH_MULTIPLIER", 1)
 
 CELERY_BROKER_URI = (
     "pyamqp://{rabbit_username}:{rabbit_password}@{rabbit_host}:{rabbit_port}/{rabbit_virtual_host}".format(
