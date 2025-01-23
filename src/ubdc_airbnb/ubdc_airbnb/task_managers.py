@@ -21,7 +21,7 @@ def delta_time(hours=24):
 # no need to re-implement it
 class BaseTaskWithRetry(Task):
     autoretry_for = (UBDCRetriableError, ProxyError)
-    retry_kwargs = {"max_retries": 3}
+    retry_kwargs = {"max_retries": 2}  # initial retry + 2 retries = 3 attempts
     retry_backoff = True
     retry_backoff_max = 30  # seconds
     retry_jitter = False
