@@ -1,17 +1,12 @@
-from datetime import timedelta
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence, Union
 
 from celery import group, shared_task
 from celery.result import AsyncResult, GroupResult
 from celery.utils.log import get_task_logger
-from django.db.models import F, Q
-from django.utils.timezone import now
 
-from ubdc_airbnb.errors import UBDCError
 from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGroupTask
 from ubdc_airbnb.tasks import task_update_calendar
-from ubdc_airbnb.utils.tasks import get_submitted_listing_ids_for
-from ubdc_airbnb.utils.time import end_of_day, seconds_from_now
+from ubdc_airbnb.utils.time import end_of_day
 
 logger = get_task_logger(__name__)
 
@@ -32,10 +27,11 @@ def op_update_calendars_for_listing_ids(
     else:
         _listing_ids = (listing_id,)
 
-    job = group(task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today) for listing_id in _listing_ids)
+    job = group(task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today)
+                for listing_id in _listing_ids)
 
     group_result: AsyncResult[GroupResult] = job.apply_async()
-    group_result.save()  # type: ignore # typing issue?
+    group_result.save()  # type: ignore
     group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
     group_task.op_name = task_update_calendar.name
     group_task.op_kwargs = {"listing_id": _listing_ids}
@@ -92,7 +88,7 @@ def op_update_calendar_periodical(use_aoi=True, **kwargs) -> list[str]:
     end_of_today = end_of_day()
     group_result_ids: list[str] = []
 
-    logger.info(f"Using AOI: {use_aoi}")
+    logger.info(f"Use collect_calendars AOIs? : {use_aoi}")
     if use_aoi:
         qs_listings = AirBnBListing.objects.for_purpose("calendar")
     else:
