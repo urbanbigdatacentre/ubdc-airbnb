@@ -7,9 +7,10 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from ubdc_airbnb.models import AOIShape
-from ubdc_airbnb.utils.grids import generate_initial_grid
 
 from . import _GeoFileHandler
+
+# from ubdc_airbnb.utils.grids import generate_initial_grid
 
 
 def add_file(geo_file) -> AOIShape:
@@ -34,7 +35,10 @@ def add_file(geo_file) -> AOIShape:
 
 
 class Command(BaseCommand):
-    help = "Import AOI to the database from a shapefile/geojson."
+    help = """Import an Area-Of-Interest Boundary into the system.
+    - The boundary must be a Polygon or MultiPolygon.
+    - The file must be a Shapefile or GeoJSON.
+    """
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -51,23 +55,5 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        geo_file = options["geo_file"]
-        create_initial_grid = options["create_grid"]
-        files = glob.glob(geo_file)
-        aoi_ids = []
-        try:
-            with transaction.atomic():
-                for f in files:
-                    aoi_obj = add_file(f)
-                    aoi_ids.append(aoi_obj.id)
-                    self.stdout.write(self.style.SUCCESS(f"Successfully imported boundary with id: {aoi_obj.id}"))
-
-                if create_initial_grid:
-                    self.stdout.write(self.style.NOTICE(f"Generating Initial Grids"))
-                    for obj_id in aoi_ids:
-                        final_grids = generate_initial_grid(aoishape_id=obj_id)
-                    self.stdout.write(self.style.NOTICE(f"Successfully generated grids {len(final_grids)}"))
-
-        except Exception as excp:
-            self.stdout.write(self.style.ERROR(f"An error has occurred. Db was reverted back to its original state"))
-            raise excp
+        # not implemented yet
+        pass

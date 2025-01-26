@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List, Optional, Union
 
+from celery import Task
 from django.contrib.gis.gdal.datasource import DataSource
 from django.contrib.gis.gdal.layer import Layer
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
@@ -113,3 +114,39 @@ def int_to_listing(value) -> AirBnBListing:
     listing = AirBnBListing.objects.get(listing_id=value)
 
     return listing
+
+
+def get_beat_tasks():
+    from core.celery import app
+
+    beat_entries: dict = app.conf.beat_schedule
+
+    jobs = list(x.split(".")[-1] for x in beat_entries.keys())
+
+    return jobs
+
+
+def get_beat_task_by_name(task_name: str):
+    """
+    Return the task object for a given task name. \n
+    Task names can be retrieved using get_beat_tasks()
+    """
+
+    import importlib
+
+    from core.celery import app
+
+    beat_entries: dict = app.conf.beat_schedule
+    candidates = [key for key in beat_entries.keys() if key.endswith(task_name)]
+    if len(candidates) != 1:
+        raise ValueError(f"Expected exactly one task ending with '{task_name}', found {len(candidates)}")
+
+    entry = beat_entries[candidates[0]]
+    task_fqn = entry["task"]
+    task_module_str = task_fqn.rsplit(".", 1)[0]
+    task_str = task_fqn.split(".")[-1]
+
+    module_symbol = importlib.import_module(task_module_str)
+    job_obj = getattr(module_symbol, task_str)
+
+    return job_obj
