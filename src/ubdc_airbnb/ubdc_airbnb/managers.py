@@ -50,27 +50,42 @@ class AirBnBResponseManager(models.Manager):
         from ubdc_airbnb.airbnb_interface.airbnb_api import AirbnbApi
         from ubdc_airbnb.models import AirBnBResponseTypes
 
+        if type != AirBnBResponseTypes.search:
+            assert "asset_id" in kwargs
+
         airbnb_client = AirbnbApi(proxy=settings.AIRBNB_PROXY)
 
         match type:
             case AirBnBResponseTypes.bookingQuote:
                 method_name = "get_booking_details"
+                asset_id = kwargs.pop("asset_id")
+                kwargs.update(listing_id=asset_id)
                 assert "listing_id" in kwargs
             case AirBnBResponseTypes.calendar:
                 method_name = "get_calendar"
+                asset_id = kwargs.pop("asset_id")
+                kwargs.update(listing_id=asset_id)
                 assert "listing_id" in kwargs
             case AirBnBResponseTypes.review:
                 method_name = "get_reviews"
+                asset_id = kwargs.pop("asset_id")
+                kwargs.update(listing_id=asset_id)
                 assert "listing_id" in kwargs
             case AirBnBResponseTypes.listingDetail:
                 method_name = "get_listing_details"
+                asset_id = kwargs.pop("asset_id")
+                kwargs.update(listing_id=asset_id)
                 assert "listing_id" in kwargs
             case AirBnBResponseTypes.search:
                 method_name = "get_homes"
+                # kwargs.pop("asset_id")
             case AirBnBResponseTypes.searchMetaOnly:
                 method_name = "bbox_metadata_search"
+                # kwargs.pop("asset_id")
             case AirBnBResponseTypes.userDetail:
                 method_name = "get_user"
+                asset_id = kwargs.pop("asset_id")
+                kwargs.update(user_id=asset_id)
                 assert "user_id" in kwargs
             case _:
                 raise ValueError(f"Invalid _type: {type}")
@@ -81,7 +96,7 @@ class AirBnBResponseManager(models.Manager):
             raise Exception(f"could not find reference: {method_name}")
 
         try:
-            response, payload = method(**kwargs)
+            response = method(**kwargs)
         except ProxyError as exc:
             # Sometimes it fails to resolve. Could be tied to OS issues, or network. Regardless, retry.
             raise UBDCRetriableError("ProxyError") from exc
@@ -117,23 +132,40 @@ class AirBnBResponseManager(models.Manager):
         listing_id: int | None = None,
     ):
         from ubdc_airbnb.models import UBDCTask
-        status_code = response.status_code
 
+        should_raise = None
+
+        def encapsulate_payload(response: "Response") -> dict:
+            "Tries to encapsulate the response in a dict."
+            import base64
+
+            payload = {}
+            base64_str = base64.b64encode(response.content).decode("utf-8") if response.content else None
+            try:
+                text = response.text
+            except Exception as e:  # noqa
+                text = "could not be serialised"
+            payload.update(
+                context_text=text,
+                base64_str=base64_str,
+            )
+            return payload
+
+        status_code = response.status_code
         try:
             payload = response.json()
         except JSONDecodeError as e:
-            import base64
-            payload = {}
-            payload.update(
-                content=response.content,
-                base64_str=base64.b64encode(response.content),
-            )
+            logger.info(f"JSONDecodeError when parsing response")
+            payload = encapsulate_payload(response)
+        except TypeError as e:
+            # response data is NoneType
+            logger.info(f"TypeError when parsing response")
+            payload = encapsulate_payload(response)
         except AttributeError as e:
             # there are cases where the body comes back empty.
-            logger.info("body could not be serialised (empty?)")
-            raise UBDCRetriableError(f"AttributeError. Status-Code: {status_code}. Retrying") from e
+            logger.info(f"AttributeError when parsing response")
+            payload = encapsulate_payload(response)
 
-        should_raise = None
         match status_code:
             case 200:
                 # 200 OK
@@ -149,7 +181,6 @@ class AirBnBResponseManager(models.Manager):
                 should_raise = UBDCRetriableError("503 error, retrying", response)
             case _:
                 # TODO: [EASY-FIX] Consider doing a db entry for this. Or Sentry logging.
-
                 req = response.request
                 logger.info(f"Un-expected status")
                 logger.info(f"Response: {response.text}")
@@ -158,7 +189,7 @@ class AirBnBResponseManager(models.Manager):
                 for k, v in req.headers.items():
                     logger.info(f"{k}: {v}")
 
-        ubdc_task = UBDCTask.objects.filter(task_id=task_id).first()  # returns None if not found
+        ubdc_task = UBDCTask.objects.filter(task_id=task_id).first()
 
         params = {}
         params.update(
@@ -171,8 +202,12 @@ class AirBnBResponseManager(models.Manager):
             query_params=query_params_from_url(response.url),
             seconds_to_complete=response.elapsed.seconds,
         )
-
-        obj, _ = self.update_or_create(ubdc_task=ubdc_task, defaults={**params})
+        if task_id:
+            # If we have a task_id, we can link the response to the task.
+            obj, _ = self.update_or_create(ubdc_task=ubdc_task, defaults={**params})
+        if not task_id:
+            # If we don't have a task_id, the response came from a standalone request.
+            obj = self.create(**params)
 
         if should_raise:
             logger.info(f"SELECT * FROM app_airbnbresponse WHERE id = {obj.id}")
@@ -193,17 +228,16 @@ class AirBnBListingManager(models.Manager):
 
         match purpose:
             case "listing_details":
-                list_aoi = AOIShape.objects.filter(
-                    collect_listing_details=True).values("collect_listing_details")
+                list_aoi = AOIShape.objects.filter(collect_listing_details=True)
             case "calendar":
-                list_aoi = AOIShape.objects.filter(collect_calendars=True).values("collect_calendars")
+                list_aoi = AOIShape.objects.filter(collect_calendars=True)
             case "reviews":
-                list_aoi = AOIShape.objects.filter(collect_reviews=True).values("collect_reviews")
+                list_aoi = AOIShape.objects.filter(collect_reviews=True)
             case _:
                 raise ValueError("invalid argument")
 
-        aoi_area_union = list_aoi.annotate(union=ST_Union("geom_3857"))
-        qs_listings = self.filter(geom_3857__intersects=Subquery(aoi_area_union.values("union")))
+        geom = list_aoi.aggregate(union=ST_Union("geom_3857"))["union"]
+        qs_listings = self.filter(geom_3857__intersects=geom)
 
         qs_listings = qs_listings.order_by("listing_id").distinct("listing_id")
 
