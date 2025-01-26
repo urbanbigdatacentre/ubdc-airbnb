@@ -6,7 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "!@%ff)awnl(dx)6!!$zrdd9=l_6b76vl+*pw2jj54vljjiz2-y"
 
 # APP SETTINGS
-ENTRIES_PER_GROUP_TASK = os.getenv("ENTRIES_PER_GROUP_TASK", 100)
+CELERY_TASK_CHUNK_SIZE = os.getenv("ENTRIES_PER_GROUP_TASK", 100)
 AIRBNB_APP_VERSION = os.getenv("APP_VERSION", "-")
 AIRBNB_API_ENDPOINT = os.getenv("AIRBNB_API_ENDPOINT", "https://www.airbnb.co.uk/api")
 AIRBNB_PUBLIC_API_KEY = os.getenv("AIRBNB_PUBLIC_API_KEY", "d306zoyjsyarp7ifhu67rjxn52tv0t20")
