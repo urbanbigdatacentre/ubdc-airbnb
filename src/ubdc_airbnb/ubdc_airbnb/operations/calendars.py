@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Sequence, Union
 from celery import group, shared_task
 from celery.result import AsyncResult, GroupResult
 from celery.utils.log import get_task_logger
+from django.conf import settings
 
 from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGroupTask
 from ubdc_airbnb.tasks import task_update_calendar
@@ -104,13 +105,13 @@ def op_update_calendar_periodical(use_aoi=True, **kwargs) -> None:
         group_task.op_kwargs = {"listing_id": batch}
         group_task.save()
 
-    # process them by 10000;
+    chunk_size = settings.CELERY_TASK_CHUNK_SIZE
     if qs_listings.exists():
         listing_ids = qs_listings.values_list("listing_id", flat=True)
         batch = []
-        for idx, listing in enumerate(listing_ids.iterator(chunk_size=10000)):
+        for idx, listing in enumerate(listing_ids.iterator(chunk_size=chunk_size)):
             batch.append(listing)
-            if idx % 10000 == 0 and idx > 0:
+            if idx % chunk_size == 0 and idx > 0:
                 process_group(batch)
                 batch.clear()
 

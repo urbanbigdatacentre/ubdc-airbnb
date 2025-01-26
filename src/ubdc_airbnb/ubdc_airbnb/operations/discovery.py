@@ -3,6 +3,7 @@ from typing import List, Sequence, Union
 from celery import group, shared_task
 from celery.result import AsyncResult, GroupResult
 from celery.utils.log import get_task_logger
+from django.conf import settings
 
 from ubdc_airbnb.models import AOIShape, UBDCGrid, UBDCGroupTask
 from ubdc_airbnb.tasks import task_discover_listings_at_grid
@@ -54,9 +55,7 @@ def op_discover_new_listings_periodical() -> str | None:
     quadkeys = grids.values_list("quadkey", flat=True)
 
     def submit_batch(batch: list[str]):
-        job = group(
-            task_register_listings_or_divide_at_quadkey.s(quadkey=qk) for qk in batch
-        )
+        job = group(task_register_listings_or_divide_at_quadkey.s(quadkey=qk) for qk in batch)
         group_result: AsyncResult[GroupResult] = job.apply_async()
         group_result.save()  # type: ignore
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
@@ -65,11 +64,12 @@ def op_discover_new_listings_periodical() -> str | None:
         group_task.save()
         logger.info(f"Sentch of {len(batch)} grids to task group {group_result.id}")
 
+    chunk_size = settings.CELERY_TASK_CHUNK_SIZE
     if quadkeys.exists():
         batch = []
-        for idx, qk in enumerate(quadkeys.iterator(chunk_size=1000)):
+        for idx, qk in enumerate(quadkeys.iterator(chunk_size=chunk_size)):
             batch.append(qk)
-            if idx % 1000 == 0 and idx > 0:
+            if idx % chunk_size == 0 and idx > 0:
                 submit_batch(batch)
                 batch.clear()
         submit_batch(batch)
@@ -94,8 +94,7 @@ def op_discover_new_listings_at_aoi(
     quadkeys = set()
     for _id in id_shapes:
         aoi_shape = AOIShape.objects.get(id=_id)
-        _quadkeys = UBDCGrid.objects.filter(
-            geom_3857__intersects=aoi_shape.geom_3857).values_list("quadkey", flat=True)
+        _quadkeys = UBDCGrid.objects.filter(geom_3857__intersects=aoi_shape.geom_3857).values_list("quadkey", flat=True)
         quadkeys.update(list(_quadkeys))
 
     quadkeys = list(quadkeys)

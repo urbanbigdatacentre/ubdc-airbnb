@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Collection, List, Optional, Sequence, Union
 from celery import group, shared_task
 from celery.result import AsyncResult, GroupResult, ResultSet
 from celery.utils.log import get_task_logger
+from django.conf import settings
 from django.db.models import F
 from django.utils.timezone import now
 
@@ -152,13 +153,14 @@ def op_update_listing_details_periodical(use_aoi=True) -> Optional[str]:
         group_task.op_kwargs = {"listing_id": batch}
         group_task.save()
 
-    logger.info(f"Found {listings_qs.count()} listings to fetch.")
+    logger.info(f"Found {listings_qs.count()}.")
+    chunk_size = settings.CELERY_TASK_CHUNK_SIZE
     if listings_qs.exists():
         listing_ids = listings_qs.values_list("listing_id", flat=True)
         batch = []
-        for idx, listing_id in enumerate(listing_ids.iterator(chunk_size=10000)):
+        for idx, listing_id in enumerate(listing_ids.iterator(chunk_size=chunk_size)):
             batch.append(listing_id)
-            if idx % 10000 == 0 and idx > 0:
+            if idx % chunk_size == 0 and idx > 0:
                 process_group(batch)
                 batch.clear()
         # process the last batch
