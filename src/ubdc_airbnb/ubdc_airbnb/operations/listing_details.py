@@ -1,4 +1,3 @@
-from datetime import timedelta
 from typing import TYPE_CHECKING, Collection, List, Optional, Sequence, Union
 
 from celery import group, shared_task
@@ -143,22 +142,31 @@ def op_update_listing_details_periodical(use_aoi=True) -> Optional[str]:
     else:
         listings_qs = AirBnBListing.objects.all()
 
-    logger.info(f"Found {listings_qs.count()} listings to fetch.")
-    if listings_qs.exists():
-        listing_ids = listings_qs.values_list("listing_id", flat=True)
-        job = group(task_get_listing_details.s(listing_id=listing_id) for listing_id in listing_ids)
+    def process_group(batch):
+        job = group(task_get_listing_details.s(listing_id=listing_id) for listing_id in batch)
         group_result: AsyncResult[GroupResult] = job.apply_async()
         group_result.save()  # type: ignore
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
         group_task.op_initiator = op_update_listing_details_periodical.name
         group_task.op_name = task_get_listing_details.name
-        group_task.op_kwargs = {"listing_id": listing_ids}
+        group_task.op_kwargs = {"listing_id": batch}
         group_task.save()
 
-        return group_result.id
+    logger.info(f"Found {listings_qs.count()} listings to fetch.")
+    if listings_qs.exists():
+        listing_ids = listings_qs.values_list("listing_id", flat=True)
+        batch = []
+        for idx, listing_id in enumerate(listing_ids.iterator(chunk_size=10000)):
+            batch.append(listing_id)
+            if idx % 10000 == 0 and idx > 0:
+                process_group(batch)
+                batch.clear()
+        # process the last batch
+        process_group(batch)
 
+        return
     logger.info(f"No listings for listing_details have been found!")
-    return None
+    return
 
 
 __all__ = [
