@@ -20,12 +20,14 @@ def test_op_update_calendar_periodical(
 ):
     from ubdc_airbnb.operations.calendars import op_update_calendar_periodical
 
-    for idx in range(0, 4):
-        payload = {
-            "content": calendar_generator(),
-        }
-        response_queue.put(payload)
-        call_command("create-test-area", "03113322331322" + str(idx))
+    for prefix_qk in ["03113322331322", "03112322331323"]:
+        for idx in range(0, 4):
+            qk = prefix_qk + str(idx)
+            payload = {
+                "content": calendar_generator(),
+            }
+            response_queue.put(payload)
+            call_command("create-test-area", qk)
 
     grid = ubdcgrid_model.objects.all()
     for idx, g in enumerate(grid):
@@ -41,7 +43,8 @@ def test_op_update_calendar_periodical(
         g.join()  # type: ignore
 
     assert job.successful()
-    assert responses_model.objects.count() == 4
+    assert responses_model.objects.count() == 4 * 2
+    assert listings_model.objects.count() == 4 * 2
     for l in listings_model.objects.all():
         assert l.timestamp
         assert l.calendar_updated_at

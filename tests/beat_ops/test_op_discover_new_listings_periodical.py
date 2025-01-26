@@ -20,13 +20,14 @@ def test_op_discover_new_listings_periodical(
 ):
     from ubdc_airbnb.operations.discovery import op_discover_new_listings_periodical
 
-    for idx in range(0, 4):
-        qk = "03113322331322" + str(idx)
-        payload = {
-            "content": search_body_generator(qk=qk),
-        }
-        response_queue.put(payload)
-        call_command("create-test-area", qk)
+    for prefix_qk in ["03113322331322", "03112322331323"]:
+        for idx in range(0, 4):
+            qk = prefix_qk + str(idx)
+            payload = {
+                "content": search_body_generator(qk=qk),
+            }
+            response_queue.put(payload)
+            call_command("create-test-area", qk)
 
     grid = ubdcgrid_model.objects.all()
     for idx, g in enumerate(grid):
@@ -42,7 +43,9 @@ def test_op_discover_new_listings_periodical(
         g.join()  # type: ignore
 
     assert job.successful()
-    assert responses_model.objects.count() == 4
+    assert responses_model.objects.count() == 4 * 2
+    # 4 initial, 10 per search, 2 areas
+    assert listings_model.objects.count() == (4 + 10 * 4) * 2
     for l in listings_model.objects.all():
         assert l.timestamp
         assert l.listing_updated_at is None
