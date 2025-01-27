@@ -236,10 +236,11 @@ class AirBnBListingManager(models.Manager):
             case _:
                 raise ValueError("invalid argument")
 
+        # Create a union of all the AOIs
+        # Warning: This might create a degenerate polygon.
+        # I am not aware of any issues with this, but it's worth keeping in mind.
         geom = list_aoi.aggregate(union=ST_Union("geom_3857"))["union"]
         qs_listings = self.filter(geom_3857__intersects=geom)
-
-        qs_listings = qs_listings.order_by("listing_id").distinct("listing_id")
 
         return qs_listings
 

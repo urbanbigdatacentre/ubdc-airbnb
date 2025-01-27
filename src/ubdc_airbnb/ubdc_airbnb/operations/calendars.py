@@ -28,7 +28,8 @@ def op_update_calendars_for_listing_ids(
     else:
         _listing_ids = (listing_id,)
 
-    job = group(task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today) for listing_id in _listing_ids)
+    job = group(task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today)
+                for listing_id in _listing_ids)
 
     group_result: AsyncResult[GroupResult] = job.apply_async()
     group_result.save()  # type: ignore
@@ -96,7 +97,8 @@ def op_update_calendar_periodical(use_aoi=True, **kwargs) -> None:
 
     def process_group(batch: list[int]) -> None:
         logger.info(f"Submiting job for {idx} listings")
-        job = group(task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today) for listing_id in batch)
+        job = group(task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today)
+                    for listing_id in batch)
         group_result: AsyncResult[GroupResult] = job.apply_async()
         group_result.save()  # type: ignore
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
@@ -109,7 +111,7 @@ def op_update_calendar_periodical(use_aoi=True, **kwargs) -> None:
     if qs_listings.exists():
         listing_ids = qs_listings.values_list("listing_id", flat=True)
         batch = []
-        for idx, listing in enumerate(listing_ids.iterator(chunk_size=chunk_size)):
+        for idx, listing in enumerate(listing_ids.iterator(chunk_size=chunk_size*2)):
             batch.append(listing)
             if idx % chunk_size == 0 and idx > 0:
                 process_group(batch)
