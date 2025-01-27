@@ -111,7 +111,7 @@ def task_add_reviews_of_listing(
         )
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, acks_late=True)
 @convert_exceptions
 def task_update_calendar(
     self: BaseTaskWithRetry,
@@ -396,7 +396,8 @@ def task_register_listings_or_divide_at_quadkey(
         # default is 22 but can be configured in settings.
         # 22 represents a ~10m x 10m grid
 
-        logger.info(f"Quadkey {quadkey} is too deep to divide. (max: {settings.MAX_GRID_LEVEL}. This: {len(quadkey)}).")
+        logger.info(
+            f"Quadkey {quadkey} is too deep to divide. (max: {settings.MAX_GRID_LEVEL}. This: {len(quadkey)}).")
         job = task_get_next_page_homes.s(parent_page_task_id=task_id)
         job.apply_async()
 
