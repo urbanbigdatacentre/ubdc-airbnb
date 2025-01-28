@@ -7,6 +7,7 @@ from ..payload_generators import calendar_generator
 fake = Faker()
 
 
+@pytest.mark.parametrize("params", [{}, {"stale": True}])
 @pytest.mark.django_db(transaction=True)
 def test_op_update_calendar_periodical(
     mock_airbnb_client,
@@ -17,8 +18,11 @@ def test_op_update_calendar_periodical(
     ubdcgrid_model,
     ubdctask_model,
     responses_model,
+    params
 ):
     from ubdc_airbnb.operations.calendars import op_update_calendar_periodical
+    from ubdc_airbnb.utils.time import start_of_day
+    start_date = start_of_day()
 
     for prefix_qk in ["03113322331322", "03112322331323"]:
         for idx in range(0, 4):
@@ -32,9 +36,14 @@ def test_op_update_calendar_periodical(
     grid = ubdcgrid_model.objects.all()
     for idx, g in enumerate(grid):
         centroid = g.geom_3857.centroid
-        listing = listings_model.objects.create(listing_id=idx + 1, geom_3857=centroid)
+        listing = listings_model.objects.create(
+            listing_id=idx + 1,
+            geom_3857=centroid,
+            calendar_updated_at=fake.date_time_between(
+                start_date=start_date, end_date='-10m') if idx % 2 == 0 else None,
+        )
 
-    task = op_update_calendar_periodical.s()
+    task = op_update_calendar_periodical.s(**params)
     job = task.apply_async()
     result = job.get()
     assert job.children
@@ -43,9 +52,9 @@ def test_op_update_calendar_periodical(
         g.join()  # type: ignore
 
     assert job.successful()
-    assert responses_model.objects.count() == 4 * 2
+    assert responses_model.objects.count() == 4
     assert listings_model.objects.count() == 4 * 2
     for l in listings_model.objects.all():
         assert l.timestamp
         assert l.calendar_updated_at
-        assert l.calendar_updated_at > l.timestamp
+        assert l.calendar_updated_at > start_date

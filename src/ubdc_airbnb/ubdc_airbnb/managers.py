@@ -221,7 +221,7 @@ class AirBnBListingManager(models.Manager):
     def for_purpose(
         self,
         purpose: Literal["calendar", "reviews", "listing_details"],
-    ) -> 'QuerySet["app_models.AirBnBListing"]':
+    ) -> 'AirBnBListingManager':
         """Returns a QS with all the listings ids within an enabled AOI"""
 
         from ubdc_airbnb.models import AOIShape

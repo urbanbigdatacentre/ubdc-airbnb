@@ -4,10 +4,12 @@ from celery import group, shared_task
 from celery.result import AsyncResult, GroupResult
 from celery.utils.log import get_task_logger
 from django.conf import settings
+from django.db.models import Q
 
 from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGroupTask
 from ubdc_airbnb.tasks import task_update_calendar
-from ubdc_airbnb.utils.time import end_of_day
+from ubdc_airbnb.utils.time import end_of_day, start_of_day
+
 
 logger = get_task_logger(__name__)
 
@@ -86,14 +88,23 @@ def op_update_calendar_periodical(use_aoi=True, **kwargs) -> None:
     It will generate tasks to collect all listing calendars all the activated AOIs by default.
     Tasks are marked to expire at the end of today.
     """
+    start_of_today = start_of_day()
     end_of_today = end_of_day()
+
     group_result_ids: list[str] = []
 
-    logger.info(f"Use collect_calendars AOIs? : {use_aoi}")
+    logger.info(f"Filter AOIs on collect_calendars? {use_aoi}")
     if use_aoi:
         qs_listings = AirBnBListing.objects.for_purpose("calendar")
     else:
-        qs_listings: "QuerySet" = AirBnBListing.objects.all()
+        qs_listings = AirBnBListing.objects.all()
+
+    if kwargs.get("stale", False):
+        # assume that something had happened and interuppted the service;
+        # if we re-run we  we want to update only the calendars that were not updated today (yet)
+        logger.info("Filtering for stale calendars")
+        q = (Q(calendar_updated_at__lt=start_of_today) | Q(calendar_updated_at=None))
+        qs_listings = qs_listings.filter(q)
 
     def process_group(batch: list[int]) -> None:
         logger.info(f"Submiting job for {idx} listings")
