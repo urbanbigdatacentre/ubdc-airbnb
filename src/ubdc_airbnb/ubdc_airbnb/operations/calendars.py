@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Sequence, Union
 from celery import group, shared_task
 from celery.result import AsyncResult, GroupResult
 from celery.utils.log import get_task_logger
+from django.conf import settings
 
 from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGroupTask
 from ubdc_airbnb.tasks import task_update_calendar
@@ -80,7 +81,7 @@ def op_update_calendar_at_aoi(
 # this is the main beat task. It will run once per day at 2 am.
 # configure it at ubdc_airbnb.core.celery
 @shared_task(acks_late=False)
-def op_update_calendar_periodical(use_aoi=True, **kwargs) -> list[str]:
+def op_update_calendar_periodical(use_aoi=True, **kwargs) -> None:
     """
     It will generate tasks to collect all listing calendars all the activated AOIs by default.
     Tasks are marked to expire at the end of today.
@@ -94,30 +95,32 @@ def op_update_calendar_periodical(use_aoi=True, **kwargs) -> list[str]:
     else:
         qs_listings: "QuerySet" = AirBnBListing.objects.all()
 
-    # process them by 10000;
-    if qs_listings.exists():
-        _listing_ids = []
-        for idx, listing in enumerate(qs_listings.iterator(chunk_size=10000)):
-            _listing_ids.append(listing.listing_id)
-            if idx % 10000 == 0 and idx > 0:
-                logger.info(f"Submiting job for {idx} listings")
-                job = group(
-                    task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today)
-                    for listing_id in _listing_ids
-                )
-                group_result: AsyncResult[GroupResult] = job.apply_async()
-                group_result_id = group_result.id
-                group_result.save()  # type: ignore # typing issue?
-                group_task = UBDCGroupTask.objects.get(group_task_id=group_result_id)
-                group_task.op_name = task_update_calendar.name
-                group_task.op_initiator = op_update_calendar_periodical.name
-                group_task.op_kwargs = {"listing_id": _listing_ids}
-                group_task.save()
-                logger.info(f"Submited as job {group_result_id}")
-                group_result_ids.append(group_result_id)
-                _listing_ids.clear()
+    def process_group(batch: list[int]) -> None:
+        logger.info(f"Submiting job for {idx} listings")
+        job = group(task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today)
+                    for listing_id in batch)
+        group_result: AsyncResult[GroupResult] = job.apply_async()
+        group_result.save()  # type: ignore
+        group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
+        group_task.op_name = task_update_calendar.name
+        group_task.op_initiator = op_update_calendar_periodical.name
+        group_task.op_kwargs = {"listing_id": batch}
+        group_task.save()
 
-    return group_result_ids
+    chunk_size = settings.CELERY_TASK_CHUNK_SIZE
+    if qs_listings.exists():
+        listing_ids = qs_listings.values_list("listing_id", flat=True)
+        batch = []
+        for idx, listing in enumerate(listing_ids.iterator(chunk_size=chunk_size*2)):
+            batch.append(listing)
+            if idx % chunk_size == 0 and idx > 0:
+                process_group(batch)
+                batch.clear()
+
+        # process the last batch
+        process_group(batch)
+
+    return
 
 
 __all__ = [

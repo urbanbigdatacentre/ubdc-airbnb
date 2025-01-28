@@ -10,21 +10,25 @@ from ubdc_airbnb.tasks import (
     task_update_calendar,
 )
 
-op_choices = ["calendar", "listing-detail", "reviews"]
+op_choices = [
+    # get calendar data for a listing
+    "calendar",
+    # get listing details for a listing
+    "listing-detail",
+    # get reviews for a listing
+    "reviews",
+]
 
 
 class Command(BaseCommand):
-    help = "Fetch a resource for a listing id"
+    help = """Get Airbnb data for a listing id.
+
+    e.g. python manage.py get-for-listing-id calendar 123456
+    """
 
     def add_arguments(self, parser: ArgumentParser):
         parser.add_argument("op", choices=op_choices)
         parser.add_argument("listing_id", type=int_to_listing)
-        parser.add_argument(
-            "--as-task",
-            dest="as-task",
-            action="store_true",
-            help="Run as a task.",
-        )
 
     def handle(self, *args, **options):
         as_task = options.get("as-task", False)

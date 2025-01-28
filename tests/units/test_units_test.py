@@ -1,30 +1,28 @@
 import json
+
 import pytest
 from django.contrib.gis.geos import MultiPolygon, Polygon
-from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
 from mercantile import LngLatBbox
+
+from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
 
 EXPECTED_BBOX = LngLatBbox(west=0, east=0, north=0, south=0)
 GEOGRAPHY_PAYLOAD = {"geography": {"sw_lng": 0, "ne_lng": 0, "ne_lat": 0, "sw_lat": 0}}
 
 
-@pytest.mark.parametrize("payload,expected", [
-    (
-        {
-            "metadata": {
-                "page_metadata": GEOGRAPHY_PAYLOAD},
-            "explore_tabs": [
-                {"home_tab_metadata": {"search": GEOGRAPHY_PAYLOAD}}
-            ]
-        },
-        EXPECTED_BBOX
-    ),
-    (
-        {
-            "explore_tabs": [{"home_tab_metadata": GEOGRAPHY_PAYLOAD}],
-            "metadata": GEOGRAPHY_PAYLOAD
-        }, EXPECTED_BBOX)
-])
+@pytest.mark.parametrize(
+    "payload,expected",
+    [
+        (
+            {
+                "metadata": {"page_metadata": GEOGRAPHY_PAYLOAD},
+                "explore_tabs": [{"home_tab_metadata": {"search": GEOGRAPHY_PAYLOAD}}],
+            },
+            EXPECTED_BBOX,
+        ),
+        ({"explore_tabs": [{"home_tab_metadata": GEOGRAPHY_PAYLOAD}], "metadata": GEOGRAPHY_PAYLOAD}, EXPECTED_BBOX),
+    ],
+)
 def test_parser_get_lnglat_bbox(payload, expected):
     rv = airbnb_response_parser.get_lnglat_bbox(payload)
     assert rv == expected
@@ -150,10 +148,13 @@ def test_parser_get_additional_hosts():
         e.get("id")
 
 
-@pytest.mark.parametrize("payload,expected_result", [
-    ({"explore_tabs": [{"pagination_metadata": {"has_next_page": True}}]}, True),
-    ({"explore_tabs": [{"pagination_metadata": {"has_next_page": False}}]}, False),
-])
+@pytest.mark.parametrize(
+    "payload,expected_result",
+    [
+        ({"explore_tabs": [{"pagination_metadata": {"has_next_page": True}}]}, True),
+        ({"explore_tabs": [{"pagination_metadata": {"has_next_page": False}}]}, False),
+    ],
+)
 def test_parser_has_next_page(payload, expected_result):
     parser = airbnb_response_parser.has_next_page
     rv = parser(payload)
@@ -161,10 +162,9 @@ def test_parser_has_next_page(payload, expected_result):
     assert rv == expected_result
 
 
-@pytest.mark.parametrize("payload,expected_result", [
-    ({}, False),
-    ({"explore_tabs": [{"pagination_metadata": {}}]}, False)
-])
+@pytest.mark.parametrize(
+    "payload,expected_result", [({}, False), ({"explore_tabs": [{"pagination_metadata": {}}]}, False)]
+)
 def test_parser_has_next_page_error(payload, expected_result):
     parser = airbnb_response_parser.has_next_page
     with pytest.raises(Exception):

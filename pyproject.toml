@@ -64,12 +64,13 @@ django-types = "^0.19.1"
 pytest-mock = "^3.12.0"
 faker = "^23.2.1"
 
-
 [tool.pylint.messages_control]
 disable = 'C,R,logging-fstring-interpolation'
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "core.settings"
+log_cli = "True"
+log_cli_level = "INFO"
 env = [
   "DATABASE_DBNAME=postgres",
   "DATABASE_HOST=db",

@@ -48,7 +48,7 @@ def ubdc_handles_task_publish(sender: str = None, headers=None, body=None, **kwa
         for k, v in _data.items():
             setattr(task_obj, k, v)
         task_obj.save()
-        logger.info(f'{inspect.stack()[0][3]}: Created task: {info["id"]} / {info["task"]}')
+        logger.debug(f'{inspect.stack()[0][3]}: Created task: {info["id"]} / {info["task"]}')
     else:
         logger.info(f'{inspect.stack()[0][3]}: Task {info["id"]} found.')
     return

@@ -1,8 +1,8 @@
-import inspect
 from datetime import timezone
+from queue import Empty as ExcEmptyQueue
+from queue import Queue
 from typing import Any
-from unittest.mock import Mock
-from queue import Queue, Empty as ExcEmptyQueue
+
 import pytest
 
 UTC = timezone.utc
@@ -38,12 +38,14 @@ def mock_airbnb_client(mocker, faker, response_queue):
             self,
             response_type: AirBnBResponseTypes,
             status_code: int = 200,
-            json_data: dict[str, Any] = {"test": "test"},
+            content: bytes | None = None,
+            # text: str | None = None,
+            # json_data: dict[str, Any] = {"test": "test"},
             headers: dict[str, Any] = {"x-header": "test"},
             **kwargs,
         ):
             self.status_code = status_code
-            self.json_data = json_data
+            self.content: bytes | None = content
             self.listing_id = kwargs.get("listing_id", None)
             self._headers = headers
 
@@ -72,12 +74,14 @@ def mock_airbnb_client(mocker, faker, response_queue):
 
             return dict(self._headers, **response_headers)
 
-        def json(self):
-            return self.json_data
+        def json(self) -> dict:
+            import json
+
+            return json.loads(self.text)
 
         @property
-        def text(self):
-            return str(self.json_data)
+        def text(self) -> str:
+            return self.content.decode("utf-8", errors="replace")  # type: ignore
 
         @property
         def url(self):
@@ -95,183 +99,80 @@ def mock_airbnb_client(mocker, faker, response_queue):
             type(mock_request).headers = mock_request_headers
             return mock_request
 
+    def mockresponse_factory(data: dict, response_type, **kwargs) -> MockResponse:
+
+        status_code = data.get("status_code", 200)
+        content: bytes = data.get("content", b'{"test": "test"}')
+        headers = data.get("headers", {"x-header": "test"})
+
+        rv = MockResponse(
+            response_type=response_type,
+            content=content,
+            status_code=status_code,
+            headers=headers,
+            **kwargs,
+        )
+        return rv
+
     def get_reviews_side_effect(*args, **kwargs):
-        # mref = inspect.currentframe().f_back.f_locals.get("self")  # type: ignore
-        # assert mref
-        # times_called: int = mref.call_count
+
+        response_type = AirBnBResponseTypes.review
+
         try:
             response_data = response_queue.get_nowait()
         except ExcEmptyQueue as e:
-            raise ExcEmptyQueue(
-                "Queue is empty. Did you forget to add entries with response_queue fixture?") from e
+            raise ExcEmptyQueue("Queue is empty. Did you forget to add entries with response_queue fixture?") from e
         response_queue.task_done()
-        status_code = 200
-        review_id = faker.random_int(min=300000, max=1000000)
-        author_id = faker.random_int(min=300000, max=1000000)
-        recipient_id = faker.random_int(min=300000, max=1000000)
-        json_data = {
-            "reviews": [
-                {
-                    "id": review_id,
-                    "role": "guest",
-                    "author": {
-                        "id": author_id,
-                        "first_name": faker.first_name(),
-                        "picture_url": faker.image_url(),
-                    },
-                    "id_str": str(review_id),
-                    "comments": faker.text(),
-                    "author_id": author_id,
-                    "recipient_id": recipient_id,
-                    "recipient": {
-                        "id": recipient_id,
-                        "first_name": faker.first_name(),
-                        "picture_url": faker.image_url(),
-                    },
-                    "created_at": faker.iso8601(tzinfo=UTC),
-                }
-            ],
-            "metadata": {
-                "reviews_count": 350,
-                "should_show_review_translations": False,
-            },
-        }
-        rv = MockResponse(
-            response_type=AirBnBResponseTypes.review,
-            status_code=status_code,
-            json_data=json_data,
-            **kwargs,
-        )
-        return rv, rv.json()
+
+        rv = mockresponse_factory(response_data, response_type, **kwargs)
+        return rv
 
     def get_user_side_effect(*args, **kwargs):
-        mref = inspect.currentframe().f_back.f_locals.get("self")  # type: ignore
-        # get the call count
-        times_called: int = mref.call_count  # type: ignore
-        match times_called:
-            case 1:
-                status_code = 200
-            case 2:
-                status_code = 403
-            case 3:
-                status_code = 503
-                headers = {"X-Crawlera-Error": "banned"}
-                response = MockResponse(
-                    response_type=AirBnBResponseTypes.userDetail,
-                    status_code=status_code,
-                    headers=headers,
-                    **kwargs,
-                )
-                e = HTTPError("Mock-Exception code: 503", response=response)  # type: ignore
-                raise e
-            case _:
-                status_code = 200
 
-        json_data = {
-            "user": {
-                "id": faker.random_int(min=300000, max=1000000),
-                "first_name": faker.first_name(),
-                "picture_url": faker.image_url(),
-                "is_superhost": faker.boolean(),
-                "location": faker.country(),
-                "listings_count": faker.random_int(min=0, max=100),
-                "reviewee_count": faker.random_int(min=0, max=100),
-                "verifications": [faker.word() for _ in range(3)],
-                "created_at": faker.iso8601(tzinfo=UTC),
-                "picture_urls": [faker.image_url() for _ in range(3)],
-            }
-        }
-        rv = MockResponse(
-            response_type=AirBnBResponseTypes.userDetail,
-            status_code=status_code,
-            json_data=json_data,
-            **kwargs,
-        )
-        return rv, rv.json()
+        response_type = AirBnBResponseTypes.userDetail
+        try:
+            response_data = response_queue.get_nowait()
+        except ExcEmptyQueue as e:
+            raise ExcEmptyQueue("Queue is empty. Did you forget to add entries with response_queue fixture?") from e
+        response_queue.task_done()
 
-    def get_calendar_side_effect(
-        listing_id,
-        headers={},
-        **kwargs,
-    ):
+        rv = mockresponse_factory(response_data, response_type, **kwargs)
+        return rv
+
+    def get_calendar_side_effect(*args, **kwargs):
 
         try:
             response_data = response_queue.get_nowait()
         except ExcEmptyQueue as e:
-            raise ExcEmptyQueue(
-                "Queue is empty. Did you forget to add entries with response_queue fixture?") from e
+            raise ExcEmptyQueue("Queue is empty. Did you forget to add entries with response_queue fixture?") from e
         response_queue.task_done()
+        rv = mockresponse_factory(response_data, AirBnBResponseTypes.calendar, **kwargs)
+        return rv
 
-        json_data = response_data.get('json_data', {"test": "test"})
-        status_code = response_data['status_code']
-        listing_id = response_data['listing_id']
-        headers = response_data.get('headers', {})
-
-        rv = MockResponse(
-            response_type=AirBnBResponseTypes.calendar,
-            status_code=status_code,
-            json_data=json_data,
-            listing_id=listing_id,
-            headers=headers,
-            **kwargs,
-        )
-        rv.raise_for_status()
-        return rv, rv.json()
-
+    # aka: search
     def get_homes_side_effect(*args, **kwargs):
 
+        response_type = AirBnBResponseTypes.search
+
         try:
             response_data = response_queue.get_nowait()
         except ExcEmptyQueue as e:
-            raise ExcEmptyQueue(
-                "Queue is empty. Did you forget to add entries with response_queue fixture?") from e
+            raise ExcEmptyQueue("Queue is empty. Did you forget to add entries with response_queue fixture?") from e
         response_queue.task_done()
 
-        status_code = response_data['status_code']
-        json_data = response_data['body']
-        headers = response_data['headers']
-
-        rv = MockResponse(
-            response_type=AirBnBResponseTypes.search,
-            status_code=status_code,
-            json_data=json_data,
-            headers=headers,
-            **kwargs,
-        )
-
-        return rv, rv.json()
+        rv = mockresponse_factory(response_data, response_type, **kwargs)
+        return rv
 
     def get_listing_details_side_effect(*args, **kwargs):
+        try:
+            response_data = response_queue.get_nowait()
+        except ExcEmptyQueue as e:
+            raise ExcEmptyQueue("Queue is empty. Did you forget to add entries with response_queue fixture?") from e
+        response_queue.task_done()
 
-        def gen_fake_user():
-            return {
-                "id": faker.random_int(min=300000, max=1000000),
-                "first_name": faker.first_name(),
-                "picture_url": faker.image_url(),
-                "is_superhost": faker.boolean(),
-            }
+        rv = mockresponse_factory(response_data, AirBnBResponseTypes.listingDetail, **kwargs)
 
-        status_code = 200
-        json_data = {
-            "pdp_listing_detail": {
-                "primary_host": gen_fake_user(),
-                "additional_hosts": [gen_fake_user() for _ in range(3)],
-                "illegal_strings":
-                    {
-                    "null-char": "\u0000"
-                }
-            }
-        }
-        # listing_id = kwargs.get("listing_id", 12345)
-        rv = MockResponse(
-            AirBnBResponseTypes.listingDetail,
-            status_code=status_code,
-            # listing_id=listing_id,
-            json_data=json_data,
-            **kwargs,
-        )
-
-        return rv, rv.json()
+        return rv
 
     m = mocker.patch("ubdc_airbnb.airbnb_interface.airbnb_api.AirbnbApi", autospec=True)
     m().get_homes.side_effect = get_homes_side_effect

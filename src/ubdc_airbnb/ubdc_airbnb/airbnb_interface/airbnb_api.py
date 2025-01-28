@@ -192,7 +192,7 @@ class AirbnbApi(object):
         starting_month=None,
         starting_year=None,
         calendar_months=12,
-    ) -> tuple[Response, dict]:
+    ) -> Response:
         """
         Get availability calendar for a given listing. Returns the response and the json payload.
         """
@@ -213,9 +213,9 @@ class AirbnbApi(object):
         r = self._session.get(settings.AIRBNB_API_ENDPOINT + "/v2/calendar_months", params=params)
         r.raise_for_status()
 
-        return r, r.json()
+        return r
 
-    def get_reviews(self, listing_id, offset=0, limit=20) -> (Response, dict):
+    def get_reviews(self, listing_id, offset=0, limit=20) -> Response:
         """
         Get reviews for a given listing, currently limit is up to 100.
         """
@@ -231,7 +231,7 @@ class AirbnbApi(object):
         r = self._session.get(settings.AIRBNB_API_ENDPOINT + "/v2/reviews", params=params)
         r.raise_for_status()
 
-        return r, r.json()
+        return r
 
     def iterate_reviews(self, listing_id, by=20):
         has_next_page = True
@@ -256,7 +256,7 @@ class AirbnbApi(object):
         items_per_grid=25,
         metadata_only=False,
         **kwargs,
-    ) -> tuple[Response, dict]:
+    ) -> Response:
         """
         TODO: Update Docstring
         """
@@ -283,10 +283,7 @@ class AirbnbApi(object):
             "key": self.airbnb_api_key,
         }
 
-        federated_search_session_id = kwargs.get(
-            "federated_search_session_id",
-            self.federated_search_session_id
-        )
+        federated_search_session_id = kwargs.get("federated_search_session_id", self.federated_search_session_id)
         if federated_search_session_id:
             params.update(federated_search_session_id=federated_search_session_id)
 
@@ -320,12 +317,12 @@ class AirbnbApi(object):
         )
         r.raise_for_status()
 
-        return r, r.json()
+        return r
 
     def get_listing_details(
         self,
         listing_id: int,
-    ):
+    ) -> Response:
         params = {
             "adults": "0",
             "_format": "for_native",
@@ -339,7 +336,7 @@ class AirbnbApi(object):
         )
         r.raise_for_status()
 
-        return r, r.json()
+        return r
 
     def iterate_homes(
         self,
@@ -355,7 +352,7 @@ class AirbnbApi(object):
         # do I need to use the same ip?
         page = 0
         while True:
-            response, payload = self.get_homes(
+            response = self.get_homes(
                 query,
                 checkin=checkin,
                 checkout=checkout,
@@ -366,6 +363,11 @@ class AirbnbApi(object):
                 items_offset=page * per,
                 items_per_grid=per,
             )
+            try:
+                payload = response.json()
+            except json.JSONDecodeError:
+                # oh no, we got a bad response
+                break
 
             matches = json_parse(r"$..explore_tabs..sections..listing[id,lat,lng]").find(payload)
             res_gen = chunked(matches, 3, strict=True)
@@ -389,13 +391,13 @@ class AirbnbApi(object):
         r.raise_for_status()
         self.response = r
 
-        return r, r.json()
+        return r
 
     def bbox_metadata_search(
         self,
         store_federated_search_session_id: bool = False,
         **kwargs,
-    ) -> Tuple[Response, Dict]:
+    ) -> Response:
         """Return the number_results of this query.
 
         :param store_federated_search_session_id:
@@ -403,17 +405,17 @@ class AirbnbApi(object):
         """
 
         kwargs["metadata_only"] = True
-        response, payload = self.get_homes(**kwargs)
+        response = self.get_homes(**kwargs)
         if store_federated_search_session_id:
             self.federated_search_session_id = self.response.json()["metadata"]["federated_search_session_id"]
 
-        return response, payload
+        return response
 
     def get_booking_details(
         self,
         listing_id: int,
-        calendar: dict = None,
-        start_search_from: Type[datetime.date] = None,
+        calendar: dict | None = None,
+        start_search_from: Type[datetime.date] | None = None,
     ):
         """
 
@@ -493,7 +495,7 @@ class AirbnbApi(object):
         )
         r.raise_for_status()
 
-        return r, r.json()
+        return r
 
 
 __all__ = [

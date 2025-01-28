@@ -24,7 +24,7 @@ WORLDSHAPE_URL = os.getenv(
     "MASK_GDAM_SHAPEFILE_URL",
     "https://data.biogeo.ucdavis.edu/data/gadm3.6/gadm36_levels_shp.zip",
 )
-DEFAULT_SAVE_DIR: Path = os.getenv("MASK_CACHE_FOLDER", settings.BASE_DIR / "worldBoundaries_cache")
+DEFAULT_SAVE_DIR: Path = os.getenv("MASK_CACHE_FOLDER", settings.BASE_DIR / "worldBoundaries_cache")  # type: ignore
 
 
 def add_feature(geometry, iso3_alpha, name_0):
