@@ -52,7 +52,7 @@ def test_op_update_calendar_periodical(
         g.join()  # type: ignore
 
     assert job.successful()
-    assert responses_model.objects.count() == 4
+    assert responses_model.objects.count() == 4 if params == 'stale' else 8
     assert listings_model.objects.count() == 4 * 2
     for l in listings_model.objects.all():
         assert l.timestamp
