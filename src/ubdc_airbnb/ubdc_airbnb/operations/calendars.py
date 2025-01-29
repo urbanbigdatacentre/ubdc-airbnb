@@ -8,7 +8,7 @@ from django.db.models import Q
 
 from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGroupTask
 from ubdc_airbnb.tasks import task_update_calendar
-from ubdc_airbnb.utils.time import end_of_day, start_of_day
+from ubdc_airbnb.utils.time import end_of_day, start_of_day, now
 
 
 logger = get_task_logger(__name__)
@@ -107,9 +107,34 @@ def op_update_calendar_periodical(use_aoi=True, **kwargs) -> None:
         qs_listings = qs_listings.filter(q)
 
     def process_group(batch: list[int]) -> None:
+        """
+        Processes a batch of listing IDs by submitting a job to update their calendars.
+
+        This creates a group of tasks to update the calendars. 
+        It logs group meta, and checks if current time is after submtion date.
+        If so it skips the task generation.
+
+        Args:
+            batch (list[int]): A list of listing IDs to process.
+        Returns:
+            None
+        """
+
         logger.info(f"Submiting job for {idx} listings")
-        job = group(task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today)
-                    for listing_id in batch)
+
+        # put a guard here to short-circuit if now() is after end_of_today
+
+        if now() > end_of_day():
+            logger.info("Skipping task generation for today")
+            return
+
+        job = group(
+            task_update_calendar
+            .s(listing_id=listing_id)
+            .set(expires=end_of_today)
+            for listing_id in batch
+        )
+
         group_result: AsyncResult[GroupResult] = job.apply_async()
         group_result.save()  # type: ignore
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
@@ -117,6 +142,8 @@ def op_update_calendar_periodical(use_aoi=True, **kwargs) -> None:
         group_task.op_initiator = op_update_calendar_periodical.name
         group_task.op_kwargs = {"listing_id": batch}
         group_task.save()
+
+        return
 
     chunk_size = settings.CELERY_TASK_CHUNK_SIZE
     if qs_listings.exists():

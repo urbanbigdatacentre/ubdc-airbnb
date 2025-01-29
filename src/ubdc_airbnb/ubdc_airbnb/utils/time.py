@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-
+from django.utils.timezone import now
 UTC = timezone.utc
 
 
@@ -13,3 +13,11 @@ def seconds_from_now(seconds: int = 60 * 60 * 23):
 
 def end_of_day():
     return datetime.now(UTC).replace(hour=23, minute=59, second=59, microsecond=999999)
+
+
+__all__ = [
+    now,
+    start_of_day,
+    end_of_day,
+    seconds_from_now
+]  # type: ignore
