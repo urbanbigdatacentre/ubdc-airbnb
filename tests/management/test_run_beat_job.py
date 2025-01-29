@@ -27,21 +27,30 @@ def test_get_beat_entries():
         "op_discover_new_listings_periodical",
     ],
 )
-def test_run_beat_job(mocker, job_name):
+@pytest.mark.parametrize('args', [
+    None,
+    '--arg',
+    '--arg=arg1=val1',
+    '--arg=arg1=val1 --arg=arg2=val2'
+])
+def test_run_beat_job(mocker, job_name, args):
     from celery.app.task import Task
 
-    m_sig = mocker.patch.object(Task, "s")()
+    m_sig = mocker.patch.object(Task, "s")
     # m_sig.id.return_value = "test-id"
     # m_job = m_sig.apply_async()
 
     from django.core.management import call_command
 
     out = StringIO()
+    if args is None:
+        call_command("run-beat-job", job_name, stdout=out)
+    else:
+        call_command("run-beat-job", job_name, *args.split(' '), stdout=out)
 
-    call_command("run-beat-job", job_name, stdout=out)
-
-    assert m_sig.mock_calls[0][0] == "apply_async"
-    assert m_sig.mock_calls[1][0] == "apply_async().id.__str__"
+    # Checking the kwargs works but no tests
+    assert m_sig().mock_calls[0][0] == "apply_async"
+    assert m_sig().mock_calls[1][0] == "apply_async().id.__str__"
 
     out.seek(0)
     captured_out = out.read()
