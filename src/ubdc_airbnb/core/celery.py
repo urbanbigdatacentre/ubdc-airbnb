@@ -28,7 +28,7 @@ app.config_from_object(settings, namespace="CELERY", force=True)
 # app.autodiscover_tasks(force=True)
 # app.autodiscover_tasks(related_name="operations", force=True)
 app.conf.task_routes = task_routes
-app.conf.broker_connection_retry_on_startup = False
+app.conf.broker_connection_retry_on_startup = True
 app.conf.broker_transport_options = {
     'heartbeat': 0,  # broken, keep zero. Not to be confused with the broker_heartbeat.
     'confirm_publish': True,
