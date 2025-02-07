@@ -100,11 +100,6 @@ class AirBnBResponseManager(models.Manager):
         except ProxyError as exc:
             # Sometimes it fails to resolve. Could be tied to OS issues, or network. Regardless, retry.
             raise UBDCRetriableError("ProxyError") from exc
-        except HTTPError as exc:
-            # TODO: [EASY-FIX] This is a generic error. Why we did not get any response? We should log this. Where?
-            # As long there's a response it's handled in the next block.
-            response = exc.response
-            assert response is not None
 
         listing_id = kwargs.get("listing_id", None)
 
@@ -115,13 +110,7 @@ class AirBnBResponseManager(models.Manager):
             listing_id=listing_id,
         )
 
-        # The object has been created successfully.
-        try:
-            response.raise_for_status()
-        except (HTTPError, ProxyError) as exc:
-            setattr(exc, "ubdc_response", obj)
-            raise exc
-
+        # The response-object has been created successfully.
         return obj
 
     def create_from_response(

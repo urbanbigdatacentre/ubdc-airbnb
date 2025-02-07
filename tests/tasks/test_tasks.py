@@ -82,32 +82,6 @@ def test_task_register_listings_or_divide_at_qk_divide(
 
 
 @pytest.mark.skip(reason="TestBroken. Implement ResponseQueue")
-def test_task_update_calendar(responses_model, mock_airbnb_client):
-    from ubdc_airbnb.tasks import task_update_calendar
-
-    # status 200
-    task_update_calendar(listing_id=1234567)
-    assert responses_model.objects.all().count() == 1
-    response = responses_model.objects.first()
-    assert response.listing_id == 1234567
-    assert response.status_code == 200
-
-    # status 403 but is handled
-    task_update_calendar(listing_id=1234567)
-    assert responses_model.objects.all().count() == 2
-    response = responses_model.objects.last()
-    assert response.listing_id == 1234567
-    assert response.status_code == 403
-
-    # status 503, should raise an exception
-    from ubdc_airbnb.errors import UBDCRetriableError
-
-    with pytest.raises(UBDCRetriableError):
-        task_update_calendar(listing_id=1234567)
-        assert responses_model.objects.all().count() == 2
-
-
-@pytest.mark.skip(reason="TestBroken. Implement ResponseQueue")
 def test_task_get_listing_details(
     responses_model,
     mock_airbnb_client,
