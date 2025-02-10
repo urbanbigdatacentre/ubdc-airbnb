@@ -22,7 +22,7 @@
   // This can be used to network with other containers or the host.
 
   // Use 'postCreateCommand' to run commands after the container is created.
-  "postCreateCommand": "poetry install",
+  "postCreateCommand": "./.devcontainer/post-create.sh",
 
   // Configure tool-specific properties.
   "customizations": {
