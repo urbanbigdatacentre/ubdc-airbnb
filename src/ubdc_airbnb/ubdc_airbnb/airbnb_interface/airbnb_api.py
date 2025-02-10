@@ -211,7 +211,6 @@ class AirbnbApi(object):
         }
 
         r = self._session.get(settings.AIRBNB_API_ENDPOINT + "/v2/calendar_months", params=params)
-        r.raise_for_status()
 
         return r
 
@@ -229,7 +228,6 @@ class AirbnbApi(object):
         }
 
         r = self._session.get(settings.AIRBNB_API_ENDPOINT + "/v2/reviews", params=params)
-        r.raise_for_status()
 
         return r
 
@@ -283,7 +281,8 @@ class AirbnbApi(object):
             "key": self.airbnb_api_key,
         }
 
-        federated_search_session_id = kwargs.get("federated_search_session_id", self.federated_search_session_id)
+        federated_search_session_id = kwargs.get(
+            "federated_search_session_id", self.federated_search_session_id)
         if federated_search_session_id:
             params.update(federated_search_session_id=federated_search_session_id)
 
@@ -315,7 +314,6 @@ class AirbnbApi(object):
             settings.AIRBNB_API_ENDPOINT + "/v2/explore_tabs",
             params=params,
         )
-        r.raise_for_status()
 
         return r
 
@@ -334,8 +332,6 @@ class AirbnbApi(object):
             settings.AIRBNB_API_ENDPOINT + "/v2/pdp_listing_details/" + str(listing_id),
             params=params,
         )
-        r.raise_for_status()
-
         return r
 
     def iterate_homes(
@@ -388,7 +384,6 @@ class AirbnbApi(object):
     def get_user(self, user_id):
         params = {}
         r = self._session.get(settings.AIRBNB_API_ENDPOINT + f"/v2/users/{user_id}", params=params)
-        r.raise_for_status()
         self.response = r
 
         return r
@@ -493,7 +488,6 @@ class AirbnbApi(object):
             settings.AIRBNB_API_ENDPOINT + f"/v2/pdp_listing_booking_details",
             params=params,
         )
-        r.raise_for_status()
 
         return r
 

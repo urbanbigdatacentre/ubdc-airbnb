@@ -95,11 +95,7 @@ class AirBnBResponseManager(models.Manager):
         if method is None:
             raise Exception(f"could not find reference: {method_name}")
 
-        try:
-            response = method(**kwargs)
-        except ProxyError as exc:
-            # Sometimes it fails to resolve. Could be tied to OS issues, or network. Regardless, retry.
-            raise UBDCRetriableError("ProxyError") from exc
+        response = method(**kwargs)
 
         listing_id = kwargs.get("listing_id", None)
 
@@ -201,6 +197,13 @@ class AirBnBResponseManager(models.Manager):
         if should_raise:
             logger.info(f"SELECT * FROM app_airbnbresponse WHERE id = {obj.id}")
             raise should_raise
+
+        try:
+            response.raise_for_status()
+        except ProxyError as e:
+            raise UBDCRetriableError("ProxyError") from e
+        except HTTPError as e:
+            pass
 
         return obj
 

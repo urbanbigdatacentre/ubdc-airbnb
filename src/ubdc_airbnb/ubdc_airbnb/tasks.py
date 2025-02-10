@@ -127,36 +127,16 @@ def task_update_calendar(
 
     listing_entry, created = AirBnBListing.objects.get_or_create(listing_id=listing_id)
     logger.info(f"Listing: {listing_id} created: {created}")
-    try:
-        ubdc_response = AirBnBResponse.objects.fetch_response(
-            type=AirBnBResponseTypes.calendar,
-            calendar_months=months,
-            task_id=self.request.id,
-            asset_id=listing_id,
-        )
-        if ubdc_response:
-            listing_entry.responses.add(ubdc_response)
+    ubdc_response = AirBnBResponse.objects.fetch_response(
+        type=AirBnBResponseTypes.calendar,
+        calendar_months=months,
+        task_id=self.request.id,
+        asset_id=listing_id,
+    )
 
-    except ProxyError as exc:
-        raise exc
-
-    except HTTPError as exc:
-        status_code = exc.response.status_code
-        ubdc_response = exc.ubdc_response
-        match status_code:
-            case 403:
-                # 403 Resource Unavailable
-                # The task is successful, but the resource is not available
-                logger.info(f"resource-unavailable: Listing_id: {listing_id}")
-                pass
-            case _:
-                logger.info(f"Http/Proxy error: {ubdc_response.payload}")
-                raise exc
-
-    # https://docs.python.org/3/reference/compound_stmts.html#finally-clause
-    finally:
-        listing_entry.calendar_updated_at = timezone.now()
-        listing_entry.save()
+    listing_entry.responses.add(ubdc_response)
+    listing_entry.calendar_updated_at = timezone.now()
+    listing_entry.save()
 
     return listing_entry.listing_id
 
@@ -170,28 +150,22 @@ def task_get_booking_detail(self: Task, listing_id: int) -> int:
     """
 
     listing, created = AirBnBListing.objects.get_or_create(listing_id=listing_id)
-    calendar: AirBnBResponse | None = (
-        AirBnBResponse.objects.filter(listing_id=listing_id, _type=AirBnBResponseTypes.calendar)
-        .order_by("timestamp")
-        .first()
+    calendar: AirBnBResponse = (AirBnBResponse.objects.filter(
+        listing_id=listing_id,
+        _type=AirBnBResponseTypes.calendar
+    ).order_by("timestamp")
+        .first())  # type: ignore
+
+    booking_response = AirBnBResponse.objects.fetch_response(
+        listing_id=listing_id,
+        calendar=calendar.payload,
+        type=AirBnBResponseTypes.bookingQuote,
+        task_id=self.request.id,
     )
+    listing.responses.add(booking_response)
 
-    try:
-        booking_response = AirBnBResponse.objects.fetch_response(
-            listing_id=listing_id,
-            calendar=calendar.payload,
-            type=AirBnBResponseTypes.bookingQuote,
-            task_id=self.request.id,
-        )
-        if booking_response:
-            listing.responses.add(booking_response)
-    except HTTPError as exc:
-        raise exc
-
-    # https://docs.python.org/3/reference/compound_stmts.html#finally-clause
-    finally:
-        listing.booking_quote_updated_at = timezone.now()
-        listing.save()
+    listing.booking_quote_updated_at = timezone.now()
+    listing.save()
 
     logger.info(f"BookingQuote:LISTING_ID:{listing_id}:SUCCESS")
     return listing.listing_id
@@ -286,17 +260,13 @@ def task_get_listing_details(
 
     listing: AirBnBListing = AirBnBListing.objects.get(listing_id=listing_id_int)
 
-    try:
-        airbnb_response: AirBnBResponse = AirBnBResponse.objects.fetch_response(
-            asset_id=listing_id_int,
-            task_id=task_id,
-            type=AirBnBResponseTypes.listingDetail,
-        )
-    except HTTPError as exc:
-        raise exc
-    finally:
-        listing.listing_updated_at = time_now
-        listing.save()
+    airbnb_response: AirBnBResponse = AirBnBResponse.objects.fetch_response(
+        asset_id=listing_id_int,
+        task_id=task_id,
+        type=AirBnBResponseTypes.listingDetail,
+    )
+    listing.listing_updated_at = time_now
+    listing.save()
 
     listing.responses.add(airbnb_response)
 
