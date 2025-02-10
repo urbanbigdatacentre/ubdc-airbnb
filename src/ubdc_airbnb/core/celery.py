@@ -55,7 +55,7 @@ app.conf.beat_schedule = {
     },
     "op_discover_new_listings_periodical": {
         "task": "ubdc_airbnb.operations.discovery.op_discover_new_listings_periodical",
-        "schedule": crontab(minute=0, hour=5, day_of_month="5,10,15,20,25"),
+        "schedule": crontab(minute=0, hour=5, day_of_month="7,14,21,28"),
     },
     # "op_tidy_grids": {
     #     "task": "ubdc_airbnb.tasks.task_tidy_grids",
