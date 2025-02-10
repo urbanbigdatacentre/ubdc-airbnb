@@ -655,7 +655,7 @@ class UBDCTask(models.Model):
         indexes = [GinIndex(fields=["task_kwargs"])]
 
     def __repr__(self):
-        return f"<UBDCTask: {self.task_name.split('.')[-1]} ({self.pk}/{self.task_id})>"
+        return f"<UBDCTask: {self.task_name.split('.')[-1]} - {self.status} ({self.pk}/{self.task_id})>"
 
     @property
     def is_root(self):
