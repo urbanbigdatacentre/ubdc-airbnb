@@ -22,13 +22,14 @@ def test_task_update_calendar(
     })
     from ubdc_airbnb.tasks import task_update_calendar
     from django_celery_results.models import TaskResult
+    listing_id = 1234567
 
-    task = task_update_calendar.s(listing_id=1234567)
+    task = task_update_calendar.s(listing_id=listing_id)
     job = task.apply_async()
     result = job.get()
 
     response = responses_model.objects.first()
-    assert response.listing_id == 1234567
+    assert response.listing_id == listing_id
     assert response.status_code == status_code
     assert response.ubdc_task_id == UUID(job.id)
 

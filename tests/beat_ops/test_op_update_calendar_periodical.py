@@ -7,7 +7,8 @@ from ..payload_generators import calendar_generator
 fake = Faker()
 
 
-@pytest.mark.parametrize("params", [{}, {"stale": True}])
+@pytest.mark.parametrize("status_code", [200, 403])
+@pytest.mark.parametrize("params", [{}, {"stale": True}], ids=["cli_param_none", "cli_param_stale"])
 @pytest.mark.django_db(transaction=True)
 def test_op_update_calendar_periodical(
     mock_airbnb_client,
@@ -18,6 +19,7 @@ def test_op_update_calendar_periodical(
     ubdcgrid_model,
     ubdctask_model,
     responses_model,
+    status_code,
     params
 ):
     from ubdc_airbnb.operations.calendars import op_update_calendar_periodical
@@ -28,6 +30,7 @@ def test_op_update_calendar_periodical(
         for idx in range(0, 4):
             qk = prefix_qk + str(idx)
             payload = {
+                "status_code": status_code,
                 "content": calendar_generator(),
             }
             response_queue.put(payload)
@@ -51,9 +54,12 @@ def test_op_update_calendar_periodical(
     for g in group_results:
         g.join()  # type: ignore
 
+    expected_actions = 4 if params == 'stale' else 8
+
     assert job.successful()
-    assert responses_model.objects.count() == 4 if params == 'stale' else 8
+    assert responses_model.objects.count() == expected_actions
     assert listings_model.objects.count() == 4 * 2
+    assert ubdctask_model.objects.filter().count() == expected_actions + 1
     for l in listings_model.objects.all():
         assert l.timestamp
         assert l.calendar_updated_at
