@@ -160,13 +160,6 @@ def listing_detail_content_gen() -> bytes:
     "status_code, responses",
     [
         (
-            403,
-            [
-                {"content": b"Forbidden"},
-                {"content": b"Forbidden"},
-            ],
-        ),
-        (
             503,
             [
                 {"content": b"Proxy-Error"},
@@ -189,11 +182,16 @@ def listing_detail_content_gen() -> bytes:
 )
 @pytest.mark.django_db(reset_sequences=True)
 def test_AirBnBResponse_fetch_x_raises(
-    asset_id, responses, status_code, response_type, mock_airbnb_client, response_queue, responses_model
+    asset_id,
+    responses,
+    status_code,
+    response_type,
+    mock_airbnb_client,
+    response_queue,
+    responses_model
 ):
 
     from requests.exceptions import HTTPError
-
     from ubdc_airbnb.errors import UBDCRetriableError
 
     expected_exceptions = (HTTPError, UBDCRetriableError)
@@ -239,6 +237,11 @@ def test_AirBnBResponse_fetch_x_raises(
             200,
             [
                 {"content": b'{ "pdp_listing_detail": { "id": 1234 } }'},
+            ]),
+        (
+            403,
+            [
+                {"content": b"Forbidden"},
             ],
         ),
     ],

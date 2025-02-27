@@ -64,17 +64,3 @@ app.conf.beat_schedule = {
     #     "options": {"priority": 3},
     # },
 }
-
-
-@app.task(bind=True)
-def debug_task_wait(self: Task, value=None, wait: int = 0) -> Optional[Any]:
-    logger = get_task_logger(__name__)
-    logger.info(f"I will wait for {wait} seconds before returning with value: {value}.")
-    if wait > 0:
-        import time
-
-        logger.info("I WORK")
-        time.sleep(wait)
-        logger.info("I AM DONE")
-
-    return value

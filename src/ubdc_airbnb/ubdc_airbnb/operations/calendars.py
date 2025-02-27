@@ -120,6 +120,8 @@ def op_update_calendar_periodical(use_aoi=True, **kwargs) -> None:
 
     chunk_size = settings.CELERY_TASK_CHUNK_SIZE
     if qs_listings.exists():
+        total_listings = qs_listings.count()
+        logger.info(f"Processing {total_listings} listings")
         listing_ids = qs_listings.values_list("listing_id", flat=True)
         batch = []
         for idx, listing in enumerate(listing_ids.iterator(chunk_size=chunk_size*2)):

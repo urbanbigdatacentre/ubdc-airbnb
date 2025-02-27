@@ -395,6 +395,24 @@ class AirBnBResponse(models.Model):
         to_field="task_id",
     )
 
+    @property
+    def was_successful(self) -> bool:
+        'Return True if the response was successful (status_code == 200).'
+        logger.debug(f"Checking if response was successful.")
+        logger.debug(f"Response status_code: {self.status_code}")
+        return self.status_code == 200
+
+    @property
+    def is_user_valid(self) -> bool:
+        'Return True if the response is about a valid user.'
+        logger.debug(f"Checking if response is about a valid user.")
+        logger.debug(f"was_succefull: {self.was_successful}")
+        logger.debug(f"Response type: {self._type}")
+        return (
+            self.was_successful and
+            self._type == AirBnBResponseTypes.userDetail
+        )
+
     objects: ClassVar[AirBnBResponseManager] = AirBnBResponseManager()
 
     def save(self, *args, **kwargs) -> None:

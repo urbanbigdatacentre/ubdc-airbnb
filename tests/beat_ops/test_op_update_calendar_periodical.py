@@ -39,7 +39,7 @@ def test_op_update_calendar_periodical(
     grid = ubdcgrid_model.objects.all()
     for idx, g in enumerate(grid):
         centroid = g.geom_3857.centroid
-        listing = listings_model.objects.create(
+        listings_model.objects.create(
             listing_id=idx + 1,
             geom_3857=centroid,
             calendar_updated_at=fake.date_time_between(
@@ -54,7 +54,7 @@ def test_op_update_calendar_periodical(
     for g in group_results:
         g.join()  # type: ignore
 
-    expected_actions = 4 if params == 'stale' else 8
+    expected_actions = 4 if params.get('stale', False) else 8
 
     assert job.successful()
     assert responses_model.objects.count() == expected_actions

@@ -1,28 +1,14 @@
-from collections import Counter
-from datetime import timedelta
 from random import random
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-import mercantile
 from celery import Task, group, shared_task
 from celery.utils.log import get_task_logger
 from django.conf import settings
-from django.contrib.gis.db.models import Extent
-from django.contrib.gis.geos import Point
-from django.contrib.gis.geos import Polygon as GEOSPolygon
-from django.db import transaction
-from django.db.models import Count, Max, Min, Sum
-from django.db.models.functions import Length, Substr
 from django.utils import timezone
-from django.utils.timesince import timesince
-from more_itertools import collapse
-from requests import HTTPError
-from requests.exceptions import ProxyError
 
 from ubdc_airbnb import model_defaults
 from ubdc_airbnb.airbnb_interface.airbnb_api import AirbnbApi
-from ubdc_airbnb.decorators import convert_exceptions
-from ubdc_airbnb.errors import UBDCError, UBDCRetriableError
+from ubdc_airbnb.errors import UBDCRetriableError
 from ubdc_airbnb.models import (
     AirBnBListing,
     AirBnBResponse,
@@ -31,11 +17,9 @@ from ubdc_airbnb.models import (
     AirBnBUser,
     UBDCGrid,
     UBDCGroupTask,
-    UBDCTask,
 )
 from ubdc_airbnb.task_managers import BaseTaskWithRetry
 from ubdc_airbnb.utils.grids import bbox_from_quadkey
-from ubdc_airbnb.utils.spatial import listing_locations_from_response, reproject
 
 logger = get_task_logger(__name__)
 airbnb_client = AirbnbApi(proxy=settings.AIRBNB_PROXY)
@@ -46,7 +30,6 @@ if TYPE_CHECKING:
 
 
 @shared_task(bind=True)
-@convert_exceptions
 def task_add_reviews_of_listing(
     self: Task,
     listing_id: int,
@@ -111,8 +94,7 @@ def task_add_reviews_of_listing(
         )
 
 
-@shared_task(bind=True, acks_late=True)
-@convert_exceptions
+@shared_task(bind=True, acks_late=True)  # type: ignore
 def task_update_calendar(
     self: BaseTaskWithRetry,
     listing_id: int,
@@ -142,7 +124,6 @@ def task_update_calendar(
 
 
 @shared_task(bind=True)
-@convert_exceptions
 def task_get_booking_detail(self: Task, listing_id: int) -> int:
     """
     Get a booking detail for this listing_id using the latest calendar from the database.
@@ -172,79 +153,6 @@ def task_get_booking_detail(self: Task, listing_id: int) -> int:
 
 
 @shared_task(bind=True)
-@convert_exceptions
-def task_discover_listings_at_grid(
-    self,
-    quadkey: str,
-):
-    """Queries airbnb for listings in the given grid. Airbnb will return a maximum of 300 listings per request, so make sure that the grid is not too big.
-    :param quadkey: quadkey
-    """
-
-    task_id = self.request.id
-
-    try:
-        tile = UBDCGrid.objects.get(quadkey=quadkey)
-    except UBDCGrid.DoesNotExist as exc:
-        logger.info(f"Grid {quadkey} does not exist. Aborting.")
-        return
-
-    west, south, east, north = list(mercantile.bounds(mercantile.quadkey_to_tile(tile.quadkey)))
-    data_pages_gen = airbnb_client.iterate_homes(west=west, south=south, east=east, north=north)
-
-    for page, _ in data_pages_gen:
-        airbnbapi_response = airbnb_client.response
-        assert airbnbapi_response is not None
-        search_response_obj = AirBnBResponse.objects.create_from_response(
-            airbnbapi_response, type=AirBnBResponseTypes.search, task_id=task_id
-        )
-
-        listings = listing_locations_from_response(airbnbapi_response.json())
-
-        def add_listing_to_database(listing_id: str, point: Point):
-            # point is in EPSG: 4326
-            point_3857 = reproject(point, to_srid=3857)  # to measure any Δ distance in m
-            listing, created = AirBnBListing.objects.get_or_create(listing_id=listing_id)
-            if created:
-                # it's a new listing. So don't bother checking if it was moved.
-                listing.geom_3857 = point_3857
-            else:
-                distance = point_3857.distance(listing.geom_3857)
-
-                # Check if the listing has been moved since last check more than the threshold
-                move_threshold = float(settings.AIRBNB_LISTINGS_MOVED_MIN_DISTANCE)
-
-                if distance > move_threshold:
-                    # if it has, update the listing and add a note
-                    msg = f"Listing ({listing_id}) have been moved since last check more than the threshold ({distance} vs {move_threshold})."
-                    logger.info(msg)
-                    key = timezone.now().isoformat()
-                    root: dict = listing.notes
-                    root[key] = {
-                        "move": {
-                            "from": listing.geom_3857.wkt,
-                            "to": point_3857.wkt,
-                            "distance": distance,
-                        }
-                    }
-                    listing.geom_3857 = point_3857
-            listing.save()
-
-        listing_id: str
-        point: Point
-        for listing_id, point in listings.items():
-            add_listing_to_database(listing_id, point)
-
-        search_response_obj.grid = tile
-        search_response_obj.save()
-
-    tile.datetime_last_listings_scan = timezone.now()
-    tile.save()
-    return
-
-
-@shared_task(bind=True)
-@convert_exceptions
 def task_get_listing_details(
     self,
     listing_id: Union[str, int],
@@ -319,8 +227,7 @@ def task_get_next_page_homes(self: BaseTaskWithRetry, parent_page_task_id: str):
         next_page_task.apply_async()
 
 
-@shared_task(bind=True)
-@convert_exceptions
+@shared_task(bind=True)  # type: ignore
 def task_register_listings_or_divide_at_quadkey(
     self: BaseTaskWithRetry,
     quadkey: str,
@@ -334,10 +241,10 @@ def task_register_listings_or_divide_at_quadkey(
     :rtype: str
     """
 
-    # Easy to follow,
-    # check bbox, if it's paginated, divide and resubmit
-    # if not, store the listings
-    # from uuid import uuid4
+    # check bbox and if it's paginated, divide and resubmit
+    # corner case:
+    # if the grid is too deep to divide,
+    # following the pages.
 
     from ubdc_airbnb.utils.grids import replace_quadkey_with_children
     from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
@@ -404,8 +311,7 @@ def task_register_listings_or_divide_at_quadkey(
     return None
 
 
-@shared_task(bind=True)
-@convert_exceptions
+@shared_task(bind=True)  # type: ignore
 def task_update_user_details(
     self: BaseTaskWithRetry,
     user_id: int,
@@ -413,23 +319,19 @@ def task_update_user_details(
     """Update user details. Returns user_id."""
 
     task_id = self.request.id
-    user, created = AirBnBUser.objects.get_or_create(user_id=user_id)
-    try:
-        airbnb_response = AirBnBResponse.objects.fetch_response(
-            user_id=user_id,
-            type=AirBnBResponseTypes.userDetail,
-            task_id=task_id,
-        )
-    except (HTTPError, ProxyError) as exc:
-        # we are to late!
-        # Although we have a user_id, the user profile has been deactivated.
-        logger.info(f"user_id: {user_id} is inaccessible", exc)
-        if user.is_placeholder:
-            user.first_name = model_defaults.AIRBNBUSER_DISABLED
-            user.save()
-        return user_id
+    user, _ = AirBnBUser.objects.get_or_create(user_id=user_id)
+    airbnb_response = AirBnBResponse.objects.fetch_response(
+        user_id=user_id,
+        type=AirBnBResponseTypes.userDetail,
+        task_id=task_id,
+    )
+    if user.is_placeholder:
+        user.first_name = model_defaults.AIRBNBUSER_DISABLED
+        user.save()
 
-    user.update_from_response(airbnb_response)
+    if airbnb_response.is_user_valid:
+        user.update_from_response(airbnb_response)
+
     return user_id
 
 
@@ -455,80 +357,6 @@ def task_debug_sometimes_fail(fail_percentage=0.8, verbose=True) -> str:
     return "Finished"
 
 
-@shared_task
-def task_tidy_grids(less_than: int = 50):
-    less_than = int(less_than)
-    if less_than < 0:
-        raise ValueError("Error: less_than must be a positive integer")
-
-    qk_sizes: dict = (
-        UBDCGrid.objects.all().annotate(qk_len=Length("quadkey")).aggregate(max_qk=Max("qk_len"), min_qk=Min("qk_len"))
-    )
-
-    min_qk = qk_sizes["min_qk"]
-    max_qk = qk_sizes["max_qk"]
-    base_qs = UBDCGrid.objects.annotate(qk_len=Length("quadkey"))
-
-    c = Counter()
-    try:
-        with transaction.atomic():
-            # take care of overlaps
-            logger.info("Removing Grids that overlap with their parent")
-            for zoom in range(min_qk, max_qk + 1):
-                parent_grids = base_qs.filter(qk_len=zoom)
-
-                if parent_grids.exists:
-                    logger.info(f"Processing level {zoom}")
-                    for p_grid in parent_grids:
-                        candidates = UBDCGrid.objects.filter(quadkey__startswith=p_grid.quadkey).exclude(
-                            quadkey=p_grid.quadkey
-                        )
-                        candidates.delete()
-                    c.update(("ovelaped",))
-
-            logger.info(f"Merging grids with less than {less_than} listings")
-            for zoom in range(max_qk, min_qk - 1, -1):
-                logger.info(f"Processing level {zoom}")
-                parent_grids = (
-                    base_qs.filter(qk_len=zoom)
-                    .annotate(p_qk=Substr("quadkey", 1, zoom - 1))
-                    .values("p_qk")
-                    .annotate(
-                        p_qk_sum=Sum("estimated_listings"),
-                        qk_children=Count("id"),
-                        extent=Extent("geom_3857"),
-                    )
-                    .filter(p_qk_sum__lt=less_than)
-                    .filter(qk_children=4)
-                    .order_by("-p_qk_sum", "p_qk")
-                )
-
-                if parent_grids.exists():
-                    for p_grid in parent_grids:
-                        qk = p_grid["p_qk"]
-                        bbox = GEOSPolygon.from_bbox(p_grid["extent"])
-                        listings_count = AirBnBListing.objects.filter(geom_3857__intersects=bbox).count()
-                        if listings_count > less_than:
-                            logger.info(f"{qk} grid would contain {listings_count} known listings. Skipping")
-                            c.update(("skipped",))
-                            continue
-
-                        estimated_listings = p_grid["p_qk_sum"]
-                        UBDCGrid.objects.filter(quadkey__startswith=qk).delete()
-                        g = UBDCGrid.objects.create_from_quadkey(quadkey=qk)
-                        g.estimated_listings = estimated_listings
-                        g.save()
-                        c.update(("made",))
-            tidied = c.get("made", 0) + c.get("ovelaped", 0)
-            tidied_lbl = tidied if tidied else "No"
-
-        logger.info(f"Command Finished. Tidied {tidied_lbl} tiles")
-
-    except Exception as excp:
-        logger.info(f"Transaction aborted.")
-        raise excp
-
-
 @shared_task(bind=True)
 def task_debug_add_w_delay(self: Task, x: int, y: int):
     """A sample task, shows that everything works"""
@@ -540,16 +368,19 @@ def task_debug_add_w_delay(self: Task, x: int, y: int):
 
 
 __all__ = [
+    # Data Fetching tasks
     "task_get_listing_details",
-    "task_debug_add_w_delay",
-    "task_debug_sometimes_fail",
-    "task_debug_wait",
-    "task_discover_listings_at_grid",
-    "task_register_listings_or_divide_at_quadkey",
-    "task_get_booking_detail",
-    "task_get_or_create_user",
     "task_update_calendar",
-    "task_add_reviews_of_listing",
     "task_update_user_details",
-    "task_tidy_grids",
+    "task_get_booking_detail",
+    "task_add_reviews_of_listing",
+
+    # Discovery tasks
+    "task_register_listings_or_divide_at_quadkey",
+    'task_get_next_page_homes',
+
+    # debug tasks
+    "task_debug_sometimes_fail",
+    "task_debug_add_w_delay",
+    "task_debug_wait",
 ]

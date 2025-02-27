@@ -20,7 +20,8 @@ GEOGRAPHY_PAYLOAD = {"geography": {"sw_lng": 0, "ne_lng": 0, "ne_lat": 0, "sw_la
             },
             EXPECTED_BBOX,
         ),
-        ({"explore_tabs": [{"home_tab_metadata": GEOGRAPHY_PAYLOAD}], "metadata": GEOGRAPHY_PAYLOAD}, EXPECTED_BBOX),
+        ({"explore_tabs": [{"home_tab_metadata": GEOGRAPHY_PAYLOAD}],
+         "metadata": GEOGRAPHY_PAYLOAD}, EXPECTED_BBOX),
     ],
 )
 def test_parser_get_lnglat_bbox(payload, expected):
@@ -252,30 +253,6 @@ def test_cut_polygon_at_prime_lines(geom, expected):
         assert g.valid, f"Invalid geometry: {g.ewkt}"
         assert g.area > 0, f"Empty geometry: {g.ewkt}"
         assert g.intersects(geom), f"Geometry does not intersect original: {g.ewkt}"
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "qk,expected",
-    [
-        ("03113322333112", 0),  # child
-        ("0311332233312", 1),  # same level
-        ("0311332233311", 0),  # exists
-        ("031133223331", 3),  # parent -1
-        ("03113322333", 6),  # parent -2
-        ("0311332233", 9),  # parent -3
-    ],
-)
-def test_clean_quadkeys(qk, expected):
-    initial_grid = "0311332233311"
-    from ubdc_airbnb.models import UBDCGrid
-    from ubdc_airbnb.utils.grids import clean_quadkeys
-
-    UBDCGrid.objects.create_from_quadkey(initial_grid)
-    assert UBDCGrid.objects.filter(quadkey=initial_grid).exists()
-
-    grids = clean_quadkeys(qk)
-    assert len(grids) == expected
 
 
 @pytest.mark.django_db
