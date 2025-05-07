@@ -26,8 +26,8 @@ uses = { GITHUB_SHA = "_get_git_hash" }
 
 [tool.poetry]
 name = "ubdc-airbnb"
-version = "0.1.0"
-description = ""
+version = "3.0.0"
+description = "A django based application for scraping airbnb data."
 authors = ["nikos ves <nick.ves@glasgow.ac.uk>"]
 readme = "README.md"
 packages = [
@@ -63,13 +63,15 @@ celery-types = "^0.22.0"
 django-types = "^0.19.1"
 pytest-mock = "^3.12.0"
 faker = "^23.2.1"
+pytest-cov = "^6.0.0"
 
 [tool.pylint.messages_control]
 disable = 'C,R,logging-fstring-interpolation'
 
 [tool.pytest.ini_options]
+# addopts = "--cov=src --cov-report html"
 DJANGO_SETTINGS_MODULE = "core.settings"
-log_cli = "True"
+log_cli = true
 log_cli_level = "INFO"
 env = [
   "DATABASE_DBNAME=postgres",
