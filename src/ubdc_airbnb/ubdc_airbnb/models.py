@@ -41,8 +41,7 @@ class WorldShape(models.Model):
 
 
 class AOIShape(models.Model):
-    geom_3857 = models.MultiPolygonField(
-        srid=3857, help_text="Geometry column. Defined at EPSG:3857", editable=False)
+    geom_3857 = models.MultiPolygonField(srid=3857, help_text="Geometry column. Defined at EPSG:3857", editable=False)
     name = models.TextField(
         default=model_defaults.AIOSHAPE_NAME,
         help_text="Name to display.",
@@ -112,7 +111,7 @@ class AOIShape(models.Model):
 
     @classmethod
     def create_from_geometry(cls, geom: GEOSGeometry, name: str) -> "AOIShape":
-        "Create an AOI from a GEOSGeometry object. Returns the created object."
+        "Create an AOI from a GEOSGeometry object. Returns the created object. If the geom object does not have a SRID, it will be assumed to be in EPSG:3857."
         if not geom.geom_type.endswith("Polygon"):
             raise ValueError("Only Polygon Like geometries are supported.")
 
@@ -395,6 +394,21 @@ class AirBnBResponse(models.Model):
         to_field="task_id",
     )
 
+    @property
+    def was_successful(self) -> bool:
+        "Return True if the response was successful (status_code == 200)."
+        logger.debug(f"Checking if response was successful.")
+        logger.debug(f"Response status_code: {self.status_code}")
+        return self.status_code == 200
+
+    @property
+    def is_user_valid(self) -> bool:
+        "Return True if the response is about a valid user."
+        logger.debug(f"Checking if response is about a valid user.")
+        logger.debug(f"was_succefull: {self.was_successful}")
+        logger.debug(f"Response type: {self._type}")
+        return self.was_successful and self._type == AirBnBResponseTypes.userDetail
+
     objects: ClassVar[AirBnBResponseManager] = AirBnBResponseManager()
 
     def save(self, *args, **kwargs) -> None:
@@ -545,8 +559,7 @@ class AirBnBUser(models.Model):
 
 
 class AirBnBReview(models.Model):
-    review_id = models.BigIntegerField(unique=True, null=False, blank=False,
-                                       help_text="AirBNB Review id")  # required
+    review_id = models.BigIntegerField(unique=True, null=False, blank=False, help_text="AirBNB Review id")  # required
     created_at = models.DateTimeField(help_text="as reported by AirBNB", blank=False, null=False)  # required
     timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Date of row creation.")
     review_text = models.TextField()

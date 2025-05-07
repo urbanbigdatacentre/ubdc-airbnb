@@ -7,7 +7,7 @@ from django.core.management import BaseCommand
 
 
 class Command(BaseCommand):
-    help = "Find new new listings in a Grid"
+    help = "Perform a search for new listings in a grid"
 
     def add_arguments(self, parser: ArgumentParser):
         parser.add_argument("quadkey", type=str)
@@ -16,7 +16,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         quadkey = options["quadkey"]
         self.stdout.write(self.style.SUCCESS(f"Scanning grid {quadkey} for new listings"))
-        from ubdc_airbnb.tasks import task_discover_listings_at_grid
+        from ubdc_airbnb.tasks import task_register_listings_or_divide_at_quadkey
 
-        task = task_discover_listings_at_grid.s(quadkey=quadkey).apply_async()
+        task = task_register_listings_or_divide_at_quadkey.s(quadkey=quadkey).apply_async()
         print(f"Task {task.id} sent to the queue")

@@ -44,7 +44,7 @@ def get_next_page_payload(parent_page_task_id: str, this_task_id: str) -> dict:
         federated_search_session_id=federated_search_session_id,
         items_offset=next_page_offset,
         items_per_grid=items_per_grid,
-        **bbox
+        **bbox,
     )
     rv: dict = ubdc_response.payload
 

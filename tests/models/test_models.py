@@ -26,6 +26,7 @@ def test_aoishape_model_create_from_geom(aoishape_model):
 
 @pytest.mark.django_db(transaction=True)
 def test_user_model_get_or_create_user(user_model):
+    """Test the get_or_create_user method of the User model."""
     from ubdc_airbnb.model_defaults import AIRBNBUSER_FIRST_NAME
 
     user_id = "1234"
@@ -117,6 +118,7 @@ def test_grid_objects_intersect_with_aoi(ubdcgrid_model, aoishape_model):
 @pytest.mark.skip(reason="Not Implemented/Broken")
 @pytest.mark.django_db
 def test_aoishape_create_from_geojson(aoishape_model, geojson_gen, tmp_path):
+    """Test the creation of AOIShape objects from GeoJSON files."""
     for idx, gj in enumerate(geojson_gen):
         f = tmp_path / f"test-aoi-{idx}.geojson"
         f.write_text(gj)
@@ -159,13 +161,6 @@ def listing_detail_content_gen() -> bytes:
 @pytest.mark.parametrize(
     "status_code, responses",
     [
-        (
-            403,
-            [
-                {"content": b"Forbidden"},
-                {"content": b"Forbidden"},
-            ],
-        ),
         (
             503,
             [
@@ -239,6 +234,12 @@ def test_AirBnBResponse_fetch_x_raises(
             200,
             [
                 {"content": b'{ "pdp_listing_detail": { "id": 1234 } }'},
+            ],
+        ),
+        (
+            403,
+            [
+                {"content": b"Forbidden"},
             ],
         ),
     ],

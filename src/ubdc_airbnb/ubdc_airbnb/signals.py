@@ -1,9 +1,9 @@
-from django.utils import timezone
 import inspect
 
 from celery import signals
 from celery.app.task import Context
 from celery.utils.log import get_task_logger
+from django.utils import timezone
 
 from ubdc_airbnb.models import UBDCGroupTask, UBDCTask
 
@@ -24,8 +24,7 @@ def ubdc_handles_task_publish(sender: str = None, headers=None, body=None, **kwa
     group_task_id = info.get("group", None)
     root_id = None if task_id == info.get("root_id") else info.get("root_id", task_id)
     if group_task_id:
-        group_task_obj, created = UBDCGroupTask.objects.get_or_create(
-            group_task_id=group_task_id, root_id=root_id)
+        group_task_obj, created = UBDCGroupTask.objects.get_or_create(group_task_id=group_task_id, root_id=root_id)
 
     else:
         group_task_obj = None

@@ -1,6 +1,7 @@
 from datetime import datetime
-from more_itertools import collapse
+
 from django.core.management.base import BaseCommand
+from more_itertools import collapse
 
 from . import get_beat_task_by_name, get_beat_tasks
 

@@ -1,18 +1,16 @@
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any, List, Literal, MutableMapping, Type
+from typing import TYPE_CHECKING, Any, List, Literal, MutableMapping
 
 import mercantile
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.contrib.gis.geos.polygon import Polygon as GEOSPolygon
 from django.db import models
-from django.db.models import QuerySet, Subquery
-from django.utils.timesince import timesince
 from requests import HTTPError
 from requests.exceptions import ProxyError
 
 from ubdc_airbnb.convenience import query_params_from_url
-from ubdc_airbnb.errors import UBDCError, UBDCRetriableError
+from ubdc_airbnb.errors import UBDCRetriableError
 from ubdc_airbnb.utils.json_parsers import airbnb_response_parser
 from ubdc_airbnb.utils.spatial import (
     ST_Union,
@@ -23,11 +21,6 @@ from ubdc_airbnb.utils.spatial import (
 
 logger = get_task_logger(__name__)
 
-
-# https://docs.djangoproject.com/en/5.0/topics/db/managers/
-# A Manager is the interface through which database query operations are provided to Django models.
-# Mangers are intended to be used to encapsulate logic for managing collections of objects.
-# At least one Manager exists for every model in a Django application."
 
 if TYPE_CHECKING:
     from requests import Response
@@ -50,51 +43,45 @@ class AirBnBResponseManager(models.Manager):
         from ubdc_airbnb.airbnb_interface.airbnb_api import AirbnbApi
         from ubdc_airbnb.models import AirBnBResponseTypes
 
-        if type != AirBnBResponseTypes.search:
-            assert "asset_id" in kwargs
+        asset_id = kwargs.get("asset_id", None)
+        if type == AirBnBResponseTypes.search:
+            if asset_id is None:
+                pass
+            else:
+                raise ValueError("asset_id is required for this type of request")
 
         airbnb_client = AirbnbApi(proxy=settings.AIRBNB_PROXY)
 
         match type:
             case AirBnBResponseTypes.bookingQuote:
                 method_name = "get_booking_details"
-                asset_id = kwargs.pop("asset_id")
                 kwargs.update(listing_id=asset_id)
-                assert "listing_id" in kwargs
             case AirBnBResponseTypes.calendar:
                 method_name = "get_calendar"
-                asset_id = kwargs.pop("asset_id")
                 kwargs.update(listing_id=asset_id)
-                assert "listing_id" in kwargs
             case AirBnBResponseTypes.review:
                 method_name = "get_reviews"
-                asset_id = kwargs.pop("asset_id")
                 kwargs.update(listing_id=asset_id)
-                assert "listing_id" in kwargs
             case AirBnBResponseTypes.listingDetail:
                 method_name = "get_listing_details"
-                asset_id = kwargs.pop("asset_id")
                 kwargs.update(listing_id=asset_id)
-                assert "listing_id" in kwargs
             case AirBnBResponseTypes.search:
                 method_name = "get_homes"
-                # kwargs.pop("asset_id")
             case AirBnBResponseTypes.searchMetaOnly:
                 method_name = "bbox_metadata_search"
-                # kwargs.pop("asset_id")
             case AirBnBResponseTypes.userDetail:
                 method_name = "get_user"
-                asset_id = kwargs.pop("asset_id")
                 kwargs.update(user_id=asset_id)
-                assert "user_id" in kwargs
             case _:
-                raise ValueError(f"Invalid _type: {type}")
+                raise ValueError(f"Invalid type: {type}")
 
         method = getattr(airbnb_client, method_name)
 
         if method is None:
             raise Exception(f"could not find reference: {method_name}")
 
+        # Remove asset_id from kwargs if it exists.
+        kwargs.pop("asset_id", None)
         response = method(**kwargs)
 
         listing_id = kwargs.get("listing_id", None)
@@ -213,7 +200,7 @@ class AirBnBListingManager(models.Manager):
     def for_purpose(
         self,
         purpose: Literal["calendar", "reviews", "listing_details"],
-    ) -> 'AirBnBListingManager':
+    ) -> "AirBnBListingManager":
         """Returns a QS with all the listings ids within an enabled AOI"""
 
         from ubdc_airbnb.models import AOIShape

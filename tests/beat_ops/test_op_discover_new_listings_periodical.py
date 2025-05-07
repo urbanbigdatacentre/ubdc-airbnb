@@ -18,6 +18,7 @@ def test_op_discover_new_listings_periodical(
     ubdctask_model,
     responses_model,
 ):
+    """Test the periodic operation for discovering new listings."""
     from ubdc_airbnb.operations.discovery import op_discover_new_listings_periodical
 
     for prefix_qk in ["03113322331322", "03112322331323"]:

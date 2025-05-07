@@ -2,8 +2,6 @@ from argparse import ArgumentParser, ArgumentTypeError
 
 from django.core.management import BaseCommand
 
-from ubdc_airbnb.tasks import task_tidy_grids
-
 input_choices = ["aoi", "quadkey"]
 
 

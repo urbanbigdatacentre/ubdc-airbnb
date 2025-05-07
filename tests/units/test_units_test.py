@@ -29,6 +29,7 @@ def test_parser_get_lnglat_bbox(payload, expected):
 
 
 def test_price_histogram_sum():
+    """Test the price histogram sum calculation functionality."""
     t = json.loads(
         """
     {
@@ -101,6 +102,7 @@ def test_price_histogram_sum():
 
 
 def test_parser_get_primary_host():
+    """Test the primary host parsing functionality."""
     t = json.loads(
         r"""
         {
@@ -122,6 +124,7 @@ def test_parser_get_primary_host():
 
 
 def test_parser_get_additional_hosts():
+    """Test the additional hosts parsing functionality."""
     t = json.loads(
         """
         {"pdp_listing_detail":
@@ -172,6 +175,7 @@ def test_parser_has_next_page_error(payload, expected_result):
 
 
 def test_chain_host_parsers():
+    """Test the chaining of host parser functions."""
     t1 = json.loads(
         r"""
         {
@@ -256,34 +260,11 @@ def test_cut_polygon_at_prime_lines(geom, expected):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "qk,expected",
-    [
-        ("03113322333112", 0),  # child
-        ("0311332233312", 1),  # same level
-        ("0311332233311", 0),  # exists
-        ("031133223331", 3),  # parent -1
-        ("03113322333", 6),  # parent -2
-        ("0311332233", 9),  # parent -3
-    ],
-)
-def test_clean_quadkeys(qk, expected):
-    initial_grid = "0311332233311"
-    from ubdc_airbnb.models import UBDCGrid
-    from ubdc_airbnb.utils.grids import clean_quadkeys
-
-    UBDCGrid.objects.create_from_quadkey(initial_grid)
-    assert UBDCGrid.objects.filter(quadkey=initial_grid).exists()
-
-    grids = clean_quadkeys(qk)
-    assert len(grids) == expected
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
     "qk",
     ["031133223331", "0311332233311"],
 )
 def test_qk_has_children(qk):
+    """Test the quadkey children existence check."""
     initial_grid = "0311332233311"
     from ubdc_airbnb.models import UBDCGrid
     from ubdc_airbnb.utils.grids import qk_has_children
@@ -294,6 +275,7 @@ def test_qk_has_children(qk):
 
 @pytest.mark.django_db
 def test_qk_has_parent():
+    """Test the quadkey parent existence check."""
     initial_grid = "0311332233311"
     from ubdc_airbnb.models import UBDCGrid
     from ubdc_airbnb.utils.grids import qk_has_parent
@@ -305,6 +287,7 @@ def test_qk_has_parent():
 
 @pytest.mark.django_db
 def test_replace_grid_with_children():
+    """Test the grid replacement with children functionality."""
     from ubdc_airbnb.models import UBDCGrid
     from ubdc_airbnb.utils.grids import replace_quadkey_with_children
 

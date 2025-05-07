@@ -281,8 +281,7 @@ class AirbnbApi(object):
             "key": self.airbnb_api_key,
         }
 
-        federated_search_session_id = kwargs.get(
-            "federated_search_session_id", self.federated_search_session_id)
+        federated_search_session_id = kwargs.get("federated_search_session_id", self.federated_search_session_id)
         if federated_search_session_id:
             params.update(federated_search_session_id=federated_search_session_id)
 

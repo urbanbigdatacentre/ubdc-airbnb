@@ -27,12 +27,7 @@ def test_get_beat_entries():
         "op_discover_new_listings_periodical",
     ],
 )
-@pytest.mark.parametrize('args', [
-    None,
-    '--arg',
-    '--arg=arg1=val1',
-    '--arg=arg1=val1 --arg=arg2=val2'
-])
+@pytest.mark.parametrize("args", [None, "--arg", "--arg=arg1=val1", "--arg=arg1=val1 --arg=arg2=val2"])
 def test_run_beat_job(mocker, job_name, args):
     from celery.app.task import Task
 
@@ -46,7 +41,7 @@ def test_run_beat_job(mocker, job_name, args):
     if args is None:
         call_command("run-beat-job", job_name, stdout=out)
     else:
-        call_command("run-beat-job", job_name, *args.split(' '), stdout=out)
+        call_command("run-beat-job", job_name, *args.split(" "), stdout=out)
 
     # Checking the kwargs works but no tests
     assert m_sig().mock_calls[0][0] == "apply_async"
