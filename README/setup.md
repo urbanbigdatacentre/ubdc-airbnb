@@ -60,7 +60,7 @@ already completed are as follows:
 	  data execution protection. The specific setting within your BIOS will vary based on hardware vendor.
 	  See [here](https://docs.docker.com/docker-for-windows/troubleshoot/#virtualization-must-be-enabled) for more
 	  details.
-	  
+
 1. Install git.
 
 (After you have installed all three pieces of software above, open your favorite Windows terminal - I recommend
@@ -72,7 +72,7 @@ powershell)
 
 1. Using your terminal, change to your preferred working directory and issue the following command to download the code:
 
-<!-- 
+<!--
 TODO:  update the branch from preview to ???
 -->
 
@@ -146,7 +146,7 @@ Using a ubdc-airbnb miniconda console, `cd`  at the /src/dj_airbnb subfolder in 
 following command to import the land boundaries for a single country identified by its ISO:
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker load-mask --only-iso GBR 
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker load-mask --only-iso GBR
 ```
 
 `docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker
@@ -158,7 +158,7 @@ If you want, you can import ALL the countries by omitting the `--only-iso` param
 time to complete:
 
 ```powershell
-docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker load-mask 
+docker-compose -f docker-compose.yml -f docker-compose-local.yml run --rm worker load-mask
 ```
 
 #### Set up scan locations - Areas of Interest (AOIs)
@@ -174,7 +174,7 @@ Requirements:
 	1. (Optionally but highly recommended):  
 	   Add OSM tiles:
 		- Select XYZ source
-		- create a new source as a basemap:  Type the following string as source:    
+		- create a new source as a basemap:  Type the following string as source:  
 		  `http://tile.openstreetmap.org/{z}/{x}/{y}.png`
 
 	1. Click on PostgreSQL Layers, and create a new connection using the following default parameters:
@@ -186,7 +186,7 @@ Requirements:
 	1. Add the 4 spatial layers
 
 1. Enable editing the app_aoishape layer.
-	1. Draw a polygon.   
+	1. Draw a polygon.  
 	   That's where there system will look for listings. Choose a place that is reasonably big - and therefore likely to
 	   contains some listings - but not too big.
 	1. As attributes, the layer contains some flags including collect_calendars etc. Make sure all are enabled for this
@@ -332,7 +332,7 @@ to have two workers in total issue the following command:
 It is possible to set the system on scheduled mode. In that mode passively the system fires pretold tasks on predefined
 times.
 
-The schedule can be found inside [celery.py](../src/dj_airbnb/dj_airbnb/celery.py) and a list of all the avaiable
+The schedule can be found inside [celery.py](../src/ubdc_airbnb/core/celery.py) and a list of all the avaiable
 operations can be found on the [operations](./operations.md)
 
 To enable the scheduler, open a console, and navigate at the project source folder. There run the command:

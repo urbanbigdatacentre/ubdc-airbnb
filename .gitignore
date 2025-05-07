@@ -1,3 +1,11 @@
 .idea
 .ubdc-airbnb-service.env
-.env
+docker-compose.overide.local.yml
+.env.*
+__pycache__/
+*.py[cod]
+*$py.class
+__pypackages__/
+dist/
+*.log
+.coverage
