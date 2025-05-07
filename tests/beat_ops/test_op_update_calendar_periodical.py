@@ -1,10 +1,12 @@
 import pytest
 from django.core.management import call_command
 from faker import Faker
+from datetime import timezone
 
 from ..payload_generators import calendar_generator
 
 fake = Faker()
+utc = timezone.utc
 
 
 @pytest.mark.parametrize("status_code", [200, 403])
@@ -43,7 +45,7 @@ def test_op_update_calendar_periodical(
             listing_id=idx + 1,
             geom_3857=centroid,
             calendar_updated_at=fake.date_time_between(
-                start_date=start_date, end_date='-10m') if idx % 2 == 0 else None,
+                start_date=start_date, end_date='-10m', tzinfo=utc) if idx % 2 == 0 else None,
         )
 
     task = op_update_calendar_periodical.s(**params)
