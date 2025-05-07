@@ -31,11 +31,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-<<<<<<< HEAD
-          # cache: 'poetry'
-=======
-          cache: 'poetry'
->>>>>>> f653cbd43b718ed988aa32ec8db165f0a4003287
       - 
         name: Install Poetry
         run: |
