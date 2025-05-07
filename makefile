@@ -16,3 +16,7 @@ start-dev-gen-worker: build-image
 
 start-dev-cal-worker: build-image
 	docker run -it --rm -v $(PWD):/app --env-file .env.dev --entrypoint bash ubdc/$(PROJECT_NAME):$(COMMIT) -c "celery -A core.celery:app worker -l info --concurrency=1 -Q calendar"
+
+test: 
+	poetry run pytest
+	
