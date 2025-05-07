@@ -1,5 +1,5 @@
 # Python 3.10, Geos 3.10.2, proj 9.2.0, gdal 3.6.0
-FROM osgeo/gdal@sha256:452da485c574fe040a5748b73932d3ec7334913197744b550d13ce80493ef3c4 as runner
+FROM osgeo/gdal@sha256:452da485c574fe040a5748b73932d3ec7334913197744b550d13ce80493ef3c4 AS runner
 ENV PYTHONUNBUFFERED=1 \
     REQUESTS_CA_BUNDLE="/etc/ssl/certs/ca-certificates.crt" \
     POETRY_VERSION=1.7.1 \
