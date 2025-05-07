@@ -8,3 +8,4 @@ __pycache__/
 __pypackages__/
 dist/
 *.log
+.coverage
