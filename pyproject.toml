@@ -8,21 +8,6 @@ line-length = 120
 [tool.isort]
 profile = "black"
 
-[tool.poe.tasks]
-lint = { cmd = "pylint src" }
-format = { cmd = "black src" }
-
-[tool.poe.tasks._get_git_hash]
-cmd = "git rev-parse --short HEAD"
-
-[tool.poe.tasks.build-image]
-cmd = "docker build . -t ubdc/ubdc-airbnb:${GIT_HASH}"
-uses = { GIT_HASH = "_get_git_hash" }
-
-[tool.poe.tasks.generate-docker-compose]
-script = "devtasks.docker:generate_docker_compose"
-print_result = true
-uses = { GITHUB_SHA = "_get_git_hash" }
 
 [tool.poetry]
 name = "ubdc-airbnb"
@@ -69,7 +54,7 @@ pytest-cov = "^6.0.0"
 disable = 'C,R,logging-fstring-interpolation'
 
 [tool.pytest.ini_options]
-# addopts = "--cov=src --cov-report html"
+addopts = "--cov=src --cov-report html"
 DJANGO_SETTINGS_MODULE = "core.settings"
 log_cli = true
 log_cli_level = "INFO"
