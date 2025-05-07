@@ -1,5 +1,7 @@
-from django.core.management import BaseCommand
 from argparse import ArgumentParser
+
+from django.core.management import BaseCommand
+
 from ubdc_airbnb.models import UBDCGrid
 
 

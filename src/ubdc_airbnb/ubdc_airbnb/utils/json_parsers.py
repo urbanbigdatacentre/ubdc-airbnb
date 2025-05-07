@@ -34,8 +34,9 @@ class airbnb_response_parser:
     @classmethod
     def get_federated_search_session_id(cls, response: dict) -> str:
         matches = cls.__federated_search_session_id__.find(response)
-        assert len(
-            matches) == 1, "No federated_search_session_id found in response or multiple federated_search_session_id found"
+        assert (
+            len(matches) == 1
+        ), "No federated_search_session_id found in response or multiple federated_search_session_id found"
         return matches[0].value
 
     @classmethod
@@ -43,7 +44,7 @@ class airbnb_response_parser:
         matches = cls.__geography__.find(response)
         assert len(matches), "No geography found in response"
         m = matches[0].value
-        return LngLatBbox(west=m['sw_lng'], east=m['ne_lng'], north=m['ne_lat'], south=m['sw_lat'])
+        return LngLatBbox(west=m["sw_lng"], east=m["ne_lng"], north=m["ne_lat"], south=m["sw_lat"])
 
     @staticmethod
     def generic(pattern: str, target: dict) -> Iterator[Any]:

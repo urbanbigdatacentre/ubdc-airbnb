@@ -6,8 +6,7 @@ from django.core.management import call_command
 
 @pytest.mark.django_db
 def test_create_test_area():
-    """Test the create-test-area management command.
-    """
+    """Test the create-test-area management command."""
     from ubdc_airbnb.models import AOIShape, UBDCGrid
 
     out = StringIO()

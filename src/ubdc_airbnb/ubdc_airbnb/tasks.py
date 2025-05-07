@@ -131,11 +131,11 @@ def task_get_booking_detail(self: Task, listing_id: int) -> int:
     """
 
     listing, created = AirBnBListing.objects.get_or_create(listing_id=listing_id)
-    calendar: AirBnBResponse = (AirBnBResponse.objects.filter(
-        listing_id=listing_id,
-        _type=AirBnBResponseTypes.calendar
-    ).order_by("timestamp")
-        .first())  # type: ignore
+    calendar: AirBnBResponse = (
+        AirBnBResponse.objects.filter(listing_id=listing_id, _type=AirBnBResponseTypes.calendar)
+        .order_by("timestamp")
+        .first()
+    )  # type: ignore
 
     booking_response = AirBnBResponse.objects.fetch_response(
         listing_id=listing_id,
@@ -273,8 +273,7 @@ def task_register_listings_or_divide_at_quadkey(
         # default is 22 but can be configured in settings.
         # 22 represents a ~10m x 10m grid
 
-        logger.info(
-            f"Quadkey {quadkey} is too deep to divide. (max: {settings.MAX_GRID_LEVEL}. This: {len(quadkey)}).")
+        logger.info(f"Quadkey {quadkey} is too deep to divide. (max: {settings.MAX_GRID_LEVEL}. This: {len(quadkey)}).")
         job = task_get_next_page_homes.s(parent_page_task_id=task_id)
         job.apply_async()
 
@@ -374,11 +373,9 @@ __all__ = [
     "task_update_user_details",
     "task_get_booking_detail",
     "task_add_reviews_of_listing",
-
     # Discovery tasks
     "task_register_listings_or_divide_at_quadkey",
-    'task_get_next_page_homes',
-
+    "task_get_next_page_homes",
     # debug tasks
     "task_debug_sometimes_fail",
     "task_debug_add_w_delay",

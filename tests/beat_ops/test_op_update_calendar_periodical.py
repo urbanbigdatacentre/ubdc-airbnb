@@ -1,7 +1,8 @@
+from datetime import timezone
+
 import pytest
 from django.core.management import call_command
 from faker import Faker
-from datetime import timezone
 
 from ..payload_generators import calendar_generator
 
@@ -22,10 +23,11 @@ def test_op_update_calendar_periodical(
     ubdctask_model,
     responses_model,
     status_code,
-    params
+    params,
 ):
     from ubdc_airbnb.operations.calendars import op_update_calendar_periodical
     from ubdc_airbnb.utils.time import start_of_day
+
     start_date = start_of_day()
 
     for prefix_qk in ["03113322331322", "03112322331323"]:
@@ -44,8 +46,9 @@ def test_op_update_calendar_periodical(
         listings_model.objects.create(
             listing_id=idx + 1,
             geom_3857=centroid,
-            calendar_updated_at=fake.date_time_between(
-                start_date=start_date, end_date='-10m', tzinfo=utc) if idx % 2 == 0 else None,
+            calendar_updated_at=(
+                fake.date_time_between(start_date=start_date, end_date="-10m", tzinfo=utc) if idx % 2 == 0 else None
+            ),
         )
 
     task = op_update_calendar_periodical.s(**params)
@@ -56,7 +59,7 @@ def test_op_update_calendar_periodical(
     for g in group_results:
         g.join()  # type: ignore
 
-    expected_actions = 4 if params.get('stale', False) else 8
+    expected_actions = 4 if params.get("stale", False) else 8
 
     assert job.successful()
     assert responses_model.objects.count() == expected_actions

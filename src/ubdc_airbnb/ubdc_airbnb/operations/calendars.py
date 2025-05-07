@@ -10,7 +10,6 @@ from ubdc_airbnb.models import AirBnBListing, AOIShape, UBDCGroupTask
 from ubdc_airbnb.tasks import task_update_calendar
 from ubdc_airbnb.utils.time import end_of_day, start_of_day
 
-
 logger = get_task_logger(__name__)
 
 if TYPE_CHECKING:
@@ -30,8 +29,7 @@ def op_update_calendars_for_listing_ids(
     else:
         _listing_ids = (listing_id,)
 
-    job = group(task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today)
-                for listing_id in _listing_ids)
+    job = group(task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today) for listing_id in _listing_ids)
 
     group_result: AsyncResult[GroupResult] = job.apply_async()
     group_result.save()  # type: ignore
@@ -103,13 +101,12 @@ def op_update_calendar_periodical(use_aoi=True, **kwargs) -> None:
         # assume that something had happened and interuppted the service;
         # if we re-run we  we want to update only the calendars that were not updated today (yet)
         logger.info("Filtering for stale calendars")
-        q = (Q(calendar_updated_at__lt=start_of_today) | Q(calendar_updated_at=None))
+        q = Q(calendar_updated_at__lt=start_of_today) | Q(calendar_updated_at=None)
         qs_listings = qs_listings.filter(q)
 
     def process_group(batch: list[int]) -> None:
         logger.info(f"Submiting job for {idx} listings")
-        job = group(task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today)
-                    for listing_id in batch)
+        job = group(task_update_calendar.s(listing_id=listing_id).set(expires=end_of_today) for listing_id in batch)
         group_result: AsyncResult[GroupResult] = job.apply_async()
         group_result.save()  # type: ignore
         group_task = UBDCGroupTask.objects.get(group_task_id=group_result.id)
@@ -124,7 +121,7 @@ def op_update_calendar_periodical(use_aoi=True, **kwargs) -> None:
         logger.info(f"Processing {total_listings} listings")
         listing_ids = qs_listings.values_list("listing_id", flat=True)
         batch = []
-        for idx, listing in enumerate(listing_ids.iterator(chunk_size=chunk_size*2)):
+        for idx, listing in enumerate(listing_ids.iterator(chunk_size=chunk_size * 2)):
             batch.append(listing)
             if idx % chunk_size == 0 and idx > 0:
                 process_group(batch)

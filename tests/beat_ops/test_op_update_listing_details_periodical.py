@@ -18,8 +18,7 @@ def test_op_update_listing_details_periodical(
     ubdctask_model,
     responses_model,
 ):
-    """Test the periodic operation for updating listing details.
-    """
+    """Test the periodic operation for updating listing details."""
     from ubdc_airbnb.operations.listing_details import (
         op_update_listing_details_periodical,
     )
