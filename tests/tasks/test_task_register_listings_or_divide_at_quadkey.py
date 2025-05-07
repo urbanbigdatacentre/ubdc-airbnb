@@ -59,6 +59,8 @@ def test_task_register_listings_or_divide_at_quadkey(
     ubdctask_model,
     responses_model,
 ):
+    """Test the task for registering listings or dividing at quadkey.
+    """
     from ubdc_airbnb.tasks import task_register_listings_or_divide_at_quadkey
 
     ubdcgrid_model.objects.create_from_quadkey(quadkey)

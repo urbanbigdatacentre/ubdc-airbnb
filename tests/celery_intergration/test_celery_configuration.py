@@ -1,6 +1,6 @@
-
-
 def test_celer_configuration():
+    """Test the Celery application configuration.
+    """
     from core.celery import app
     assert app
     broker_transport_options = app.conf.broker_transport_options

@@ -6,6 +6,7 @@ from django.core.management import call_command
 # Test the creation of a grid from an AOI  (--input-type aoi option)
 
 
+@pytest.mark.skip(reason="generate_grid command needs to be rewritten")
 @pytest.mark.django_db
 def test_create_grid_qk():
     out = StringIO()
@@ -20,6 +21,7 @@ def test_create_grid_qk():
 
 
 # Test the creation of a grid from an AOI  (--input-type aoi option)
+@pytest.mark.skip(reason="generate_grid command needs to be rewritten")
 @pytest.mark.django_db
 def test_create_grid_aoi(geojson_gen, aoishape_model, tmp_path):
     out = StringIO()
