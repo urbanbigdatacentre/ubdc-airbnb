@@ -20,3 +20,6 @@ start-dev-cal-worker: build-image
 test: 
 	poetry run pytest
 	
+format:
+	poetry run black src/ tests/
+	poetry run isort src/ tests/
