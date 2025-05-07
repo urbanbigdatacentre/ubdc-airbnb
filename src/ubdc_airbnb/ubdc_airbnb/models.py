@@ -112,7 +112,7 @@ class AOIShape(models.Model):
 
     @classmethod
     def create_from_geometry(cls, geom: GEOSGeometry, name: str) -> "AOIShape":
-        "Create an AOI from a GEOSGeometry object. Returns the created object."
+        "Create an AOI from a GEOSGeometry object. Returns the created object. If the geom object does not have a SRID, it will be assumed to be in EPSG:3857."
         if not geom.geom_type.endswith("Polygon"):
             raise ValueError("Only Polygon Like geometries are supported.")
 
