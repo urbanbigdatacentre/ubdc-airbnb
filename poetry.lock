@@ -1043,24 +1043,6 @@ docs = ["sphinx", "sphinx-rtd-theme"]
 testing = ["Django", "django-configurations (>=2.0)"]
 
 [[package]]
-name = "pytest-env"
-version = "0.8.2"
-description = "py.test plugin that allows you to add environment variables."
-optional = false
-python-versions = ">=3.7"
-groups = ["dev"]
-files = [
-    {file = "pytest_env-0.8.2-py3-none-any.whl", hash = "sha256:5e533273f4d9e6a41c3a3120e0c7944aae5674fa773b329f00a5eb1f23c53a38"},
-    {file = "pytest_env-0.8.2.tar.gz", hash = "sha256:baed9b3b6bae77bd75b9238e0ed1ee6903a42806ae9d6aeffb8754cd5584d4ff"},
-]
-
-[package.dependencies]
-pytest = ">=7.3.1"
-
-[package.extras]
-test = ["coverage (>=7.2.7)", "pytest-mock (>=3.10)"]
-
-[[package]]
 name = "pytest-mock"
 version = "3.14.0"
 description = "Thin-wrapper around the mock package for easier use with pytest"
@@ -1432,4 +1414,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "9792dfa94c10cc0c75572107e2c99653cb1f30c5fce8b28f6dc837550cc00080"
+content-hash = "b519e54129107671950cf473aae4b371929f29138913f8cebf267ac73ad625ce"

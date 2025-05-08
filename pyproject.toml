@@ -37,7 +37,6 @@ psycopg = "^3.1.18"
 factory-boy = "^3.2.1"
 pytest = "^7.2.1"
 pytest-django = "^4.5.2"
-pytest-env = "^0.8.1"
 pytest-celery = "^0.0.0"
 responses = "^0.22.0"
 pylint = "^2.16.1"
@@ -54,19 +53,7 @@ pytest-cov = "^6.0.0"
 disable = 'C,R,logging-fstring-interpolation'
 
 [tool.pytest.ini_options]
-addopts = "--cov=src --cov-report html"
+addopts = "-x --cov=src --cov-report html"
 DJANGO_SETTINGS_MODULE = "core.settings"
 log_cli = true
 log_cli_level = "INFO"
-env = [
-  "DATABASE_DBNAME=postgres",
-  "DATABASE_HOST=db",
-  "DATABASE_PASSWORD=postgres",
-  "DATABASE_PORT=5432",
-  "DATABASE_USERNAME=postgres",
-  "RABBITMQ_HOST=rabbit",
-  "RABBITMQ_PASSWORD=rabbitmq",
-  "RABBITMQ_PORT=5672",
-  "RABBITMQ_USERNAME=rabbitmq",
-  "RABBITMQ_VHOST=/",
-]
