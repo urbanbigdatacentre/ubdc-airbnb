@@ -74,7 +74,7 @@ DATABASES = {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
         "USER": os.getenv("DATABASE_USERNAME", "postgres"),
         "PASSWORD": os.getenv("DATABASE_PASSWORD", "postgres"),
-        "NAME": os.getenv("DATABASE_DBNAME", "postgres"),
+        "NAME": os.getenv("DATABASE_NAME", "postgres"),
         "HOST": os.getenv("DATABASE_HOST", "localhost"),
         "PORT": os.getenv("DATABASE_PORT", 5432),
     }
