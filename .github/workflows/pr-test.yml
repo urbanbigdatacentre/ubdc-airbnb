@@ -1,60 +1,66 @@
-name: Pull Request Tests
+name: Runs tests on pull requests or manually.
 
 on:
   pull_request:
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - '.github/**'
-      - 'docs/**'
-      - 'README/**'
-      - 'samples/**'
-      - 'notes.md'
-      - '.gitignore'
-      - '.dockerignore'
-      - '.pre-commit-config.yaml'
-      - '.cursorrules'
-      - '.gitattributes'
+      paths-ignore:
+        - '**.md'
+        - 'LICENSE'
+        - '.github/**'
+        - 'docs/**'
+        - 'README/**'
+        - 'samples/**'
+        - 'notes.md'
+        - '.gitignore'
+        - '.dockerignore'
+        - '.pre-commit-config.yaml'
+        - '.cursorrules'
+        - '.gitattributes'
   workflow_dispatch:
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+env:
+  DATABASE_USERNAME: postgres
+  DATABASE_PASSWORD: postgres
+  DATABASE_NAME: postgres
+  DATABASE_HOST: localhost
+  DATABASE_PORT: 25432
 
-      - name: Install and configure Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: 2.0.1
-      
+jobs:
+  test-the-code:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:12-3.4
+        env:
+          POSTGRES_USER: ${{ env.DATABASE_USERNAME }}
+          POSTGRES_PASSWORD: ${{ env.DATABASE_PASSWORD }}
+        ports:
+          - 25432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5  
+    steps:
+      - name: install GDAL to worker
+        run: |
+          apt-get update && export DEBIAN_FRONTEND=noninteractive \
+          && apt-get -y install --no-install-recommends gdal-bin
+
+      - name: Check out code  
+        uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'poetry'
-          
-          
+      - name: Install Tooling
+        run: |
+          pipx install poetry
       - name: Install dependencies
-        run: poetry install
-        
+        run: /root/.local/bin/poetry install
       - name: Run tests
-        run: |
-          poetry run pytest tests/ \
-            --cov=src/ubdc_airbnb \
-            --cov-report=xml \
-            --cov-report=term-missing 
-
-        
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        run: 
+            /root/.local/bin/poetry run pytest tests
+      - uses: psf/black@stable
+        name: Check code style
         with:
-          file: ./coverage.xml
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
-          
-      - name: Check code style
-        run: |
-          poetry run black --check src/ tests/
-          poetry run isort --check-only src/ tests/
- 
+          options: "--check"
