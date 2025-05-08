@@ -43,8 +43,8 @@ jobs:
     steps:
       - name: install GDAL to worker
         run: |
-          apt-get update && export DEBIAN_FRONTEND=noninteractive \
-          && apt-get -y install --no-install-recommends gdal-bin
+          sudo apt-get update && export DEBIAN_FRONTEND=noninteractive \
+          && sudo apt-get -y install --no-install-recommends gdal-bin
 
       - name: Check out code  
         uses: actions/checkout@v4
