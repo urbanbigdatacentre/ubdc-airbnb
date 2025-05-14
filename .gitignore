@@ -2,6 +2,7 @@
 .ubdc-airbnb-service.env
 docker-compose.overide.local.yml
 .env.*
+!.env.example
 __pycache__/
 *.py[cod]
 *$py.class
