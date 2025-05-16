@@ -6,7 +6,11 @@ from ubdc_airbnb.models import UBDCGrid
 
 
 class Command(BaseCommand):
-    help = "Scan a quadkey-grid for listings. The quadkey must exist in the database."
+    help = """
+    Scan a quadkey-grid for listings. The quadkey must exist in the database.
+    
+    This command is more suitable for testing purposes.
+    """
 
     def add_arguments(self, parser: ArgumentParser):
         parser.add_argument("quadkey", type=str)

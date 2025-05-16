@@ -21,9 +21,10 @@ op_choices = [
 
 
 class Command(BaseCommand):
-    help = """Get Airbnb data for a listing id.
-
-    e.g. python manage.py get-for-listing-id calendar 123456
+    help = """
+    Get Airbnb data for a listing id. The listing must have been previously registered through a scan.
+    
+    example: python manage.py get-for-listing-id calendar 123456
     """
 
     def add_arguments(self, parser: ArgumentParser):

@@ -2,12 +2,10 @@ from argparse import ArgumentParser
 
 from django.core.management import BaseCommand
 
-# Submit a Celery task to find new listings in a grid
-# TODO: [COMMAND][FIND-LISTINGS] Allow to specify Area-Of-Interest (AOI) as well.
-
-
 class Command(BaseCommand):
-    help = "Perform a search for new listings in a grid"
+    help = """
+    Perform a search for new listings in a grid
+    """
 
     def add_arguments(self, parser: ArgumentParser):
         parser.add_argument("quadkey", type=str)

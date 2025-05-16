@@ -1,6 +1,5 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.utils import timezone
 from mercantile import LngLatBbox
 
 from ubdc_airbnb.models import AOIShape
@@ -11,8 +10,9 @@ from ubdc_airbnb.utils.spatial import get_geom_from_bbox
 class Command(BaseCommand):
     help = """
     Import an Area-Of-Interest Boundary into the system.
-    - The boundary must be a Polygon or MultiPolygon.
-    - Coordinates must be in WGS84 (EPSG:4326).
+    
+    The boundary must be a Polygon or MultiPolygon.
+    Coordinates must be in WGS84 (EPSG:4326).
     """
 
     def add_arguments(self, parser):
@@ -60,7 +60,8 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f"Invalid geometry ({geom.valid_reason}): {geom.wkt}"))
             return
         if geom_3857.area < 0:
-            self.stderr.write(self.style.ERROR(f"Invalid geometry (area less or equal to zero (0)): {geom.wkt}"))
+            self.stderr.write(self.style.ERROR(
+                f"Invalid geometry (area less or equal to zero (0)): {geom.wkt}"))
             return
 
         # Add the new AOI
@@ -71,8 +72,10 @@ class Command(BaseCommand):
                     notes=notes,
                     geom_3857=geom_3857,
                 )
-                self.stdout.write(self.style.SUCCESS(f'Successfully added {file_type} AOI "{aoi.name}" (ID: {aoi.pk})'))
+                self.stdout.write(self.style.SUCCESS(
+                    f'Successfully added {file_type} AOI "{aoi.name}" (ID: {aoi.pk})'))
                 new_grids_number = aoi.create_grid()
-                self.stdout.write(self.style.SUCCESS(f'Created {new_grids_number} grids for AOI "{aoi.name}"'))
+                self.stdout.write(self.style.SUCCESS(
+                    f'Created {new_grids_number} grids for AOI "{aoi.name}"'))
         except Exception as e:
             self.stderr.write(self.style.ERROR(f"Failed to add AOI: {str(e)}"))
