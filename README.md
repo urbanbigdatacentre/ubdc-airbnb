@@ -42,7 +42,7 @@ The UBDC Airbnb Data Collection System is a containerized application designed t
    ```bash
    # Launch database, message broker, and worker
    # the -d flag runs the containers in detached mode (background)
-   docker compose -f docker-compose.yml -d --profile all up 
+   docker compose -f docker-compose.yml -d --profile all up
    ```
 
 5. **(optional) Scale workers**
@@ -83,29 +83,29 @@ poetry run src/ubdc_airbnb/manage.py  edit-aoi --aoi-id 1 --enable-listing-detai
 
 ```bash
 # Discover any new listings in the discovery enabled areas
-poetry run src/ubdc_airbnb/manage.py ./manage.py run-beat-job op_discover_new_listings_periodical
+poetry run src/ubdc_airbnb/manage.py  run-beat-job op_discover_new_listings_periodical
 ```
 
 ```bash
 # Collected list-details for the listings in the `enable-listing-details` areas
-poetry run src/ubdc_airbnb/manage.py ./manage.py run-beat-job op_collect_listing_details_periodical
+poetry run src/ubdc_airbnb/manage.py run-beat-job op_collect_listing_details_periodical
 ```
 
 ```bash
 # Collected calendar data for the listings in the `enable-calendar-harvest` areas
-poetry run src/ubdc_airbnb/manage.py ./manage.py run-beat-job op_update_calendar_periodical
+poetry run src/ubdc_airbnb/manage.py run-beat-job op_update_calendar_periodical
 ```
 
 Alternatively, if you know if you know the listing ID of a listing you want to scrape, you can run the following commands:
 
 ```bash
 # Manually scrape specific listing data
-poetry run src/ubdc_airbnb/manage.py  scrape-listing-data --calendar --listing-id 123456 
-poetry run src/ubdc_airbnb/manage.py  scrape-listing-data --details  --listing-id 123456 
+poetry run src/ubdc_airbnb/manage.py  scrape-listing-data --calendar --listing-id 123456
+poetry run src/ubdc_airbnb/manage.py  scrape-listing-data --details  --listing-id 123456
 ```
 
 >[!Warning]
-> If you are not using a smart proxy service, you WILL be time-banned by Airbnb. 
+> If you are not using a smart proxy service, you WILL be time-banned by Airbnb.
 
 >[!Note]
 > if you have `beat` enabled, the above commands will be run automatically acording to the schedule defined
@@ -114,7 +114,7 @@ poetry run src/ubdc_airbnb/manage.py  scrape-listing-data --details  --listing-i
 
 ```bash
 # Export the responses to a jsonnl file for further analysis
-# you can use: 
+# you can use:
 # --only-latest: to only export the latest response (default) or
 # --since: to export all responses since a given date
 poetry run src/ubdc_airbnb/manage.py  export-data --details  --listing-id 123456 --output-file "details_listing_123456.jsonnl"
@@ -148,43 +148,71 @@ For large-scale data collection operations:
 
 ## Advanced Management Commands
 
-Beyond the basic workflow, the system offers additional management commands for operation and monitoring:
+The system provides a comprehensive set of management commands for advanced operations and monitoring:
 
 ### Area of Interest (AOI) Management
 ```bash
-# Add AOI using latitude/longitude and radius
-poetry run src/ubdc_airbnb/manage.py  add_aoi --name "City Center" --lat 55.9533 --lon -3.1883 --radius 2000
+# List all configured areas with various options
+poetry run src/ubdc_airbnb/manage.py list-aoi                           # Basic list
+poetry run src/ubdc_airbnb/manage.py list-aoi --csv                    # Export as CSV to stdout
+poetry run src/ubdc_airbnb/manage.py list-aoi --output aois.csv        # Export to CSV file
+poetry run src/ubdc_airbnb/manage.py list-aoi --filter "City"          # Filter by name
+poetry run src/ubdc_airbnb/manage.py list-aoi --limit 10               # Limit results
 
-# Remove an AOI
-poetry run src/ubdc_airbnb/manage.py  remove_aoi --aoi_id 1
+# Add new AOIs
+poetry run src/ubdc_airbnb/manage.py add-aoi --name "City Center" --geojson "path/to/file.geojson"
+poetry run src/ubdc_airbnb/manage.py add-aoi --name "Test Area" --bbox "1.0,2.0,3.0,4.0"
+
+# Manage AOI collection settings
+poetry run src/ubdc_airbnb/manage.py edit-aoi --aoi-id 1 --calendars           # Enable calendar collection
+poetry run src/ubdc_airbnb/manage.py edit-aoi --aoi-id 1 --no-calendars        # Disable calendar collection
+poetry run src/ubdc_airbnb/manage.py edit-aoi --aoi-id 1 --listing-details     # Enable listing details collection
+poetry run src/ubdc_airbnb/manage.py edit-aoi --aoi-id 1 --no-listing-details  # Disable listing details collection
+poetry run src/ubdc_airbnb/manage.py edit-aoi --aoi-id 1 --delete             # Delete an AOI
 ```
 
-### Harvesting Operations
+### Grid Management and Scanning
 ```bash
-# Initialize a new harvest operation
-poetry run src/ubdc_airbnb/manage.py  init_harvest --aoi_id 1
+# Add and scan quadkey grids
+poetry run src/ubdc_airbnb/manage.py add-quadkey 0121111121              # Add a new quadkey grid
+poetry run src/ubdc_airbnb/manage.py find-listings 0121111121             # Scan a grid for listings
 
-# Start discovery of listings in an area
-poetry run src/ubdc_airbnb/manage.py  discover_listings --aoi_id 1
-
-# Gather details for a specific listing
-poetry run src/ubdc_airbnb/manage.py  gather_details --listing_id 123456
-
-# Collect calendar availability for a date range
-poetry run src/ubdc_airbnb/manage.py  gather_calendar --listing_id 123456 --start_date 2024-01-01 --end_date 2024-12-31
+# Create test areas (for development)
+poetry run src/ubdc_airbnb/manage.py create-test-area 120210233         # Create a test area from a quadkey
 ```
 
-### Monitoring and Management
+### Data Collection Operations
 ```bash
-# Check system status
-poetry run src/ubdc_airbnb/manage.py  system_status
+# Run periodic collection jobs
+poetry run src/ubdc_airbnb/manage.py run-beat-job op_discover_new_listings_periodical     # Discover new listings
+poetry run src/ubdc_airbnb/manage.py run-beat-job op_collect_listing_details_periodical   # Collect listing details
+poetry run src/ubdc_airbnb/manage.py run-beat-job op_update_calendar_periodical          # Perform a calendar data harvest
 
-# Monitor active workers
-poetry run src/ubdc_airbnb/manage.py  worker_status
+# Perform a calendar data harvest but only for stale listings of that day. (useful for recovering if previous scan did not complete)
+poetry run src/ubdc_airbnb/manage.py run-beat-job op_update_calendar_periodical --arg=stale=true  
 
-# View harvest progress
-poetry run src/ubdc_airbnb/manage.py  harvest_progress --aoi_id 1
+# Manual data collection for specific listings
+poetry run src/ubdc_airbnb/manage.py scrape-listing-data --listing-id 123456 --calendar        # Get calendar data
+poetry run src/ubdc_airbnb/manage.py scrape-listing-data --listing-id 123456 --listing-detail  # Get listing details
 ```
+
+### Data Export
+```bash
+# Export listing data
+poetry run src/ubdc_airbnb/manage.py export-data --details --listing-id 123456 --output-file "details.jsonnl"
+poetry run src/ubdc_airbnb/manage.py export-data --calendar --listing-id 123456 --output-file "calendar.jsonnl"
+
+# Export options
+--only-latest    # Export only the latest response (default)
+--since DATE     # Export all responses since the specified date
+```
+
+>[!Note]
+> Most commands provide additional help information when run with the --help flag.
+> For example: `poetry run src/ubdc_airbnb/manage.py list-aoi --help`
+
+>[!Warning]
+> When running data collection commands manually, be mindful of rate limits and use appropriate proxy settings to avoid being blocked by Airbnb.
 
 ## GIS Integration
 
@@ -238,7 +266,7 @@ This project uses modern Python development tools:
 4. Once connected, all dependencies will be automatically installed
 
 >[!Note]
-> Check the files in .devcontainer for more information regarding the embedded development environment. 
+> Check the files in .devcontainer for more information regarding the embedded development environment.
 
 
 ### Verifying Your Setup
