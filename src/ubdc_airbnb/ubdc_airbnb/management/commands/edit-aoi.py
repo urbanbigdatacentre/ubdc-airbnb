@@ -1,7 +1,6 @@
-from django.core.management.base import BaseCommand, CommandError
-from django.utils import timezone
+from django.core.management.base import BaseCommand
 
-from ubdc_airbnb.models import AOIShape
+from . import int_to_aoi
 
 
 class Command(BaseCommand):
@@ -9,7 +8,8 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         # Required argument for AOI primary key
-        parser.add_argument("pk", type=int, help="Primary key of the AOI to edit")
+        parser.add_argument("pk", type=int_to_aoi, help="Primary key of the AOI to edit")
+        parser.add_argument("--delete", action="store_true", help="Delete the AOI")
 
         # Optional arguments for collection attributes
         collect_calendar_group = parser.add_mutually_exclusive_group(required=False)
@@ -25,29 +25,30 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        pk = options["pk"]
+        aoi = options["pk"]
 
-        try:
-            aoi = AOIShape.objects.get(pk=pk)
-        except AOIShape.DoesNotExist:
-            raise CommandError(f"AOI with primary key {pk} does not exist")
+        # TODO: Create test cases for --delete flag
+        if options["delete"]:
+            aoi.delete()
+            self.stdout.write(self.style.SUCCESS(f"Successfully deleted AOI {aoi.pk}"))
+            return
 
         # Process the collect calendars flag
         if options["calendars"]:
             aoi.collect_calendars = True
-            self.stdout.write(f"Setting collect to True for AOI {pk}")
+            self.stdout.write(f"Setting collect_calendars to True for AOI {aoi.pk}")
         elif options["no_calendars"]:
             aoi.collect_calendars = False
-            self.stdout.write(f"Setting collect to False for AOI {pk}")
+            self.stdout.write(f"Setting collect_calendars to False for AOI {aoi.pk}")
 
         # Process the collect listing details flag
         if options["listing_details"]:
             aoi.collect_listing_details = True
-            self.stdout.write(f"Setting collect_listing_details to True for AOI {pk}")
+            self.stdout.write(f"Setting collect_listing_details to True for AOI {aoi.pk}")
         elif options["no_listing_details"]:
             aoi.collect_listing_details = False
-            self.stdout.write(f"Setting collect_listing_details to False for AOI {pk}")
+            self.stdout.write(f"Setting collect_listing_details to False for AOI {aoi.pk}")
 
         # Save the AOI
         aoi.save()
-        self.stdout.write(self.style.SUCCESS(f"Successfully updated AOI {pk}"))
+        self.stdout.write(self.style.SUCCESS(f"Successfully updated AOI {aoi.pk}"))

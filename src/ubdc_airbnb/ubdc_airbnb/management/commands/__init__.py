@@ -1,25 +1,32 @@
+from django.core.management import CommandError
+
 from ubdc_airbnb.models import AirBnBListing, AOIShape
 
 
-def int_to_aoi(pk: int) -> AOIShape:
+def int_to_aoi(value) -> AOIShape:
     """
     Cast to AOI Object
     """
-    return AOIShape.objects.get(id=pk)
+    try:
+        return AOIShape.objects.get(pk=value)
+    except AOIShape.DoesNotExist:
+        raise CommandError(f"AOI with primary key {value} does not exist.")
 
 
 def int_to_listing(value) -> AirBnBListing:
     """
     Cast to AirBnBListing Object
     """
-    listing = AirBnBListing.objects.get(listing_id=value)
-
+    try:
+        listing = AirBnBListing.objects.get(listing_id=value)
+    except AirBnBListing.DoesNotExist:
+        raise CommandError(f"Listing with ID {value} does not exist.")
     return listing
 
 
 def get_beat_tasks():
     """
-    Return a list of all task names in the beat schedule. 
+    Return a list of all task names in the beat schedule.
     """
     from core.celery import app
 

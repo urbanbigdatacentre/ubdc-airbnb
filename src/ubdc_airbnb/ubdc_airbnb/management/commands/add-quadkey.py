@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 
 from ubdc_airbnb.models import UBDCGrid
+from ubdc_airbnb.utils.grids import clean_quadkeys
 
 
 class Command(BaseCommand):
@@ -12,6 +13,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         quadkey = kwargs["quadkey"]
-        grid = UBDCGrid.objects.create_from_quadkey(quadkey=quadkey)
+        quadkeys_to_add = clean_quadkeys(quadkey)
 
-        self.stdout.write(self.style.SUCCESS(f"Successfully added grid with quadkey: {quadkey}"))
+        for qk in quadkeys_to_add:
+            UBDCGrid.objects.create_from_quadkey(quadkey=qk)
+
+        self.stdout.write(
+            self.style.SUCCESS(f"Successfully added quadkey (or children) (added ({len(quadkeys_to_add)})")
+        )

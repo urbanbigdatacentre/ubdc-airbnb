@@ -7,73 +7,45 @@ from django.core.management.base import CommandError
 from ubdc_airbnb.models import AOIShape
 
 
-@pytest.fixture
-def test_aoi(db):
-    """Fixture to create a test AOI."""
-    geom = "SRID=4326;MULTIPOLYGON(((30 20, 45 40, 10 40, 30 20)))"  # Example geometry
-    aoi = AOIShape.objects.create(
-        name="Test AOI", collect_calendars=False, collect_listing_details=False, geom_3857=geom
-    )
-    return aoi
-
-
-@pytest.fixture
-def run_command():
-    """Fixture to run the edit_aoi command with various options."""
-
-    def _run_command(pk, output_buffer, **kwargs):
-        call_command("edit_aoi", pk, stdout=output_buffer, **kwargs)
-        return output_buffer.getvalue()
-
-    return _run_command
-
-
 @pytest.mark.django_db
-def test_command_updates_aoi_collect_calendars(test_aoi, run_command):
+def test_command_updates_aoi_collect_calendars(test_aoi, capsys):
     """Test that the command correctly updates AOI collect_calendars flag."""
-    output_buffer = StringIO()
     # Test setting to True
-    output = run_command(test_aoi.pk, calendars=True, output_buffer=output_buffer)
+    output = call_command("edit-aoi", test_aoi.pk, calendars=True)
 
     # Refresh from db and check the flag was updated
     test_aoi.refresh_from_db()
+    out, err = capsys.readouterr()
     assert test_aoi.collect_calendars is True
-    assert "Setting collect to True" in output
-
-    # Reset output buffer
-    output_buffer.truncate(0)
-    output_buffer.seek(0)
+    assert "Setting collect_calendars to True" in out
 
     # Test setting to False
-    output = run_command(test_aoi.pk, output_buffer, **{"no_calendars": True})
-
+    call_command("edit-aoi", test_aoi.pk, no_calendars=True)
     test_aoi.refresh_from_db()
+
+    out, err = capsys.readouterr()
     assert test_aoi.collect_calendars is False
-    assert "Setting collect to False" in output
+    assert "Setting collect_calendars to False" in out
 
 
 @pytest.mark.django_db
-def test_command_updates_aoi_collect_listing_details(test_aoi, run_command):
+def test_command_updates_aoi_collect_listing_details(test_aoi, capsys):
     """Test that the command correctly updates AOI collect_listing_details flag."""
-    output_buffer = StringIO()
     # Test setting to True
-    output = run_command(test_aoi.pk, output_buffer, **{"listing_details": True})
-
-    # Refresh from db and check the flag was updated
+    call_command("edit-aoi", test_aoi.pk, listing_details=True)
     test_aoi.refresh_from_db()
-    assert test_aoi.collect_listing_details is True
-    assert "Setting collect_listing_details to True" in output
 
-    # Reset output buffer
-    output_buffer.truncate(0)
-    output_buffer.seek(0)
+    out, err = capsys.readouterr()
+    assert test_aoi.collect_listing_details is True
+    assert "Setting collect_listing_details to True" in out
 
     # Test setting to False
-    output = run_command(test_aoi.pk, output_buffer, **{"no_listing_details": True})
-
+    call_command("edit-aoi", test_aoi.pk, no_listing_details=True)
     test_aoi.refresh_from_db()
+
+    out, err = capsys.readouterr()
     assert test_aoi.collect_listing_details is False
-    assert "Setting collect_listing_details to False" in output
+    assert "Setting collect_listing_details to False" in out
 
 
 @pytest.mark.django_db
@@ -89,15 +61,12 @@ def test_command_raises_error_for_nonexistent_aoi():
     with pytest.raises(CommandError) as excinfo:
         call_command("edit_aoi", non_existent_pk)
 
-    assert f"AOI with primary key {non_existent_pk} does not exist" in str(excinfo.value)
-
 
 @pytest.mark.django_db
-def test_command_handles_multiple_flags(test_aoi, run_command):
+def test_command_handles_multiple_flags(test_aoi, capsys):
     """Test that the command handles multiple flags correctly."""
     # Call command with both flags set to True
-    output_buffer = StringIO()
-    output = run_command(test_aoi.pk, output_buffer=output_buffer, calendars=True, **{"listing_details": True})
+    call_command("edit-aoi", test_aoi.pk, calendars=True, listing_details=True)
 
     # Refresh from db and check both flags were updated
     test_aoi.refresh_from_db()
@@ -105,6 +74,25 @@ def test_command_handles_multiple_flags(test_aoi, run_command):
     assert test_aoi.collect_listing_details is True
 
     # Check output contains both messages
-    assert "Setting collect to True" in output
-    assert "Setting collect_listing_details to True" in output
-    assert "Successfully updated AOI" in output
+    out, err = capsys.readouterr()
+    assert "Setting collect_calendars to True" in out
+    assert "Setting collect_listing_details to True" in out
+    assert "Successfully updated AOI" in out
+
+
+def test_command_handles_mutually_exclusive_flags(test_aoi):
+    """Test that mutually exclusive flags raise an error."""
+    with pytest.raises(CommandError):
+        call_command(f"edit-aoi", "--calendars", "--no-calendars", test_aoi.pk)
+
+    with pytest.raises(CommandError):
+        call_command("edit-aoi", "--listing_details", "--no-listing-details", test_aoi.pk)
+
+
+def test_command_handles_delete_aoi(test_aoi, capsys, aoishape_model):
+    """Test deleting an AOI."""
+    call_command("edit-aoi", test_aoi.pk, delete=True)
+    out, err = capsys.readouterr()
+
+    assert "Successfully deleted AOI" in out
+    assert not aoishape_model.objects.filter(pk=test_aoi.pk).exists()

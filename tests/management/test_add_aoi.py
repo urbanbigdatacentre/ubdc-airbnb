@@ -1,32 +1,90 @@
-from io import StringIO
-
 import pytest
 from django.core.management import call_command
+from django.core.management.base import CommandError
+
+from ubdc_airbnb.models import AOIShape
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    argnames="bbox,expected_aois",
-    argvalues=[
-        ["-1.0,-1.0,1.0,1.0", 1],  # valid bbox
-        ["0,0,1,1", 1],  # valid bbox
-        ["0,0,0,0", 0],  # zero bbox
-        ["5.0,6.0,7.0", 0],  # invalid bbox - missing coordinates
-        ["0.0,0.0,-1.0,-1.0", 1],  # valid bbox - wrong order
-        ["-1.0,-1.0,1.0,1.0,2.0", 0],  # invalid bbox - too many coordinates
+    "bbox,expected_success",
+    [
+        ("-1.0,-1.0,1.0,1.0", True),  # Valid bbox
+        ("0,0,1,1", True),  # Valid integer bbox
+        ("0,0,0,0", False),  # A degenerate polygon (zero area)
+        ("5.0,6.0,7.0", False),  # Missing coordinate
+        ("0.0,0.0,-1.0,-1.0", True),  # Valid but reversed coordinates
+        ("-1.0,-1.0,1.0,1.0,2.0", False),  # Too many coordinates
     ],
-    ids=["correct_bbox", "integer_bbox", "zero_bbox", "three_coordinates", "wrong_order", "too_many_coordinates"],
 )
-def test_add_aoi_bbox(bbox, expected_aois, aoishape_model, ubdcgrid_model):
-    """
-    Test the add-aoi command with a bounding box.
-    """
-
-    output = StringIO()
-    result = call_command("add-aoi", f"--bbox={bbox}", stdout=output)
-
-    assert aoishape_model.objects.count() == expected_aois
-    if expected_aois:
-        assert ubdcgrid_model.objects.count() > 0
+def test_add_aoi_with_bbox(bbox, expected_success, capsys):
+    """Test adding AOI using bounding box coordinates."""
+    if expected_success:
+        call_command("add-aoi", f"--bbox={bbox}")
+        out, err = capsys.readouterr()
+        assert err == ""
+        assert "Successfully added" in out
+        assert AOIShape.objects.count() == 1
     else:
-        assert ubdcgrid_model.objects.count() == 0
+        with pytest.raises(CommandError):
+            call_command("add-aoi", f"--bbox={bbox}")
+        assert AOIShape.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_add_aoi_with_name(capsys):
+    """Test adding AOI with a custom name."""
+    bbox = "0,0,1,1"
+    name = "Test Area"
+
+    call_command("add-aoi", f"--bbox={bbox}", f"--name={name}")
+    out, err = capsys.readouterr()
+
+    assert "Successfully added" in out
+    aoi = AOIShape.objects.first()
+    assert aoi is not None
+    assert aoi.name == name
+
+
+@pytest.mark.django_db
+def test_add_aoi_with_description(capsys):
+    """Test adding AOI with a description."""
+    bbox = "0,0,1,1"
+    description = "Test Description"
+
+    call_command(
+        "add-aoi",
+        f"--bbox={bbox}",
+        f"--description={description}",
+    )
+    out, err = capsys.readouterr()
+
+    assert "Successfully added" in out
+    aoi = AOIShape.objects.first()
+    assert aoi is not None
+    assert aoi.notes.get("description") == description
+
+
+@pytest.mark.django_db
+def test_add_aoi_without_required_args(capsys):
+    """Test that command fails when no required arguments are provided."""
+    with pytest.raises(CommandError):
+        call_command("add-aoi")
+
+
+@pytest.mark.django_db
+def test_add_aoi_creates_grids(capsys):
+    """Test that adding an AOI creates associated grids."""
+    bbox = "0,0,1,1"
+
+    call_command("add-aoi", f"--bbox={bbox}")
+    out, err = capsys.readouterr()
+
+    assert "Successfully added" in out
+    assert "Created" in out
+    call_command("add-aoi", f"--bbox={bbox}")
+    out, err = capsys.readouterr()
+
+    assert "Successfully added" in out
+    assert "Created" in out
+    assert "grids for AOI" in out

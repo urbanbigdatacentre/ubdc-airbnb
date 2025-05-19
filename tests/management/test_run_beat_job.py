@@ -1,8 +1,9 @@
 import warnings
-from io import StringIO
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.core.management import call_command
+from django.core.management.base import CommandError
 
 BEAT_EXPECTED_NUMBER_OF_ENTRIES = 4
 
@@ -21,34 +22,34 @@ def test_get_beat_entries():
 
 @pytest.mark.parametrize(
     "job_name",
-    [
+    argvalues=[
         "op_update_listing_details_periodical",
         "op_update_calendar_periodical",
         "op_discover_new_listings_periodical",
     ],
+    ids=["listing_details", "calendar", "discover_new_listings"],
 )
 @pytest.mark.parametrize("args", [None, "--arg", "--arg=arg1=val1", "--arg=arg1=val1 --arg=arg2=val2"])
-def test_run_beat_job(mocker, job_name, args):
+def test_run_beat_job(mocker, job_name, args, capsys):
     from celery.app.task import Task
 
-    m_sig = mocker.patch.object(Task, "s")
-    # m_sig.id.return_value = "test-id"
-    # m_job = m_sig.apply_async()
+    mock_s = mocker.patch.object(Task, "s")
 
     from django.core.management import call_command
 
-    out = StringIO()
-    if args is None:
-        call_command("run-beat-job", job_name, stdout=out)
-    else:
-        call_command("run-beat-job", job_name, *args.split(" "), stdout=out)
+    arg_list = args.split() if args else []
+
+    call_command("run-beat-job", job_name, *arg_list)
+    out, err = capsys.readouterr()
 
     # Checking the kwargs works but no tests
-    assert m_sig().mock_calls[0][0] == "apply_async"
-    assert m_sig().mock_calls[1][0] == "apply_async().id.__str__"
+    assert mock_s().mock_calls[0][0] == "apply_async"
+    assert mock_s().mock_calls[1][0] == "apply_async().id.__str__"
+    for arg in arg_list:
+        if "=" in arg:
+            _, k, v = arg.split("=")
+            assert k in mock_s.call_args_list[0].kwargs
+            assert mock_s.call_args_list[0].kwargs[k] == v
 
-    out.seek(0)
-    captured_out = out.read()
-
-    assert len(captured_out) > 0
+    assert job_name in out
     assert "Sent Celery Beat Task"
