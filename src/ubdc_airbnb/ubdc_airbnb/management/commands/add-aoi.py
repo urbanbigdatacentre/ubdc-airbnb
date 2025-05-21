@@ -27,7 +27,7 @@ class Command(BaseCommand):
             help="Description of the AOI",
         )
         group = parser.add_mutually_exclusive_group(required=True)
-        # Add more methos of importing AOIs; all mutally exclusive
+        # Add more methods of importing AOIs; all mutually exclusive
         group.add_argument(
             "--bbox",
             type=str,
