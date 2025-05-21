@@ -18,6 +18,4 @@ class Command(BaseCommand):
         for qk in quadkeys_to_add:
             UBDCGrid.objects.create_from_quadkey(quadkey=qk)
 
-        self.stdout.write(
-            self.style.SUCCESS(f"Successfully added {len(quadkeys_to_add)} quadkeys.")
-        )
+        self.stdout.write(self.style.SUCCESS(f"Successfully added {len(quadkeys_to_add)} quadkeys."))
