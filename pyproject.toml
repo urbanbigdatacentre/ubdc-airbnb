@@ -5,6 +5,12 @@ build-backend = "poetry.core.masonry.api"
 [tool.black]
 line-length = 120
 
+[tool.ruff]
+line-length = 120
+[tool.ruff.format]
+line-ending='lf'
+indent-style='tab'
+
 [tool.isort]
 profile = "black"
 
