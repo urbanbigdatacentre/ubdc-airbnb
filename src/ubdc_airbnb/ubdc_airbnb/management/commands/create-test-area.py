@@ -10,7 +10,13 @@ def generate_random_string(length=5):
 
 
 class Command(BaseCommand):
-    help = "Do you need a test area? This command will create one for you based on the quadkey you provide."
+    help = """
+    Do you need a test area? This command will create one for you based on the quadkey you provide.
+    
+    You can find a quadkey at 'https://labs.mapbox.com/what-the-tile/'
+    
+    This is useful for testing purposes.
+    """
 
     def add_arguments(self, parser):
         parser.add_argument("quadkey", type=str, help="Quadkey parameter (must start with 0)")

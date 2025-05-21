@@ -13,9 +13,11 @@ The UBDC Airbnb Data Collection System is a containerized application designed t
 ## Quick Start Guide
 
 ### Prerequisites
-- Docker and Docker Compose
 - Git
+- Docker and Docker Compose
 - Basic understanding of command-line interfaces
+- (Optional) A dedicated postgreSQL/PostGIS database
+- (Optional) A subscription to smart proxy service for IP rotation
 
 ### Installation
 
@@ -32,53 +34,194 @@ The UBDC Airbnb Data Collection System is a containerized application designed t
 
 3. **Configure environment variables**
    ```bash
+   # Edit .env file and set the required values
    cp .env.example .env
-   # Edit .env file to set required configuration values
    ```
 
 4. **Start the system**
    ```bash
    # Launch database, message broker, and worker
-   docker compose -f docker/local-service.yml --profile all up
+   # the -d flag runs the containers in detached mode (background)
+   docker compose -f docker-compose.yml -d --profile all up
    ```
 
-5. **Scale workers (optional)**
+5. **(optional) Scale workers**
    ```bash
    # Increase number of workers to handle more concurrent tasks
-   docker compose -f docker/local-service.yml --scale worker=3
+   docker compose -f docker-compose.yml --scale worker=3
    ```
 
 ## Data Collection Workflow
 
-### 1. Define Areas of Interest
+### 1. Activate the Virtual Environment
+```bash
+# requires pipx
+make install-env
+```
+
+### 2. Define Areas of Interest
 
 ```bash
 # Add a new geographic area to collect data from
-python manage.py add-aoi --name "City Center" --geojson "path/to/geojson/file.geojson"
+poetry run src/ubdc_airbnb/manage.py add-aoi --name "City Center" --geojson "path/to/geojson/file.geojson"
 ```
+```bash
 # List all configured areas
-python manage.py list-aoi
+poetry run src/ubdc_airbnb/manage.py  list-aoi
 ```
 
-### 2. Configure Collection Parameters
+### 3. Configure Collection Parameters
 
 ```bash
 # Enable different collection activities for an area
-python manage.py edit-aoi --aoi-id 1 --enable-discovery
-python manage.py edit-aoi --aoi-id 1 --enable-calendar-harvest
-python manage.py edit-aoi --aoi-id 1 --enable-listing-details
+poetry run src/ubdc_airbnb/manage.py  edit-aoi --aoi-id 1 --enable-discovery
+poetry run src/ubdc_airbnb/manage.py  edit-aoi --aoi-id 1 --enable-calendar-harvest
+poetry run src/ubdc_airbnb/manage.py  edit-aoi --aoi-id 1 --enable-listing-details
 ```
 
-### 3. View and Extract Data
+### 5.  Collect Data from an Area
 
 ```bash
-# View listings in an area
-python manage.py print-listings --aoi-id 1
-
-# Manually scrape specific listing data
-python manage.py scrape-listing-data --listing-id 123456 --calendar
-python manage.py scrape-listing-data --listing-id 123456 --details
+# Discover any new listings in the discovery enabled areas
+poetry run src/ubdc_airbnb/manage.py  run-beat-job op_discover_new_listings_periodical
 ```
+
+```bash
+# Collected list-details for the listings in the `enable-listing-details` areas
+poetry run src/ubdc_airbnb/manage.py run-beat-job op_collect_listing_details_periodical
+```
+
+```bash
+# Collected calendar data for the listings in the `enable-calendar-harvest` areas
+poetry run src/ubdc_airbnb/manage.py run-beat-job op_update_calendar_periodical
+```
+
+Alternatively, if you know if you know the listing ID of a listing you want to scrape, you can run the following commands:
+
+```bash
+# Manually scrape specific listing data
+poetry run src/ubdc_airbnb/manage.py  scrape-listing-data --calendar --listing-id 123456
+poetry run src/ubdc_airbnb/manage.py  scrape-listing-data --details  --listing-id 123456
+```
+
+>[!Warning]
+> If you are not using a smart proxy service, you WILL be time-banned by Airbnb.
+
+>[!Note]
+> if you have `beat` enabled, the above commands will be run automatically acording to the schedule defined
+
+### 6. Extract Data
+
+```bash
+# Export the responses to a jsonnl file for further analysis
+# you can use:
+# --only-latest: to only export the latest response (default) or
+# --since: to export all responses since a given date
+poetry run src/ubdc_airbnb/manage.py  export-data --details  --listing-id 123456 --output-file "details_listing_123456.jsonnl"
+```
+
+```bash
+# same as above but for calendar data
+poetry run src/ubdc_airbnb/manage.py  export-data --calendar --listing-id 123456 --output-file "calendar_listing_123456.jsonnl"
+```
+### 7. Delete an Area of Interest
+
+```bash
+poetry run src/ubdc_airbnb/manage.py  edit-aoi --aoi-id 1 --delete
+```
+
+
+## Deployment Options
+
+### Single-Host Deployment
+Ideal for small to medium research projects:
+- All components run on a single machine
+- Uses Docker Compose for orchestration
+- Supports multiple workers with a single scheduler
+
+### Docker Swarm Deployment
+For large-scale data collection operations:
+- Distributed across multiple hosts
+- Enhanced reliability and failover capabilities
+- Production-ready configuration
+- Horizontally scalable worker nodes
+
+## Advanced Management Commands
+
+The system provides a comprehensive set of management commands for advanced operations and monitoring:
+
+### Area of Interest (AOI) Management
+```bash
+# List all configured areas with various options
+poetry run src/ubdc_airbnb/manage.py list-aoi                           # Basic list
+poetry run src/ubdc_airbnb/manage.py list-aoi --csv                    # Export as CSV to stdout
+poetry run src/ubdc_airbnb/manage.py list-aoi --output aois.csv        # Export to CSV file
+poetry run src/ubdc_airbnb/manage.py list-aoi --filter "City"          # Filter by name
+poetry run src/ubdc_airbnb/manage.py list-aoi --limit 10               # Limit results
+
+# Add new AOIs
+poetry run src/ubdc_airbnb/manage.py add-aoi --name "City Center" --geojson "path/to/file.geojson"
+poetry run src/ubdc_airbnb/manage.py add-aoi --name "Test Area" --bbox "1.0,2.0,3.0,4.0"
+
+# Manage AOI collection settings
+poetry run src/ubdc_airbnb/manage.py edit-aoi --aoi-id 1 --calendars           # Enable calendar collection
+poetry run src/ubdc_airbnb/manage.py edit-aoi --aoi-id 1 --no-calendars        # Disable calendar collection
+poetry run src/ubdc_airbnb/manage.py edit-aoi --aoi-id 1 --listing-details     # Enable listing details collection
+poetry run src/ubdc_airbnb/manage.py edit-aoi --aoi-id 1 --no-listing-details  # Disable listing details collection
+poetry run src/ubdc_airbnb/manage.py edit-aoi --aoi-id 1 --delete             # Delete an AOI
+```
+
+### Grid Management and Scanning
+```bash
+# Add and scan quadkey grids
+poetry run src/ubdc_airbnb/manage.py add-quadkey 0121111121              # Add a new quadkey grid
+poetry run src/ubdc_airbnb/manage.py find-listings 0121111121             # Scan a grid for listings
+
+# Create test areas (for development)
+poetry run src/ubdc_airbnb/manage.py create-test-area 120210233         # Create a test area from a quadkey
+```
+
+### Data Collection Operations
+```bash
+# Run periodic collection jobs
+poetry run src/ubdc_airbnb/manage.py run-beat-job op_discover_new_listings_periodical     # Discover new listings
+poetry run src/ubdc_airbnb/manage.py run-beat-job op_collect_listing_details_periodical   # Collect listing details
+poetry run src/ubdc_airbnb/manage.py run-beat-job op_update_calendar_periodical          # Perform a calendar data harvest
+
+# Perform a calendar data harvest but only for stale listings of that day. (useful for recovering if previous scan did not complete)
+poetry run src/ubdc_airbnb/manage.py run-beat-job op_update_calendar_periodical --arg=stale=true  
+
+# Manual data collection for specific listings
+poetry run src/ubdc_airbnb/manage.py scrape-listing-data --listing-id 123456 --calendar        # Get calendar data
+poetry run src/ubdc_airbnb/manage.py scrape-listing-data --listing-id 123456 --listing-detail  # Get listing details
+```
+
+### Data Export
+```bash
+# Export listing data
+poetry run src/ubdc_airbnb/manage.py export-data --details --listing-id 123456 --output-file "details.jsonnl"
+poetry run src/ubdc_airbnb/manage.py export-data --calendar --listing-id 123456 --output-file "calendar.jsonnl"
+
+# Export options
+--only-latest    # Export only the latest response (default)
+--since DATE     # Export all responses since the specified date
+```
+
+>[!Note]
+> Most commands provide additional help information when run with the --help flag.
+> For example: `poetry run src/ubdc_airbnb/manage.py list-aoi --help`
+
+>[!Warning]
+> When running data collection commands manually, be mindful of rate limits and use appropriate proxy settings to avoid being blocked by Airbnb.
+
+## GIS Integration
+
+All collected data is stored in a PostGIS-enabled database, allowing for:
+- Spatial analysis and visualization in GIS applications like QGIS
+- Custom PostgreSQL user-defined functions for specialized geospatial queries
+- Integration with other spatial data sources
+
+# Development Guide
 
 ## System Architecture
 
@@ -106,69 +249,7 @@ The system follows a service-oriented architecture with three core components:
 - **Scheduler**: Initiates and coordinates harvesting tasks (single instance)
 - **Worker**: Executes data collection tasks and interacts with Airbnb API (horizontally scalable)
 
-## Deployment Options
 
-### Single-Host Deployment
-Ideal for small to medium research projects:
-- All components run on a single machine
-- Uses Docker Compose for orchestration
-- Supports multiple workers with a single scheduler
-
-### Docker Swarm Deployment
-For large-scale data collection operations:
-- Distributed across multiple hosts
-- Enhanced reliability and failover capabilities
-- Production-ready configuration
-- Horizontally scalable worker nodes
-
-## Advanced Management Commands
-
-Beyond the basic workflow, the system offers additional management commands for operation and monitoring:
-
-### Area of Interest (AOI) Management
-```bash
-# Add AOI using latitude/longitude and radius
-python manage.py add_aoi --name "City Center" --lat 55.9533 --lon -3.1883 --radius 2000
-
-# Remove an AOI
-python manage.py remove_aoi --aoi_id 1
-```
-
-### Harvesting Operations
-```bash
-# Initialize a new harvest operation
-python manage.py init_harvest --aoi_id 1
-
-# Start discovery of listings in an area
-python manage.py discover_listings --aoi_id 1
-
-# Gather details for a specific listing
-python manage.py gather_details --listing_id 123456
-
-# Collect calendar availability for a date range
-python manage.py gather_calendar --listing_id 123456 --start_date 2024-01-01 --end_date 2024-12-31
-```
-
-### Monitoring and Management
-```bash
-# Check system status
-python manage.py system_status
-
-# Monitor active workers
-python manage.py worker_status
-
-# View harvest progress
-python manage.py harvest_progress --aoi_id 1
-```
-
-## GIS Integration
-
-All collected data is stored in a PostGIS-enabled database, allowing for:
-- Spatial analysis and visualization in GIS applications like QGIS
-- Custom PostgreSQL user-defined functions for specialized geospatial queries
-- Integration with other spatial data sources
-
-## Development Guide
 
 ### Environment Setup
 
@@ -185,7 +266,7 @@ This project uses modern Python development tools:
 4. Once connected, all dependencies will be automatically installed
 
 >[!Note]
-> Check the files in .devcontainer for more information regarding the embedded development environment. 
+> Check the files in .devcontainer for more information regarding the embedded development environment.
 
 
 ### Verifying Your Setup

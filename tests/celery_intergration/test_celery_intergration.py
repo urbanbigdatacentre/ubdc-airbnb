@@ -6,8 +6,6 @@ from celery.result import AsyncResult
 
 from ubdc_airbnb.tasks import task_debug_sometimes_fail, task_debug_wait
 
-# from . import UBDCBaseTestWorker
-
 
 @pytest.mark.django_db(transaction=True)
 def test_expire(

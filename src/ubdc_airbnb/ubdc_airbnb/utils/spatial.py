@@ -9,6 +9,7 @@ from django.contrib.gis.geos import Point as GEOSPoint
 from django.db import connection
 from django.db.models import Aggregate, Subquery
 from jsonpath_ng import parse
+from mercantile import LngLatBbox
 from more_itertools import sliced
 
 
@@ -17,6 +18,33 @@ class ST_Union(Aggregate):
     function = "ST_UNION"
     allow_distinct = False
     arity = 1
+
+
+def get_geom_from_bbox(bbox: LngLatBbox) -> GEOSMultiPolygon | None:
+    """
+    Returns a GEOSMultiPolygon object from a mercantile LngLatBbox object.
+
+    None if the bbox is invalid.
+
+    """
+    from django.contrib.gis.geos import MultiPoint
+    from django.contrib.gis.geos import Point as GEOSPoint
+
+    SRID = 4326
+
+    p1 = GEOSPoint(bbox.west, bbox.south)
+    p2 = GEOSPoint(bbox.east, bbox.south)
+    p3 = GEOSPoint(bbox.west, bbox.north)
+    p4 = GEOSPoint(bbox.east, bbox.north)
+    multipoint = MultiPoint(p1, p2, p3, p4)
+
+    boundary = multipoint.convex_hull
+
+    if boundary.geom_type == "Polygon":
+        return GEOSMultiPolygon(boundary, srid=SRID)
+
+    # invalid geometry
+    return
 
 
 def get_world_cross() -> GEOSMultiLineString:

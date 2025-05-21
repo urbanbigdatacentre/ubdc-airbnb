@@ -1,59 +1,72 @@
-import glob
-import os
-from datetime import datetime
-from pathlib import Path
-
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from mercantile import LngLatBbox
 
 from ubdc_airbnb.models import AOIShape
-
-from . import _GeoFileHandler
-
-# from ubdc_airbnb.utils.grids import generate_initial_grid
-
-
-def add_file(geo_file) -> AOIShape:
-    geo_object = _GeoFileHandler(geo_file)
-
-    try:
-        username = os.getlogin()
-    except:
-        username = "unknown"
-
-    aoi_obj = AOIShape.objects.create(
-        geom_3857=geo_object.convert(),
-        name=geo_object.name,
-        notes={
-            "user": username,
-            "path": Path(geo_file).parent.as_posix(),
-            "name": Path(geo_file).name,
-            "import_date": datetime.utcnow(),
-        },
-    )
-    return aoi_obj
+from ubdc_airbnb.utils import get_random_string
+from ubdc_airbnb.utils.spatial import get_geom_from_bbox
 
 
 class Command(BaseCommand):
-    help = """Import an Area-Of-Interest Boundary into the system.
-    - The boundary must be a Polygon or MultiPolygon.
-    - The file must be a Shapefile or GeoJSON.
+    help = """
+    Import an Area-Of-Interest Boundary into the system.
+
+    The boundary must be a Polygon or MultiPolygon.
+    Coordinates must be in WGS84 (EPSG:4326).
     """
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--create-grid",
-            help="create initial grid after writing the geo-files. Default is False",
-            dest="create_grid",
-            action="store_true",
-        )
-        parser.set_defaults(create_grid=False)
-        parser.add_argument(
-            "--geo-file",
+            "--name",
             type=str,
-            help="Path to file to be stored; Files are parsed by glob. Example: **/*.shp",
+            help="Name of the AOI",
+        )
+        parser.add_argument(
+            "--description",
+            type=str,
+            help="Description of the AOI",
+        )
+        group = parser.add_mutually_exclusive_group(required=True)
+        # Add more methods of importing AOIs; all mutually exclusive
+        group.add_argument(
+            "--bbox",
+            type=str,
+            help="Bounding that can be used to create an AOI. e.g '1.0,2.0,3.0,4.0' (minx,miny,maxx,maxy)",
         )
 
     def handle(self, *args, **options):
-        # not implemented yet
-        pass
+        file_type = None
+        geom = None
+        name = options["name"] or f"AOI-{get_random_string(8)}"
+        description = options["description"] or "Imported AOI"
+        notes = {
+            "description": description,
+        }
+
+        if options["bbox"]:
+            bbox = options["bbox"]
+            coords = bbox.split(",")
+            if len(coords) != 4:
+                msg = "Bounding box must have 4 coordinates (minx,miny,maxx,maxy)"
+                raise CommandError(msg)
+            geom = get_geom_from_bbox(LngLatBbox(*map(float, coords)))
+
+        if geom is None:
+            msg = "Invalid geometry provided"
+            raise CommandError(msg)
+
+        geom_3857 = geom.transform(3857, clone=True)
+
+        # Add the new AOI
+        try:
+            with transaction.atomic():
+                aoi = AOIShape.objects.create(
+                    name=name,
+                    notes=notes,
+                    geom_3857=geom_3857,
+                )
+                self.stdout.write(self.style.SUCCESS(f'Successfully added {file_type} AOI "{aoi.name}" (ID: {aoi.pk})'))
+                new_grids_number = aoi.create_grid()
+                self.stdout.write(self.style.SUCCESS(f'Created {new_grids_number} grids for AOI "{aoi.name}"'))
+        except Exception as e:
+            self.stderr.write(self.style.ERROR(f"Failed to add AOI: {str(e)}"))

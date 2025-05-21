@@ -1,3 +1,6 @@
+# don't change this command:
+# its used to recover from failed task
+
 from datetime import datetime
 
 from django.core.management.base import BaseCommand
@@ -17,7 +20,11 @@ def kv_arg(arg):
 
 
 class Command(BaseCommand):
-    help = "Run a Celery Beat Job"
+    help = """
+    Run a Celery Beat Job. Parameters can be passed as key=value pairs which will be passed to the job. 
+    
+    example: python manage.py run-beat-job op_update_calendar_periodical --arg=stale=true
+    """
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -52,4 +59,4 @@ class Command(BaseCommand):
         job = sig.apply_async()
         tick = datetime.now().isoformat()
         self.stdout.write(self.style.SUCCESS(f"{task.name}"))
-        self.stdout.write(self.style.SUCCESS(f"{tick} - Sent Celery Beat ( Task {job.id}."))
+        self.stdout.write(self.style.SUCCESS(f"{tick} - Sent Celery Beat (Task: {job.id})"))

@@ -163,8 +163,12 @@ class AOIShape(models.Model):
         # will be Tile(x=0, y=0, z=0).
         return mercantile.bounding_tile(*bbox)
 
-    def create_grid(self) -> bool:
-        "Create Grids from this AOI. The grids will be automatically sized based on existing grids. Returns True if successful."
+    def create_grid(self) -> int:
+        """
+        Create Grids for this AOI. The grids will be automatically sized.
+
+        Returns number of new grids.
+        """
         from itertools import chain
 
         from ubdc_airbnb.utils.grids import clean_quadkeys, quadkeys_of_geom
@@ -185,9 +189,9 @@ class AOIShape(models.Model):
         objs = [UBDCGrid.objects.model_from_quadkey(qk) for qk in qks]
 
         # bulk save them
-        UBDCGrid.objects.bulk_create(objs)
+        new_grids = UBDCGrid.objects.bulk_create(objs)
 
-        return True
+        return len(new_grids)
 
     @property
     def listings(self) -> QuerySet:

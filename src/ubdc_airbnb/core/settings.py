@@ -7,7 +7,6 @@ SECRET_KEY = "!@%ff)awnl(dx)6!!$zrdd9=l_6b76vl+*pw2jj54vljjiz2-y"
 
 # APP SETTINGS
 CELERY_TASK_CHUNK_SIZE = os.getenv("ENTRIES_PER_GROUP_TASK", 100)
-AIRBNB_APP_VERSION = os.getenv("APP_VERSION", "-")
 AIRBNB_API_ENDPOINT = os.getenv("AIRBNB_API_ENDPOINT", "https://www.airbnb.co.uk/api")
 AIRBNB_PUBLIC_API_KEY = os.getenv("AIRBNB_PUBLIC_API_KEY", "d306zoyjsyarp7ifhu67rjxn52tv0t20")
 AIRBNB_LISTINGS_MOVED_MIN_DISTANCE = os.getenv("AIRBNB_LISTINGS_MOVED_MIN_DISTANCE", 150)
@@ -17,8 +16,6 @@ if ZYTE_API_KEY:
     AIRBNB_PROXY = f"http://{ZYTE_API_KEY}:@proxy.crawlera.com:8011"
 else:
     AIRBNB_PROXY = None
-    message = f"No proxy is set. Not using a proxy could lead Airbnb QoS to be activated."
-    warnings.warn(message)
 
 EXTRA_HEADERS = {x.replace("_", "-"): os.environ[x] for x in os.environ if x.startswith("PROXY_HEADER_")}
 

@@ -7,6 +7,17 @@ help:
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m\033[0m\n"} /^[$$()% a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 
+install-env: ## Install the environment
+# pipx is present by default if using dev containers
+	@echo "Making sure manage.py is executable..."
+	chmod +x src/ubdc_airbnb/manage.py
+	@echo "Installing tooling.."
+	pipx install poetry
+	pipx install black
+	pipx install isort
+	@echo "Installing dependencies..."
+	poetry install
+
 build-image: ## Build the docker image  
 	docker build  -t ubdc/$(PROJECT_NAME):$(COMMIT) .
 
