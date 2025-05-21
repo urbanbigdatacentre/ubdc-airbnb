@@ -59,4 +59,4 @@ class Command(BaseCommand):
         job = sig.apply_async()
         tick = datetime.now().isoformat()
         self.stdout.write(self.style.SUCCESS(f"{task.name}"))
-        self.stdout.write(self.style.SUCCESS(f"{tick} - Sent Celery Beat (Task: {job.id} )"))
+        self.stdout.write(self.style.SUCCESS(f"{tick} - Sent Celery Beat (Task: {job.id})"))
