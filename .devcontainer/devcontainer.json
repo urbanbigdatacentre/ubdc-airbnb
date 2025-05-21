@@ -9,7 +9,8 @@
     "ghcr.io/devcontainers-contrib/features/pipx-package:1": {},
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
     "ghcr.io/devcontainers-contrib/features/pre-commit:2": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers-extra/features/go-task:1": {}
   },
 
   // Features to add to the dev container. More info: https://containers.dev/features.
@@ -26,7 +27,6 @@
     "vscode": {
       "extensions": [
         "tamasfe.even-better-toml",
-        "ms-python.isort",
         "ms-python.black-formatter",
         "ms-python.python",
         "ms-vscode.makefile-tools"
