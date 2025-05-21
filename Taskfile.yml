@@ -1,0 +1,56 @@
+version: '3'
+
+vars:
+  COMMIT:
+    sh: git rev-parse --short HEAD
+  IMAGE_NAME: "ubdc/ubdc-airbnb:{{.COMMIT}}"
+  PWD:
+    sh: pwd
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  _install-poetry:
+    desc: Install poetry
+    internal: true
+    cmds:
+      - pipx install poetry
+
+  make-image:
+    desc: Build the docker image
+    cmds:
+      - "docker build -t {{.IMAGE_NAME}} ."
+
+  push-image:
+    desc: Push the docker image to the registry
+    deps: [make-image]
+    cmds:
+      - "docker push {{.IMAGE_NAME}}"
+
+  install-dev-env:
+    desc: Install a development environment
+    deps: [_install-poetry] 
+    cmds:
+      - poetry install --with dev
+
+  test:
+    desc: Run tests
+    deps: [install-dev-env]
+    cmds:
+      - poetry run pytest
+
+  lint:
+    desc: lint
+    env:
+      RUFF: docker run --rm -v {{.USER_WORKING_DIR}}:/app --workdir /app ghcr.io/astral-sh/ruff:latest 
+    cmds:
+      - $RUFF format --check src/ tests/
+      - $RUFF check src/ tests/
+
+  run-gh-action:
+    desc: Run GitHub action
+    cmds:
+      - gh act pull_request 
+
